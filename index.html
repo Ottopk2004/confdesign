@@ -630,7 +630,7 @@ function render() {
         <div class="who">Logged in as #${escHtml(loginNr)}</div>
         <a href="login.html" style="text-decoration:none;"><button>Log out</button></a>
       </div>
-      <div class="tab-bar">${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}${meta.modules?.evaluations ? `<div class="tab-btn ${participantTab === 'evaluations' ? 'active' : ''}" onclick="switchParticipantTab('evaluations')">✓ Evaluate</div>` : ''}</div>
+      <div class="tab-bar">${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}</div>
       <div class="panel-scroll" id="participantScroll">
         ${renderParticipantModule(participantTab)}
       </div>
