@@ -63,11 +63,8 @@
     opacity: .85; margin-bottom: 6px; display:flex; align-items:center; justify-content:space-between;
   }
   .conf-header h1 { font-size: 19px; margin-bottom: 4px; }
-  .conference-brand { display:flex; align-items:center; gap:14px; min-width:0; }
-  .conference-logo-wrap { flex:0 0 auto; width:72px; height:72px; display:flex; align-items:center; justify-content:center; }
-  .conference-logo { width:72px; height:72px; max-width:72px; max-height:72px; object-fit:contain; display:block; border-radius:8px; }
-  .conference-title-wrap { min-width:0; }
-  .conference-title-wrap h1 { margin:0; }
+  .conference-logo-wrap { margin-bottom:12px; }
+  .conference-logo { max-width:180px; max-height:80px; object-fit:contain; display:block; border-radius:8px; }
   .conf-header .dates { font-size: 14px; color:var(--pf-muted); }
   .mode-badge {
     background: rgba(255,255,255,0.2);
@@ -524,16 +521,6 @@ function conferenceLogoHtml(meta){
   const logoUrl=`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/branding`;
   return `<div class="conference-logo-wrap"><img class="conference-logo" src="${escHtml(logoUrl)}" alt="Conference logo"></div>`;
 }
-function conferenceHeaderHtml(meta, eyebrowHtml, badgeHtml=""){
-  return `<div class="conference-brand">
-    ${conferenceLogoHtml(meta)}
-    <div class="conference-title-wrap">
-      <div class="eyebrow">${eyebrowHtml}${badgeHtml}</div>
-      <h1>${escHtml(meta.name)}</h1>
-      <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
-    </div>
-  </div>`;
-}
 
 function render() {
   const shell = document.getElementById("shell");
@@ -578,7 +565,9 @@ function render() {
   if (mode === "organizer-login") {
     setHtmlPreservingFocus(shell, `
       <div class="conf-header">
-        ${conferenceHeaderHtml(meta, '<span>Organizer access</span>')}
+        <div class="eyebrow"><span>Organizer access</span></div>
+        <h1>${escHtml(meta.name)}</h1>
+        <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
       </div>
       <div class="login-body">
         <div class="login-label">Admin PIN</div>
@@ -600,7 +589,10 @@ function render() {
     if (!tabs.some(t => t.key === participantTab)) participantTab = "schedule";
     setHtmlPreservingFocus(shell, `
       <div class="conf-header">
-        ${conferenceHeaderHtml(meta, '<span>Programme</span>', '<span class="mode-badge">Participant</span>')}
+        ${conferenceLogoHtml(meta)}
+        <div class="eyebrow"><span>Programme</span><span class="mode-badge">Participant</span></div>
+        <h1>${escHtml(meta.name)}</h1>
+        <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
       </div>
       <div class="toolbar">
         <div class="who">Logged in as #${escHtml(loginNr)}</div>
@@ -668,7 +660,8 @@ function resetQuizParticipantState() {
 function resetRegistrationState(){registrationChecked=false;registrationRegistered=false;registrationEmailInput="";registrationLoading=false;registrationError="";participantEmail="";}
 function resetEvaluationState(){evaluationConfig=null;evaluationLoading=false;evaluationState={participantNr:"",postId:"",passed:null,comment:"",submitting:false,message:"",error:false};}
 function loadRegistrationStatus(){registrationLoading=true;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){registrationChecked=true;registrationRegistered=false;registrationLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/registration?nr=${encodeURIComponent(loginNr)}`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't check registration.");registrationChecked=true;registrationRegistered=!!d.registered;registrationLoading=false;if(registrationRegistered)participantEmail="";rerenderParticipantScroll();}).catch(e=>{registrationLoading=false;registrationError=e.message;rerenderParticipantScroll();});}
-function submitRegistration(){const email=registrationEmailInput.trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){registrationError="Enter a valid email address.";rerenderParticipantScroll();return;}registrationLoading=true;registrationError="";rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){registrationChecked=true;registrationRegistered=true;participantEmail=email;registrationLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/registration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nr:loginNr,email})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't register.");registrationChecked=true;registrationRegistered=true;participantEmail=email;registrationLoading=false;rerenderParticipantScroll();}).catch(e=>{registrationLoading=false;registrationError=e.message;rerenderParticipantScroll();});}
+function isValidEmail(value){const email=String(value||"").trim();if(!email||email.length>254||/\s/.test(email))return false;const at=email.indexOf("@");if(at<=0||at!==email.lastIndexOf("@")||at===email.length-1)return false;const local=email.slice(0,at),domain=email.slice(at+1);if(!local||local.length>64||local.startsWith(".")||local.endsWith(".")||local.includes(".."))return false;if(!/^[^@]+$/.test(local))return false;if(!/^[A-Za-z0-9.-]+$/.test(domain)||domain.startsWith(".")||domain.endsWith(".")||domain.includes(".."))return false;const labels=domain.split(".");return labels.length>=2&&labels.every(label=>label.length>0&&!label.startsWith("-")&&!label.endsWith("-"));}
+function submitRegistration(){const email=registrationEmailInput.trim();if(!isValidEmail(email)){registrationError="Enter a valid email address, e.g. name@example.com.";rerenderParticipantScroll();return;}registrationLoading=true;registrationError="";rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){registrationChecked=true;registrationRegistered=true;participantEmail=email;registrationLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/registration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nr:loginNr,email})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't register.");registrationChecked=true;registrationRegistered=true;participantEmail=email;registrationLoading=false;rerenderParticipantScroll();}).catch(e=>{registrationLoading=false;registrationError=e.message;rerenderParticipantScroll();});}
 function renderRegistrationGate(){if(registrationLoading)return `<div class="empty-note">Checking registration…</div>`;return `<div class="info-card" style="max-width:620px;margin:auto"><h2 style="color:var(--pf-theme)">Welcome, participant #${escHtml(loginNr)}</h2><p style="margin:8px 0 18px;line-height:1.5;color:var(--pf-muted)">Please enter your email address once. We use it to send your test result and any faculty evaluations.</p><div class="field-group"><label>Email address</label><input type="email" value="${escHtml(registrationEmailInput)}" placeholder="you@example.com" autocomplete="email" oninput="registrationEmailInput=this.value"></div><div class="save-status error">${escHtml(registrationError)}</div><button class="save-btn" onclick="submitRegistration()">Register email</button></div>`;}
 function loadEvaluationConfig(){evaluationLoading=true;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){evaluationConfig={title:"Faculty evaluation",intro:"Evaluate the participant.",posts:[{id:"P1",name:"Post 1"}]};evaluationLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't load evaluation posts.");evaluationConfig=d;evaluationLoading=false;rerenderParticipantScroll();}).catch(e=>{evaluationLoading=false;evaluationConfig=null;evaluationState.error=true;evaluationState.message=e.message;rerenderParticipantScroll();});}
 function renderEvaluationTab(){if(evaluationLoading)return `<div class="empty-note">Loading evaluation posts…</div>`;if(!evaluationConfig)return `<div class="save-status error">${escHtml(evaluationState.message||"Faculty evaluations are not available.")}</div>`;const posts=evaluationConfig.posts||[];return `<div class="evaluation-form"><h2 style="color:var(--pf-theme)">${escHtml(evaluationConfig.title||"Faculty evaluation")}</h2>${evaluationConfig.intro?`<p class="content-intro">${escHtml(evaluationConfig.intro)}</p>`:""}<div class="field-group"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(evaluationState.participantNr)}" placeholder="e.g. 42" oninput="evaluationState.participantNr=this.value.replace(/\D/g,'')"></div><div class="field-group"><label>Post</label><select onchange="evaluationState.postId=this.value;rerenderParticipantScroll()" style="width:100%;padding:12px;border:2px solid var(--pf-border);border-radius:8px;font-size:14px"><option value="">Select a post…</option>${posts.map(p=>`<option value="${escHtml(p.id)}" ${evaluationState.postId===p.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}</select></div><div class="field-group"><label>Result</label><div class="evaluation-choice-row"><label class="evaluation-choice ${evaluationState.passed===true?'selected':''}"><input type="radio" name="eval-result" onchange="evaluationState.passed=true;rerenderParticipantScroll()">PASS</label><label class="evaluation-choice ${evaluationState.passed===false?'selected':''}"><input type="radio" name="eval-result" onchange="evaluationState.passed=false;rerenderParticipantScroll()">FAIL</label></div></div><div class="field-group"><label>Comment</label><textarea maxlength="5000" placeholder="Feedback for the participant…" oninput="evaluationState.comment=this.value">${escHtml(evaluationState.comment)}</textarea></div><button class="save-btn" onclick="submitEvaluation()" ${evaluationState.submitting?'disabled':''}>${evaluationState.submitting?'Sending…':'Submit evaluation'}</button>${evaluationState.message?`<div class="save-status ${evaluationState.error?'error':'ok'} evaluation-status">${escHtml(evaluationState.message)}</div>`:""}</div>`;}
@@ -917,7 +910,7 @@ function loadQuiz() {
 
 function rerenderParticipantScroll() {
   const el = document.getElementById("participantScroll");
-  if (el) setHtmlPreservingFocus(el, renderQuizTab());
+  if (el) setHtmlPreservingFocus(el, renderParticipantModule(participantTab));
 }
 
 function renderQuizTab() {
@@ -926,7 +919,7 @@ function renderQuizTab() {
     return `
       <div class="quiz-result-card pass">
         <div class="verdict">Test submitted</div>
-        <div style="font-size:12.5px;color:var(--pf-muted);">${quizResult.emailSent ? `Your result has been sent to ${escHtml(participantEmail)}.` : "Your test was submitted, but the result email could not be sent. Please contact the organizer."}</div>
+        <div style="font-size:12.5px;color:var(--pf-muted);">${quizResult.emailSent ? `Your result has been sent by email.` : "Your test was submitted, but the result email could not be sent. Please contact the organizer."}</div>
       </div>`;
   }
   if (quizStatus && quizStatus.locked) {
