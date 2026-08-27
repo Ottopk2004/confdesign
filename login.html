@@ -151,14 +151,12 @@
     <button class="organizer-btn" onclick="toggleOrganizerChoice()">Organizer</button>
 
     <div class="organizer-choice" id="organizerChoice">
-      <a href="create.html" style="text-decoration:none;">
-        <button class="primary-btn" style="margin-top:12px;">Create a new conference</button>
-      </a>
+      <a href="create.html" class="primary-btn" style="display:block;text-decoration:none;margin-top:12px;">Create a new conference</a>
       <div class="field-hint" style="margin-top:14px;margin-bottom:0;">Already have a conference? Enter its code to manage it:</div>
       <input type="text" id="manageCodeInput" placeholder="e.g. HNUS" autocomplete="off" style="margin-top:8px;">
       <button class="secondary-btn" onclick="doManage()">Manage this conference</button>
       <div class="field-error" id="manageError"></div>
-      <a href="admin.html" style="text-decoration:none;"><button class="secondary-btn" style="margin-top:12px;">Log in as platform admin</button></a>
+      <a href="admin.html" class="secondary-btn" style="display:block;text-decoration:none;margin-top:12px;">Log in as platform admin</a>
     </div>
   </div>
 

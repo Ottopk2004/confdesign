@@ -610,7 +610,7 @@ function render() {
         ${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}
       </div>
       <div class="panel-scroll" id="participantScroll">
-        ${!registrationChecked || !registrationRegistered ? renderRegistrationGate() : renderParticipantModule(participantTab)}
+        ${renderParticipantScrollContent()}
       </div>
     `);
     scheduleHandsOnRefresh();
@@ -975,9 +975,17 @@ function loadQuiz() {
     });
 }
 
+// Shared so the registration gate is respected everywhere the
+// participant panel gets redrawn — not just on the very first render.
+// Without this, a background refresh (e.g. after checking registration
+// status) could silently skip straight past the email-registration step.
+function renderParticipantScrollContent() {
+  return (!registrationChecked || !registrationRegistered) ? renderRegistrationGate() : renderParticipantModule(participantTab);
+}
+
 function rerenderParticipantScroll() {
   const el = document.getElementById("participantScroll");
-  if (el) setHtmlPreservingFocus(el, renderParticipantModule(participantTab));
+  if (el) setHtmlPreservingFocus(el, renderParticipantScrollContent());
 }
 
 function renderQuizTab() {
