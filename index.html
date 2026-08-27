@@ -403,7 +403,7 @@ let saveStatusIsError = false;
 
 // ── Quiz module state (participant side) ─────────────────────────────
 let participantTab = "schedule"; // "schedule" | "quiz"
-let organizerTab = "setup"; // "setup" | "textResponses"
+let organizerTab = "setup"; // "setup" | "textResponses" | "conferenceFeedback"
 let quizTextResponses = null;
 let quizTextResponsesError = "";
 let quizQuestions = null;   // fetched lazily, null = not fetched yet
@@ -420,6 +420,14 @@ let evaluationLoading = false;
 let evaluationState = { participantNr:"", postId:"", passed:null, comment:"", submitting:false, message:"", error:false };
 let evaluationResults = null;
 let evaluationResultsError = "";
+let conferenceFeedbackConfig = null;
+let conferenceFeedbackLoading = false;
+let conferenceFeedbackResponse = "";
+let conferenceFeedbackSubmitting = false;
+let conferenceFeedbackMessage = "";
+let conferenceFeedbackError = false;
+let conferenceFeedbackResults = null;
+let conferenceFeedbackResultsError = "";
 let registrationResetNr = "";
 let registrationResetResult = null;
 let quizStatus = null;      // { locked, submittedAt, emailSent } from server
@@ -667,6 +675,10 @@ function loadEvaluationConfig(){evaluationLoading=true;rerenderParticipantScroll
 function renderEvaluationTab(){if(evaluationLoading)return `<div class="empty-note">Loading evaluation posts…</div>`;if(!evaluationConfig)return `<div class="save-status error">${escHtml(evaluationState.message||"Faculty evaluations are not available.")}</div>`;const posts=evaluationConfig.posts||[];return `<div class="evaluation-form"><h2 style="color:var(--pf-theme)">${escHtml(evaluationConfig.title||"Faculty evaluation")}</h2>${evaluationConfig.intro?`<p class="content-intro">${escHtml(evaluationConfig.intro)}</p>`:""}<div class="field-group"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(evaluationState.participantNr)}" placeholder="e.g. 42" oninput="evaluationState.participantNr=this.value.replace(/\D/g,'')"></div><div class="field-group"><label>Post</label><select onchange="evaluationState.postId=this.value;rerenderParticipantScroll()" style="width:100%;padding:12px;border:2px solid var(--pf-border);border-radius:8px;font-size:14px"><option value="">Select a post…</option>${posts.map(p=>`<option value="${escHtml(p.id)}" ${evaluationState.postId===p.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}</select></div><div class="field-group"><label>Result</label><div class="evaluation-choice-row"><label class="evaluation-choice ${evaluationState.passed===true?'selected':''}"><input type="radio" name="eval-result" onchange="evaluationState.passed=true;rerenderParticipantScroll()">PASS</label><label class="evaluation-choice ${evaluationState.passed===false?'selected':''}"><input type="radio" name="eval-result" onchange="evaluationState.passed=false;rerenderParticipantScroll()">FAIL</label></div></div><div class="field-group"><label>Comment</label><textarea maxlength="5000" placeholder="Feedback for the participant…" oninput="evaluationState.comment=this.value">${escHtml(evaluationState.comment)}</textarea></div><button class="save-btn" onclick="submitEvaluation()" ${evaluationState.submitting?'disabled':''}>${evaluationState.submitting?'Sending…':'Submit evaluation'}</button>${evaluationState.message?`<div class="save-status ${evaluationState.error?'error':'ok'} evaluation-status">${escHtml(evaluationState.message)}</div>`:""}</div>`;}
 function submitEvaluation(){const e=evaluationState;if(!/^\d+$/.test(e.participantNr)||Number(e.participantNr)<1||Number(e.participantNr)>Number(confData.meta.participantCount||0)){e.error=true;e.message="Enter a valid participant number.";rerenderParticipantScroll();return;}if(!e.postId||typeof e.passed!=="boolean"){e.error=true;e.message="Select a post and PASS or FAIL.";rerenderParticipantScroll();return;}e.submitting=true;e.message="";e.error=false;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){setTimeout(()=>{e.submitting=false;e.message="Evaluation saved and sent by email.";rerenderParticipantScroll();},300);return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({facultyNr:loginNr,participantNr:e.participantNr,postId:e.postId,passed:e.passed,comment:e.comment})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok&&r.status!==202)throw new Error(d.error||"Couldn't submit evaluation.");e.submitting=false;e.message=d.emailSent===false?"Evaluation saved, but the email could not be sent.":"Evaluation saved and sent by email.";e.error=d.emailSent===false;}).catch(err=>{e.submitting=false;e.error=true;e.message=err.message;}).finally(()=>rerenderParticipantScroll());}
 
+function loadConferenceFeedbackConfig(){conferenceFeedbackLoading=true;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){conferenceFeedbackConfig={title:"Conference evaluation",intro:"We would value your feedback.",prompt:"How would you evaluate the conference?"};conferenceFeedbackLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't load conference evaluation.");conferenceFeedbackConfig=d;conferenceFeedbackLoading=false;rerenderParticipantScroll();}).catch(e=>{conferenceFeedbackLoading=false;conferenceFeedbackError=true;conferenceFeedbackMessage=e.message;rerenderParticipantScroll();});}
+function renderConferenceFeedbackTab(){if(conferenceFeedbackLoading)return `<div class="empty-note">Loading conference evaluation…</div>`;if(!conferenceFeedbackConfig)return `<div class="save-status error">${escHtml(conferenceFeedbackMessage||"Conference evaluation is not available.")}</div>`;return `<div class="evaluation-form"><h2 style="color:var(--pf-theme)">${escHtml(conferenceFeedbackConfig.title||"Conference evaluation")}</h2>${conferenceFeedbackConfig.intro?`<p class="content-intro">${escHtml(conferenceFeedbackConfig.intro)}</p>`:""}<div class="field-group"><label>${escHtml(conferenceFeedbackConfig.prompt||"How would you evaluate the conference?")}</label><textarea maxlength="10000" placeholder="Write your feedback…" oninput="conferenceFeedbackResponse=this.value">${escHtml(conferenceFeedbackResponse)}</textarea></div><button class="save-btn" onclick="submitConferenceFeedback()" ${conferenceFeedbackSubmitting?'disabled':''}>${conferenceFeedbackSubmitting?'Sending…':'Submit feedback'}</button>${conferenceFeedbackMessage?`<div class="save-status ${conferenceFeedbackError?'error':'ok'}">${escHtml(conferenceFeedbackMessage)}</div>`:""}</div>`;}
+function submitConferenceFeedback(){const text=conferenceFeedbackResponse.trim();if(!text){conferenceFeedbackError=true;conferenceFeedbackMessage="Please enter a response.";rerenderParticipantScroll();return;}conferenceFeedbackSubmitting=true;conferenceFeedbackError=false;conferenceFeedbackMessage="";rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){setTimeout(()=>{conferenceFeedbackSubmitting=false;conferenceFeedbackMessage="Thank you — your feedback was submitted.";rerenderParticipantScroll();},300);return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nr:loginNr,response:text})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't submit feedback.");conferenceFeedbackSubmitting=false;conferenceFeedbackMessage="Thank you — your feedback was submitted.";conferenceFeedbackResponse="";}).catch(e=>{conferenceFeedbackSubmitting=false;conferenceFeedbackError=true;conferenceFeedbackMessage=e.message;}).finally(()=>rerenderParticipantScroll());}
+
 function getParticipantTabs(meta) {
   const modules = meta.modules || {};
   return [
@@ -675,6 +687,8 @@ function getParticipantTabs(meta) {
     { key: "map", icon: "◇", label: "Map", enabled: !!modules.map },
     { key: "industry", icon: "▱", label: "Industry", enabled: !!modules.industry },
     { key: "quiz", icon: "☑", label: "Test", enabled: !!modules.quiz },
+    { key: "evaluations", icon: "✓", label: "Evaluate", enabled: mode === "faculty" && !!modules.evaluations },
+    { key: "conferenceFeedback", icon: "✎", label: "Feedback", enabled: !!modules.conferenceFeedback },
     { key: "contact", icon: "⌕", label: "Contact", enabled: !!modules.contact },
   ].filter(t => t.enabled);
 }
@@ -683,6 +697,7 @@ function renderParticipantModule(tab) {
   if (tab === "schedule") return renderScheduleReadOnly(confData.schedule);
   if (tab === "quiz") return renderQuizTab();
   if (tab === "evaluations") return renderEvaluationTab();
+  if (tab === "conferenceFeedback") return renderConferenceFeedbackTab();
   const c = (confData.moduleContent || {})[tab] || {};
   const heading = c.title || ({ handsOn:'Hands on', map:'Map', industry:'Industry', contact:'Contact' }[tab] || 'Information');
   const top = `<h2 style="color:var(--pf-theme)">${escHtml(heading)}</h2>${c.intro ? `<p class="content-intro">${escHtml(c.intro)}</p>` : ''}${c.image ? `<img class="content-image" src="${c.image}" alt="${escHtml(heading)}">` : ''}`;
@@ -870,6 +885,9 @@ function switchParticipantTab(tab) {
   if (tab === "evaluations" && evaluationConfig === null && !evaluationLoading) {
     loadEvaluationConfig();
   }
+  if (tab === "conferenceFeedback" && conferenceFeedbackConfig === null && !conferenceFeedbackLoading) {
+    loadConferenceFeedbackConfig();
+  }
 }
 
 function loadQuiz() {
@@ -1012,8 +1030,9 @@ function renderEvaluationAnalytics(){if(!evaluationResults)return `<div class="m
 
 function renderOrganizerEditor() {
   const hasQuiz = editMeta.modules && editMeta.modules.quiz;
-  const organizerTabs = `<div class="tab-bar" style="margin:-16px -16px 18px;position:sticky;top:0;z-index:2;"><div class="tab-btn ${organizerTab==='setup'?'active':''}" onclick="setOrganizerTab('setup')">⚙ Setup</div>${hasQuiz ? `<div class="tab-btn ${organizerTab==='textResponses'?'active':''}" onclick="setOrganizerTab('textResponses')">✎ Text responses</div>` : ''}</div>`;
-  if (organizerTab === 'textResponses' && hasQuiz) return organizerTabs + renderQuizTextResponsesTab();
+  const hasFeedback = editMeta.modules && editMeta.modules.conferenceFeedback;
+  const organizerTabs = `<div class="tab-bar" style="margin:-16px -16px 18px;position:sticky;top:0;z-index:2;"><div class="tab-btn ${organizerTab==='setup'?'active':''}" onclick="setOrganizerTab('setup')">⚙ Setup</div>${(hasQuiz||hasFeedback) ? `<div class="tab-btn ${organizerTab==='textResponses'?'active':''}" onclick="setOrganizerTab('textResponses')">✎ Text responses</div>` : ''}</div>`;
+  if (organizerTab === 'textResponses' && (hasQuiz||hasFeedback)) return organizerTabs + renderOrganizerTextResponsesTab(hasQuiz,hasFeedback);
   return organizerTabs + `
     <div class="field-group">
       <label>Conference name</label>
@@ -1083,13 +1102,14 @@ function renderOrganizerEditor() {
     <button class="save-btn" onclick="saveOrganizerChanges()">Save changes</button>
     <div class="save-status ${saveStatusIsError ? 'error' : 'ok'}">${escHtml(saveStatus)}</div>
 
-    <div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Modules and content</div>
-    ${[['handsOn','Hands on'],['map','Map'],['industry','Industry'],['quiz','Test'],['evaluations','Faculty evaluations'],['contact','Contact']].map(([key,label]) => `
+    <div class="mini-label" style="margin:24px 0 4px;font-size:12px;">Modules and content</div>
+    <div class="field-hint" style="margin:0 0 12px;">You can add or remove modules at any time, even after the conference has been created. Turn on a module below, edit its content, then save.</div>
+    ${[['handsOn','Hands on'],['map','Map'],['industry','Industry'],['quiz','Test'],['evaluations','Faculty evaluations'],['conferenceFeedback','Conference evaluation'],['contact','Contact']].map(([key,label]) => `
       <label class="module-toggle" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;display:flex;margin-bottom:8px;">
         <input type="checkbox" ${editMeta.modules && editMeta.modules[key] ? "checked" : ""} onchange="onToggleModule('${key}',this.checked)" style="width:18px;height:18px;margin-top:2px;accent-color:var(--pf-theme);flex-shrink:0;">
         <div><div style="font-size:13.5px;font-weight:bold;">${label}</div><div style="font-size:11.5px;color:var(--pf-muted);">${key==='evaluations'?'Enable faculty evaluation for this conference.':'Show this tab to participants.'}</div></div>
       </label>`).join('')}
-    ${['handsOn','map','industry','quiz','contact'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
+    ${['handsOn','map','industry','quiz','conferenceFeedback','contact'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
     ${editMeta.modules && editMeta.modules.evaluations ? renderEvaluationEditor() : ''}
     <button class="save-btn" onclick="saveOrganizerChanges()">Save modules and content</button>
     <div class="save-status ${saveStatusIsError ? 'error' : 'ok'}">${escHtml(saveStatus)}</div>
@@ -1101,6 +1121,11 @@ function renderOrganizerEditor() {
     ${renderRegistrationResetTool()}
   `;
 }
+
+function renderOrganizerTextResponsesTab(hasQuiz,hasFeedback){return `${hasFeedback?renderConferenceFeedbackResponses():''}${hasQuiz?renderQuizTextResponsesTab():''}`;}
+function renderConferenceFeedbackResponses(){if(!conferenceFeedbackResults)return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Conference evaluation responses</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">Written feedback submitted by participants.</p><button class="save-btn" onclick="loadConferenceFeedbackResults()">Load conference feedback</button>${conferenceFeedbackResultsError?`<div class="save-status error">${escHtml(conferenceFeedbackResultsError)}</div>`:''}`;const rows=conferenceFeedbackResults.records||[];return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Conference evaluation responses (${rows.length})</div>${rows.map(r=>`<div class="info-card" style="margin-bottom:10px;"><div style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PARTICIPANT ${escHtml(r.nr)} · ${escHtml(r.email)}</div><div style="margin-top:8px;white-space:pre-wrap;line-height:1.5;">${escHtml(r.response)}</div><div style="font-size:10px;color:var(--pf-muted);margin-top:8px;">${escHtml(new Date(r.submittedAt).toLocaleString('en-GB'))}</div></div>`).join('')||'<div class="empty-note">No conference feedback yet.</div>'}<button class="save-btn" onclick="downloadConferenceFeedback()">Download conference feedback (.csv)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="conferenceFeedbackResults=null;conferenceFeedbackResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
+function loadConferenceFeedbackResults(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/results`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load conference feedback.');conferenceFeedbackResults=d;conferenceFeedbackResultsError='';rerenderOrganizerScroll();}).catch(e=>{conferenceFeedbackResultsError=e.message;rerenderOrganizerScroll();});}
+async function downloadConferenceFeedback(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-conference-feedback.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
 
 function renderQuizTextResponsesTab() {
   if (!quizTextResponses) return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Open-text responses</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">Responses from questions where the organizer enabled a text field.</p><button class="save-btn" onclick="loadQuizTextResponses()">Load text responses</button>${quizTextResponsesError?`<div class="save-status error">${escHtml(quizTextResponsesError)}</div>`:''}`;
@@ -1227,7 +1252,11 @@ function renderResetLookupResult() {
 
 function onToggleModule(key, checked) {
   if (!editMeta.modules) editMeta.modules = {};
-  editMeta.modules[key] = checked;
+  editMeta.modules[key] = !!checked;
+  saveStatus = "";
+  saveStatusIsError = false;
+  // Module content is intentionally preserved when a module is turned off,
+  // so an organizer can enable it again later without rebuilding it.
   if (key === 'quiz' && checked && editQuizQuestions === null) loadQuizForEdit();
   rerenderOrganizerScroll();
 }
@@ -1235,7 +1264,7 @@ function onToggleModule(key, checked) {
 function ensureModuleContentDefaults() {
   const defaults = {
     handsOn:{title:'Hands on',intro:'',sessions:[newEditHandsOnSession()]}, map:{title:'Venue map',intro:'',address:'',image:''},
-    industry:{title:'Industry',intro:'',booths:[newEditIndustryBooth()]}, quiz:{title:'Final test',intro:'Answer all questions. The test can only be taken once.'}, evaluations:{title:'Faculty evaluation',intro:'Evaluate each participant at your assigned post.',posts:[]}, contact:{title:'Contact',intro:'',coordinatorName:'',coordinatorPhone:'',coordinatorEmail:'',supportName:'',supportPhone:'',supportEmail:'',image:''}
+    industry:{title:'Industry',intro:'',booths:[newEditIndustryBooth()]}, quiz:{title:'Final test',intro:'Answer all questions. The test can only be taken once.'}, evaluations:{title:'Faculty evaluation',intro:'Evaluate each participant at your assigned post.',posts:[]}, conferenceFeedback:{title:'Conference evaluation',intro:'We would value your feedback.',prompt:'How would you evaluate the conference?'}, contact:{title:'Contact',intro:'',coordinatorName:'',coordinatorPhone:'',coordinatorEmail:'',supportName:'',supportPhone:'',supportEmail:'',image:''}
   };
   for (const key of Object.keys(defaults)) {
     const existing=editModuleContent[key]||{};
@@ -1263,7 +1292,8 @@ function renderOrganizerModuleContent(module) {
   let specific='';
   if(module==='handsOn'){normalizeEditHandsOn(c);specific=`${c.sessions.map((hs,si)=>`<div class="session-edit-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeEditHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-theme);margin-bottom:10px">Session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onEditHandsOnCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onEditHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-edit-row"><span class="mini-label">Station ${i+1}</span><input value="${escHtml(s.name)}" oninput="onEditHandsOnStation(${si},${i},'name',this.value)"><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onEditHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onEditHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}</div>`).join('')}<button class="add-btn" onclick="addEditHandsOnSession()">+ Add another session</button>`;}
   if(module==='map') specific=`<div class="field-group"><label>Address</label><input value="${escHtml(c.address)}" oninput="onEditModuleContent('map','address',this.value)"></div>${renderOrganizerImage('map')}`;
-  if(module==='industry'){normalizeEditIndustry(c);specific=`${c.booths.map((b,i)=>`<div class="session-edit-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeEditIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onEditIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onEditIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input value="${escHtml(b.website)}" placeholder="https://..." oninput="onEditIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditIndustryImage(${i},this.files[0])">${b.image?`<img class="content-image" src="${b.image}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent.industry.booths[${i}].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div></div>`).join('')}<button class="add-btn" onclick="addEditIndustryBooth()">+ Add industry booth</button>`;}
+  if(module==='conferenceFeedback') specific=`<div class="field-group"><label>Question / prompt shown to participants</label><textarea oninput="onEditModuleContent('conferenceFeedback','prompt',this.value)">${escHtml(c.prompt||'How would you evaluate the conference?')}</textarea></div><div class="field-hint">Participants get one open text field. Responses appear under the organizer Text responses tab.</div>`;
+    if(module==='industry'){normalizeEditIndustry(c);specific=`${c.booths.map((b,i)=>`<div class="session-edit-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeEditIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onEditIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onEditIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input value="${escHtml(b.website)}" placeholder="https://..." oninput="onEditIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditIndustryImage(${i},this.files[0])">${b.image?`<img class="content-image" src="${b.image}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent.industry.booths[${i}].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div></div>`).join('')}<button class="add-btn" onclick="addEditIndustryBooth()">+ Add industry booth</button>`;}
   if(module==='contact') specific=`<div class="field-group"><label>Coordinator name</label><input value="${escHtml(c.coordinatorName)}" oninput="onEditModuleContent('contact','coordinatorName',this.value)"></div><div class="field-row"><div class="field-group"><label>Phone</label><input value="${escHtml(c.coordinatorPhone)}" oninput="onEditModuleContent('contact','coordinatorPhone',this.value)"></div><div class="field-group"><label>Email</label><input value="${escHtml(c.coordinatorEmail)}" oninput="onEditModuleContent('contact','coordinatorEmail',this.value)"></div></div><div class="field-group"><label>Technical support name</label><input value="${escHtml(c.supportName)}" oninput="onEditModuleContent('contact','supportName',this.value)"></div><div class="field-row"><div class="field-group"><label>Support phone</label><input value="${escHtml(c.supportPhone)}" oninput="onEditModuleContent('contact','supportPhone',this.value)"></div><div class="field-group"><label>Support email</label><input value="${escHtml(c.supportEmail)}" oninput="onEditModuleContent('contact','supportEmail',this.value)"></div></div>${renderOrganizerImage('contact')}`;
   return `<details class="organizer-module" ${editOpenModule===module?'open':''} ontoggle="if(this.open)editOpenModule='${module}';else if(editOpenModule==='${module}')editOpenModule='' "><summary>Edit ${escHtml(c.title||module)}</summary><div class="organizer-module-body"><div class="field-group"><label>Heading</label><input value="${escHtml(c.title)}" oninput="onEditModuleContent('${module}','title',this.value)"></div><div class="field-group"><label>Introduction</label><textarea oninput="onEditModuleContent('${module}','intro',this.value)">${escHtml(c.intro)}</textarea></div>${specific}</div></details>`;
 }
