@@ -63,8 +63,11 @@
     opacity: .85; margin-bottom: 6px; display:flex; align-items:center; justify-content:space-between;
   }
   .conf-header h1 { font-size: 19px; margin-bottom: 4px; }
-  .conference-logo-wrap { margin-bottom:12px; }
-  .conference-logo { max-width:180px; max-height:80px; object-fit:contain; display:block; border-radius:8px; }
+  .conference-brand { display:flex; align-items:center; gap:14px; min-width:0; }
+  .conference-logo-wrap { flex:0 0 auto; width:72px; height:72px; display:flex; align-items:center; justify-content:center; }
+  .conference-logo { width:72px; height:72px; max-width:72px; max-height:72px; object-fit:contain; display:block; border-radius:8px; }
+  .conference-title-wrap { min-width:0; }
+  .conference-title-wrap h1 { margin:0; }
   .conf-header .dates { font-size: 14px; color:var(--pf-muted); }
   .mode-badge {
     background: rgba(255,255,255,0.2);
@@ -521,6 +524,16 @@ function conferenceLogoHtml(meta){
   const logoUrl=`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/branding`;
   return `<div class="conference-logo-wrap"><img class="conference-logo" src="${escHtml(logoUrl)}" alt="Conference logo"></div>`;
 }
+function conferenceHeaderHtml(meta, eyebrowHtml, badgeHtml=""){
+  return `<div class="conference-brand">
+    ${conferenceLogoHtml(meta)}
+    <div class="conference-title-wrap">
+      <div class="eyebrow">${eyebrowHtml}${badgeHtml}</div>
+      <h1>${escHtml(meta.name)}</h1>
+      <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
+    </div>
+  </div>`;
+}
 
 function render() {
   const shell = document.getElementById("shell");
@@ -565,9 +578,7 @@ function render() {
   if (mode === "organizer-login") {
     setHtmlPreservingFocus(shell, `
       <div class="conf-header">
-        <div class="eyebrow"><span>Organizer access</span></div>
-        <h1>${escHtml(meta.name)}</h1>
-        <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
+        ${conferenceHeaderHtml(meta, '<span>Organizer access</span>')}
       </div>
       <div class="login-body">
         <div class="login-label">Admin PIN</div>
@@ -589,10 +600,7 @@ function render() {
     if (!tabs.some(t => t.key === participantTab)) participantTab = "schedule";
     setHtmlPreservingFocus(shell, `
       <div class="conf-header">
-        ${conferenceLogoHtml(meta)}
-        <div class="eyebrow"><span>Programme</span><span class="mode-badge">Participant</span></div>
-        <h1>${escHtml(meta.name)}</h1>
-        <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
+        ${conferenceHeaderHtml(meta, '<span>Programme</span>', '<span class="mode-badge">Participant</span>')}
       </div>
       <div class="toolbar">
         <div class="who">Logged in as #${escHtml(loginNr)}</div>

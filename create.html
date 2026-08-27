@@ -540,7 +540,7 @@ function render() {
         <label>Conference logo</label>
         <div class="field-hint">Shown to participants at the top of the conference and used as the shortcut icon on smartphones. Maximum 1 MB.</div>
         <input type="file" accept="image/*" onchange="onConferenceLogo(this.files[0])">
-        ${form.branding.logo ? `<img class="image-preview" src="${form.branding.logo}" alt="Logo preview"><button type="button" class="remove-image-btn" onclick="removeConferenceLogo()">Remove logo</button>` : ""}
+        ${form.branding.logo ? `<div style="display:flex;align-items:center;gap:12px;margin-top:10px;padding:10px;border:1px solid var(--pf-border);border-radius:10px;"><img class="image-preview" style="width:72px;height:72px;object-fit:contain;margin:0;" src="${form.branding.logo}" alt="Logo preview"><div><strong>Logo preview</strong><div class="field-hint">This will appear beside the conference title.</div><button type="button" class="remove-image-btn" onclick="removeConferenceLogo()">Remove logo</button></div></div>` : ""}
       </div>
       </div></details>
 
