@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Conference Manager</title>
+<title>Conf Design</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -63,6 +63,8 @@
     opacity: .85; margin-bottom: 6px; display:flex; align-items:center; justify-content:space-between;
   }
   .conf-header h1 { font-size: 19px; margin-bottom: 4px; }
+  .conference-logo-wrap { margin-bottom:12px; }
+  .conference-logo { max-width:180px; max-height:80px; object-fit:contain; display:block; border-radius:8px; }
   .conf-header .dates { font-size: 14px; color:var(--pf-muted); }
   .mode-badge {
     background: rgba(255,255,255,0.2);
@@ -226,6 +228,12 @@
   .quiz-result-card .verdict { font-size: 15px; font-weight: bold; }
   .quiz-result-card.pass .verdict { color: var(--pf-green); }
   .quiz-result-card.fail .verdict { color: var(--pf-red); }
+  .evaluation-form { max-width: 720px; }
+  .evaluation-choice-row { display:flex; gap:10px; }
+  .evaluation-choice { flex:1; border:2px solid var(--pf-border); border-radius:10px; padding:12px; text-align:center; font-weight:bold; cursor:pointer; }
+  .evaluation-choice.selected { border-color:var(--pf-theme); background:var(--pf-theme-light); color:var(--pf-theme); }
+  .evaluation-choice input { display:none; }
+  .evaluation-status { margin-top:12px; }
 
   /* ── Organizer quiz question editor ─────────────────────────────── */
   .quiz-edit-row {
@@ -395,12 +403,28 @@ let saveStatusIsError = false;
 
 // ── Quiz module state (participant side) ─────────────────────────────
 let participantTab = "schedule"; // "schedule" | "quiz"
+let organizerTab = "setup"; // "setup" | "textResponses"
+let quizTextResponses = null;
+let quizTextResponsesError = "";
 let quizQuestions = null;   // fetched lazily, null = not fetched yet
 let quizLoading = false;
 let quizAnswers = {};
-let quizStatus = null;      // { locked, submittedAt, passed, scorePct } from server
+let participantEmail = "";
+let registrationChecked = false;
+let registrationRegistered = false;
+let registrationEmailInput = "";
+let registrationLoading = false;
+let registrationError = "";
+let evaluationConfig = null;
+let evaluationLoading = false;
+let evaluationState = { participantNr:"", postId:"", passed:null, comment:"", submitting:false, message:"", error:false };
+let evaluationResults = null;
+let evaluationResultsError = "";
+let registrationResetNr = "";
+let registrationResetResult = null;
+let quizStatus = null;      // { locked, submittedAt, emailSent } from server
 let quizSubmitting = false;
-let quizResult = null;      // result returned right after a successful submit
+let quizResult = null;      // { submitted: true, emailSent: boolean } only
 let handsOnRefreshTimer = null;
 
 // ── Quiz module state (organizer side) ────────────────────────────────
@@ -410,6 +434,9 @@ let resetLookupNr = "";
 let resetLookupResult = null; // { locked, submittedAt, passed, scorePct } | { error }
 let quizSaveStatus = "";
 let quizSaveStatusIsError = false;
+let quizAnalytics = null;
+let quizAnalyticsLoading = false;
+let quizAnalyticsError = "";
 
 function applyTheme(hex) {
   const light = hexToLight(hex);
@@ -465,14 +492,34 @@ function afterConfLoaded() {
       return;
     }
     loginNr = nrParam;
-    if (role === "participant") resetQuizParticipantState();
+    if (role === "participant") { resetQuizParticipantState(); resetRegistrationState(); }
+    if (role === "faculty") resetEvaluationState();
     mode = role; // "participant" or "faculty"
     render();
+    if (role === "participant") loadRegistrationStatus();
+    if (role === "faculty" && confData.meta.modules?.evaluations) loadEvaluationConfig();
     return;
   }
   // Reached this page without going through login.html first.
   mode = "error-nonumber";
   render();
+}
+
+function applyConferenceBranding(meta){
+  const logo=meta && meta.branding && meta.branding.logo ? meta.branding.logo : "";
+  const logoUrl=logo ? `${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/branding` : "";
+  let icon=document.getElementById("confFavicon");
+  if(!icon){icon=document.createElement("link");icon.id="confFavicon";icon.rel="icon";document.head.appendChild(icon);}
+  let apple=document.getElementById("confAppleTouchIcon");
+  if(!apple){apple=document.createElement("link");apple.id="confAppleTouchIcon";apple.rel="apple-touch-icon";document.head.appendChild(apple);}
+  if(logo){ icon.href=logoUrl; apple.href=logoUrl; }
+  else { icon.removeAttribute("href"); apple.removeAttribute("href"); }
+}
+function conferenceLogoHtml(meta){
+  const logo=meta && meta.branding && meta.branding.logo ? meta.branding.logo : "";
+  if(!logo) return "";
+  const logoUrl=`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/branding`;
+  return `<div class="conference-logo-wrap"><img class="conference-logo" src="${escHtml(logoUrl)}" alt="Conference logo"></div>`;
 }
 
 function render() {
@@ -513,6 +560,7 @@ function render() {
   }
 
   const meta = confData.meta;
+  applyConferenceBranding(meta);
 
   if (mode === "organizer-login") {
     setHtmlPreservingFocus(shell, `
@@ -541,6 +589,7 @@ function render() {
     if (!tabs.some(t => t.key === participantTab)) participantTab = "schedule";
     setHtmlPreservingFocus(shell, `
       <div class="conf-header">
+        ${conferenceLogoHtml(meta)}
         <div class="eyebrow"><span>Programme</span><span class="mode-badge">Participant</span></div>
         <h1>${escHtml(meta.name)}</h1>
         <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
@@ -553,7 +602,7 @@ function render() {
         ${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}
       </div>
       <div class="panel-scroll" id="participantScroll">
-        ${renderParticipantModule(participantTab)}
+        ${!registrationChecked || !registrationRegistered ? renderRegistrationGate() : renderParticipantModule(participantTab)}
       </div>
     `);
     scheduleHandsOnRefresh();
@@ -573,7 +622,7 @@ function render() {
         <div class="who">Logged in as #${escHtml(loginNr)}</div>
         <a href="login.html" style="text-decoration:none;"><button>Log out</button></a>
       </div>
-      <div class="tab-bar">${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}</div>
+      <div class="tab-bar">${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}${meta.modules?.evaluations ? `<div class="tab-btn ${participantTab === 'evaluations' ? 'active' : ''}" onclick="switchParticipantTab('evaluations')">✓ Evaluate</div>` : ''}</div>
       <div class="panel-scroll" id="participantScroll">
         ${renderParticipantModule(participantTab)}
       </div>
@@ -608,6 +657,15 @@ function resetQuizParticipantState() {
   quizResult = null;
 }
 
+function resetRegistrationState(){registrationChecked=false;registrationRegistered=false;registrationEmailInput="";registrationLoading=false;registrationError="";participantEmail="";}
+function resetEvaluationState(){evaluationConfig=null;evaluationLoading=false;evaluationState={participantNr:"",postId:"",passed:null,comment:"",submitting:false,message:"",error:false};}
+function loadRegistrationStatus(){registrationLoading=true;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){registrationChecked=true;registrationRegistered=false;registrationLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/registration?nr=${encodeURIComponent(loginNr)}`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't check registration.");registrationChecked=true;registrationRegistered=!!d.registered;registrationLoading=false;if(registrationRegistered)participantEmail="";rerenderParticipantScroll();}).catch(e=>{registrationLoading=false;registrationError=e.message;rerenderParticipantScroll();});}
+function submitRegistration(){const email=registrationEmailInput.trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){registrationError="Enter a valid email address.";rerenderParticipantScroll();return;}registrationLoading=true;registrationError="";rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){registrationChecked=true;registrationRegistered=true;participantEmail=email;registrationLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/registration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nr:loginNr,email})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't register.");registrationChecked=true;registrationRegistered=true;participantEmail=email;registrationLoading=false;rerenderParticipantScroll();}).catch(e=>{registrationLoading=false;registrationError=e.message;rerenderParticipantScroll();});}
+function renderRegistrationGate(){if(registrationLoading)return `<div class="empty-note">Checking registration…</div>`;return `<div class="info-card" style="max-width:620px;margin:auto"><h2 style="color:var(--pf-theme)">Welcome, participant #${escHtml(loginNr)}</h2><p style="margin:8px 0 18px;line-height:1.5;color:var(--pf-muted)">Please enter your email address once. We use it to send your test result and any faculty evaluations.</p><div class="field-group"><label>Email address</label><input type="email" value="${escHtml(registrationEmailInput)}" placeholder="you@example.com" autocomplete="email" oninput="registrationEmailInput=this.value"></div><div class="save-status error">${escHtml(registrationError)}</div><button class="save-btn" onclick="submitRegistration()">Register email</button></div>`;}
+function loadEvaluationConfig(){evaluationLoading=true;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){evaluationConfig={title:"Faculty evaluation",intro:"Evaluate the participant.",posts:[{id:"P1",name:"Post 1"}]};evaluationLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't load evaluation posts.");evaluationConfig=d;evaluationLoading=false;rerenderParticipantScroll();}).catch(e=>{evaluationLoading=false;evaluationConfig=null;evaluationState.error=true;evaluationState.message=e.message;rerenderParticipantScroll();});}
+function renderEvaluationTab(){if(evaluationLoading)return `<div class="empty-note">Loading evaluation posts…</div>`;if(!evaluationConfig)return `<div class="save-status error">${escHtml(evaluationState.message||"Faculty evaluations are not available.")}</div>`;const posts=evaluationConfig.posts||[];return `<div class="evaluation-form"><h2 style="color:var(--pf-theme)">${escHtml(evaluationConfig.title||"Faculty evaluation")}</h2>${evaluationConfig.intro?`<p class="content-intro">${escHtml(evaluationConfig.intro)}</p>`:""}<div class="field-group"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(evaluationState.participantNr)}" placeholder="e.g. 42" oninput="evaluationState.participantNr=this.value.replace(/\D/g,'')"></div><div class="field-group"><label>Post</label><select onchange="evaluationState.postId=this.value;rerenderParticipantScroll()" style="width:100%;padding:12px;border:2px solid var(--pf-border);border-radius:8px;font-size:14px"><option value="">Select a post…</option>${posts.map(p=>`<option value="${escHtml(p.id)}" ${evaluationState.postId===p.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}</select></div><div class="field-group"><label>Result</label><div class="evaluation-choice-row"><label class="evaluation-choice ${evaluationState.passed===true?'selected':''}"><input type="radio" name="eval-result" onchange="evaluationState.passed=true;rerenderParticipantScroll()">PASS</label><label class="evaluation-choice ${evaluationState.passed===false?'selected':''}"><input type="radio" name="eval-result" onchange="evaluationState.passed=false;rerenderParticipantScroll()">FAIL</label></div></div><div class="field-group"><label>Comment</label><textarea maxlength="5000" placeholder="Feedback for the participant…" oninput="evaluationState.comment=this.value">${escHtml(evaluationState.comment)}</textarea></div><button class="save-btn" onclick="submitEvaluation()" ${evaluationState.submitting?'disabled':''}>${evaluationState.submitting?'Sending…':'Submit evaluation'}</button>${evaluationState.message?`<div class="save-status ${evaluationState.error?'error':'ok'} evaluation-status">${escHtml(evaluationState.message)}</div>`:""}</div>`;}
+function submitEvaluation(){const e=evaluationState;if(!/^\d+$/.test(e.participantNr)||Number(e.participantNr)<1||Number(e.participantNr)>Number(confData.meta.participantCount||0)){e.error=true;e.message="Enter a valid participant number.";rerenderParticipantScroll();return;}if(!e.postId||typeof e.passed!=="boolean"){e.error=true;e.message="Select a post and PASS or FAIL.";rerenderParticipantScroll();return;}e.submitting=true;e.message="";e.error=false;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){setTimeout(()=>{e.submitting=false;e.message="Evaluation saved and sent by email.";rerenderParticipantScroll();},300);return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({facultyNr:loginNr,participantNr:e.participantNr,postId:e.postId,passed:e.passed,comment:e.comment})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok&&r.status!==202)throw new Error(d.error||"Couldn't submit evaluation.");e.submitting=false;e.message=d.emailSent===false?"Evaluation saved, but the email could not be sent.":"Evaluation saved and sent by email.";e.error=d.emailSent===false;}).catch(err=>{e.submitting=false;e.error=true;e.message=err.message;}).finally(()=>rerenderParticipantScroll());}
+
 function getParticipantTabs(meta) {
   const modules = meta.modules || {};
   return [
@@ -623,6 +681,7 @@ function getParticipantTabs(meta) {
 function renderParticipantModule(tab) {
   if (tab === "schedule") return renderScheduleReadOnly(confData.schedule);
   if (tab === "quiz") return renderQuizTab();
+  if (tab === "evaluations") return renderEvaluationTab();
   const c = (confData.moduleContent || {})[tab] || {};
   const heading = c.title || ({ handsOn:'Hands on', map:'Map', industry:'Industry', contact:'Contact' }[tab] || 'Information');
   const top = `<h2 style="color:var(--pf-theme)">${escHtml(heading)}</h2>${c.intro ? `<p class="content-intro">${escHtml(c.intro)}</p>` : ''}${c.image ? `<img class="content-image" src="${c.image}" alt="${escHtml(heading)}">` : ''}`;
@@ -707,6 +766,7 @@ function doOrganizerLogin() {
 
 function enterOrganizerMode() {
   editMeta = Object.assign({}, confData.meta);
+  if(!editMeta.branding) editMeta.branding = {logo:""};
   if (!editMeta.modules) editMeta.modules = { quiz: false, stations: false };
   editSessions = confData.schedule.map(s => Object.assign({}, s));
   editModuleContent = JSON.parse(JSON.stringify(confData.moduleContent || {}));
@@ -749,8 +809,9 @@ function loadQuizForEdit() {
 }
 
 function blankQuizQuestion() {
-  return { text: "", options: ["", "", "", ""], correctIndex: 0 };
+  return { text: "", options: ["", "", "", ""], mode: "graded", correctIndex: 0, textResponse: false };
 }
+function setOrganizerTab(tab) { organizerTab = tab; rerenderOrganizerScroll(); }
 
 // ── Read-only schedule (participant view) ────────────────────────────
 function renderScheduleReadOnly(schedule) {
@@ -805,6 +866,9 @@ function switchParticipantTab(tab) {
   if (tab === "quiz" && quizQuestions === null && !quizLoading) {
     loadQuiz();
   }
+  if (tab === "evaluations" && evaluationConfig === null && !evaluationLoading) {
+    loadEvaluationConfig();
+  }
 }
 
 function loadQuiz() {
@@ -849,37 +913,26 @@ function rerenderParticipantScroll() {
 }
 
 function renderQuizTab() {
-  if (quizLoading) {
-    return `<div class="empty-note">Loading…</div>`;
-  }
+  if (quizLoading) return `<div class="empty-note">Loading…</div>`;
   if (quizResult) {
-    const passed = quizResult.passed;
     return `
-      <div class="quiz-result-card ${passed ? 'pass' : 'fail'}">
-        <div class="verdict">${passed ? "Passed" : "Not passed"}</div>
-        <div class="big-score">${quizResult.correctCount} / ${quizResult.total}</div>
-        <div style="font-size:12.5px;color:var(--pf-muted);">${quizResult.scorePct}% correct — your answers are locked and can't be changed.</div>
-      </div>
-    `;
+      <div class="quiz-result-card pass">
+        <div class="verdict">Test submitted</div>
+        <div style="font-size:12.5px;color:var(--pf-muted);">${quizResult.emailSent ? `Your result has been sent to ${escHtml(participantEmail)}.` : "Your test was submitted, but the result email could not be sent. Please contact the organizer."}</div>
+      </div>`;
   }
   if (quizStatus && quizStatus.locked) {
-    const passed = quizStatus.passed;
     return `
-      <div class="quiz-result-card ${passed ? 'pass' : 'fail'}">
-        <div class="verdict">${passed ? "Passed" : "Not passed"}</div>
-        ${typeof quizStatus.scorePct === "number" ? `<div class="big-score">${quizStatus.scorePct}%</div>` : ""}
-        <div style="font-size:12.5px;color:var(--pf-muted);">You already submitted this test${quizStatus.submittedAt ? " on " + new Date(quizStatus.submittedAt).toLocaleString("en-GB") : ""}. It can only be taken once.</div>
-      </div>
-    `;
+      <div class="quiz-result-card pass">
+        <div class="verdict">Test already submitted</div>
+        <div style="font-size:12.5px;color:var(--pf-muted);">This test was already submitted${quizStatus.submittedAt ? " on " + new Date(quizStatus.submittedAt).toLocaleString("en-GB") : ""}. Your result was sent by email.</div>
+      </div>`;
   }
-  if (!quizQuestions || quizQuestions.length === 0) {
-    return `<div class="empty-note">The test hasn't been set up yet — check back soon.</div>`;
-  }
+  if (!quizQuestions || quizQuestions.length === 0) return `<div class="empty-note">The test hasn't been set up yet — check back soon.</div>`;
 
   const quizCopy = (confData.moduleContent || {}).quiz || {};
-  const answeredCount = Object.keys(quizAnswers).length;
+  const answeredCount = quizQuestions.filter(q => { const a=quizAnswers[q.id]||{}; const hasChoice=(q.options||[]).some((o,i)=>o && a.choice===i); const hasText=!!q.textResponse && String(a.text||"").trim().length>0; return hasChoice || hasText; }).length;
   const allAnswered = answeredCount === quizQuestions.length;
-
   const questionsHtml = quizQuestions.map((q, questionIndex) => {
     const questionId = q.id || `Q${questionIndex + 1}`;
     const isAnswered = quizAnswers[questionId] !== undefined;
@@ -887,32 +940,37 @@ function renderQuizTab() {
       <div class="quiz-question-card ${isAnswered ? 'answered' : ''}">
         <div class="qnum">${escHtml(questionId)}</div>
         <div class="qtext">${escHtml(q.text)}</div>
-        ${q.options.map((opt, i) => `
-          <label class="quiz-option-row ${quizAnswers[q.id] === i ? 'checked' : ''}">
-            <input type="radio" name="answer-${questionId}" ${quizAnswers[questionId] === i ? "checked" : ""} onchange="onQuizAnswer('${questionId}',${i})">
+        ${q.media ? (q.media.type === 'video'
+          ? `<div style="margin:12px 0;"><video controls playsinline preload="metadata" src="${escHtml(q.media.data)}" style="width:100%;max-height:320px;border-radius:10px;background:#000;"></video></div>`
+          : `<div style="margin:12px 0;"><img src="${escHtml(q.media.data)}" alt="Question image" style="width:100%;max-height:320px;object-fit:contain;border-radius:10px;"></div>`) : ''}
+        ${(q.options || []).filter(Boolean).map((opt, i) => { const actualIndex=(q.options||[]).indexOf(opt); const a=quizAnswers[questionId] || {}; return `
+          <label class="quiz-option-row ${a.choice === actualIndex ? 'checked' : ''}">
+            <input type="radio" name="answer-${questionId}" ${a.choice === actualIndex ? "checked" : ""} onchange="onQuizAnswer('${questionId}',${actualIndex})">
             <span>${escHtml(opt)}</span>
-          </label>
-        `).join("")}
-      </div>
-    `;
+          </label>`; }).join("")}
+        ${q.textResponse ? `<div class="field-group" style="margin-top:12px;margin-bottom:0;"><label>Response</label><textarea maxlength="5000" placeholder="Your response…" oninput="onQuizTextAnswer('${questionId}',this.value)">${escHtml((quizAnswers[questionId]||{}).text||"")}</textarea></div>` : ""}
+      </div>`;
   }).join("");
 
   return `
     <div class="info-card" style="background:var(--pf-theme);color:#fff;border-color:var(--pf-theme);"><h2>${escHtml(quizCopy.title || 'Final test')}</h2><p style="margin-top:8px;line-height:1.5;">${escHtml(quizCopy.intro || 'Answer all questions, then submit. Your answers are locked once you submit — the test can only be taken once.')}</p></div>
     ${questionsHtml}
-    <button class="quiz-submit-btn ${allAnswered ? 'ready' : ''}" id="quizSubmitBtn" ${allAnswered ? "" : "disabled"} onclick="submitQuiz()">
-      ${quizSubmitting ? "Submitting..." : "Submit answers"}
-    </button>
+    <button class="quiz-submit-btn ${allAnswered ? 'ready' : ''}" id="quizSubmitBtn" ${allAnswered ? "" : "disabled"} onclick="submitQuiz()">${quizSubmitting ? "Submitting..." : "Submit answers"}</button>
   `;
 }
 
+
 function onQuizAnswer(qid, optionIndex) {
-  quizAnswers[qid] = optionIndex;
+  quizAnswers[qid] = Object.assign({}, quizAnswers[qid] || {}, {choice: optionIndex});
+  rerenderParticipantScroll();
+}
+function onQuizTextAnswer(qid, text) {
+  quizAnswers[qid] = Object.assign({}, quizAnswers[qid] || {}, {text});
   rerenderParticipantScroll();
 }
 
 function submitQuiz() {
-  const allAnswered = Object.keys(quizAnswers).length === quizQuestions.length;
+  const allAnswered = quizQuestions.every(q => { const a=quizAnswers[q.id]||{}; return (q.options||[]).some((o,i)=>o && a.choice===i) || (!!q.textResponse && String(a.text||"").trim().length>0); });
   if (!allAnswered) return;
   if (!confirm("Are you sure? You won't be able to change your answers once you submit.")) return;
 
@@ -920,12 +978,7 @@ function submitQuiz() {
   rerenderParticipantScroll();
 
   if (!PLATFORM_WORKER_URL) {
-    console.log("Simulated quiz submit (PLATFORM_WORKER_URL is not set yet):", quizAnswers);
-    setTimeout(() => {
-      quizSubmitting = false;
-      quizResult = { correctCount: 1, total: quizQuestions.length, scorePct: 50, passed: true };
-      rerenderParticipantScroll();
-    }, 300);
+    setTimeout(() => { quizSubmitting = false; quizResult = { submitted:true, emailSent:true }; rerenderParticipantScroll(); }, 300);
     return;
   }
 
@@ -936,25 +989,40 @@ function submitQuiz() {
   })
     .then(async (res) => {
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || ("Server error (" + res.status + ")"));
+      if (!res.ok && res.status !== 202) throw new Error(data.error || ("Server error (" + res.status + ")"));
       quizSubmitting = false;
-      quizResult = data;
+      quizResult = { submitted:true, emailSent: data.emailSent !== false };
       rerenderParticipantScroll();
     })
-    .catch((err) => {
-      quizSubmitting = false;
-      rerenderParticipantScroll();
-      alert("Couldn't submit: " + err.message);
-    });
+    .catch((err) => { quizSubmitting = false; rerenderParticipantScroll(); alert("Couldn't submit: " + err.message); });
 }
 
+
 // ── Organizer editor ───────────────────────────────────────────────
+function addEvaluationPost(){if(!editModuleContent.evaluations)editModuleContent.evaluations={title:'Faculty evaluation',intro:'',posts:[]};editModuleContent.evaluations.posts.push({id:`P${editModuleContent.evaluations.posts.length+1}`,name:''});rerenderOrganizerScroll();}
+function removeEvaluationPost(i){editModuleContent.evaluations.posts.splice(i,1);rerenderOrganizerScroll();}
+function onEvaluationPost(i,val){editModuleContent.evaluations.posts[i].name=val;}
+function renderEvaluationEditor(){const c=editModuleContent.evaluations||{title:'Faculty evaluation',intro:'',posts:[]};if(!Array.isArray(c.posts))c.posts=[];return `<div class="mini-label" style="margin:20px 0 8px;font-size:12px;">Faculty evaluation posts</div><div class="field-group"><label>Title</label><input value="${escHtml(c.title||'Faculty evaluation')}" oninput="onEditModuleContent('evaluations','title',this.value)"></div><div class="field-group"><label>Introduction</label><textarea oninput="onEditModuleContent('evaluations','intro',this.value)">${escHtml(c.intro||'')}</textarea></div>${c.posts.map((p,i)=>`<div class="session-row">${c.posts.length>1?`<button class="remove-btn" onclick="removeEvaluationPost(${i})">✕</button>`:''}<span class="mini-label">Post ${i+1}</span><input value="${escHtml(p.name||'')}" placeholder="e.g. Airway" oninput="onEvaluationPost(${i},this.value)"></div>`).join('')}<button class="add-btn" onclick="addEvaluationPost()">+ Add post</button>`;}
+function renderRegistrationResetTool(){return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Reset participant registration</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">Use this if a participant registered an email on the wrong participant number. This removes only the registration; it does not move or delete quiz/evaluation records.</p><div class="field-row" style="align-items:flex-end;"><div class="field-group" style="margin-bottom:0;"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(registrationResetNr)}" oninput="registrationResetNr=this.value.replace(/\D/g,'')"></div><button class="save-btn" style="width:auto;padding:9px 16px;margin-top:0;" onclick="doRegistrationReset()">Reset registration</button></div>${registrationResetResult?`<div class="save-status ${registrationResetResult.error?'error':'ok'}">${escHtml(registrationResetResult.message)}</div>`:''}`;}
+function doRegistrationReset(){if(!registrationResetNr)return;if(!confirm(`Reset registration for participant ${registrationResetNr}?`))return;fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/registration/reset`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nr:registrationResetNr,adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not reset registration.');registrationResetResult={message:`Registration for participant ${registrationResetNr} was reset.`};rerenderOrganizerScroll();}).catch(e=>{registrationResetResult={error:true,message:e.message};rerenderOrganizerScroll();});}
+function loadEvaluationResults(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations/results`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load evaluations.');evaluationResults=d;evaluationResultsError='';rerenderOrganizerScroll();}).catch(e=>{evaluationResultsError=e.message;rerenderOrganizerScroll();});}
+async function downloadEvaluationExport(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-faculty-evaluations.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
+function renderEvaluationAnalytics(){if(!evaluationResults)return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">See evaluation totals and download the evaluation data.</p><button class="save-btn" onclick="loadEvaluationResults()">Load faculty evaluations</button>${evaluationResultsError?`<div class="save-status error">${escHtml(evaluationResultsError)}</div>`:''}`;const s=evaluationResults.summary||{};return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><div class="info-grid"><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">EVALUATIONS</span><strong>${s.evaluations||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PASS</span><strong>${s.passed||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">FAIL</span><strong>${s.failed||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PASS RATE</span><strong>${s.passPct||0}%</strong></div></div><div class="info-card"><h3>By post</h3>${(evaluationResults.postStats||[]).map(p=>`<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(p.name)}</strong><div style="font-size:11px;color:var(--pf-muted)">${p.passed} pass · ${p.failed} fail · ${p.passPct}% pass</div></div>`).join('')||'<div class="empty-note">No posts.</div>'}</div><button class="save-btn" onclick="downloadEvaluationExport()">Download evaluations (.csv)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="evaluationResults=null;evaluationResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
+
 function renderOrganizerEditor() {
   const hasQuiz = editMeta.modules && editMeta.modules.quiz;
-  return `
+  const organizerTabs = `<div class="tab-bar" style="margin:-16px -16px 18px;position:sticky;top:0;z-index:2;"><div class="tab-btn ${organizerTab==='setup'?'active':''}" onclick="setOrganizerTab('setup')">⚙ Setup</div>${hasQuiz ? `<div class="tab-btn ${organizerTab==='textResponses'?'active':''}" onclick="setOrganizerTab('textResponses')">✎ Text responses</div>` : ''}</div>`;
+  if (organizerTab === 'textResponses' && hasQuiz) return organizerTabs + renderQuizTextResponsesTab();
+  return organizerTabs + `
     <div class="field-group">
       <label>Conference name</label>
       <input type="text" value="${escHtml(editMeta.name)}" oninput="onEditMeta('name', this.value)">
+    </div>
+    <div class="field-group">
+      <label>Conference logo</label>
+      <div class="field-hint">Shown to participants and used as the smartphone shortcut icon. Maximum 1 MB.</div>
+      <input type="file" accept="image/*" onchange="onEditConferenceLogo(this.files[0])">
+      ${editMeta.branding && editMeta.branding.logo ? `<img class="content-image" style="max-width:180px;max-height:80px;object-fit:contain" src="${escHtml(editMeta.branding.logo)}" alt="Logo preview"><button class="pin-btn" type="button" onclick="editMeta.branding.logo='';rerenderOrganizerScroll()">Remove logo</button>` : ""}
     </div>
     <div class="field-row">
       <div class="field-group">
@@ -1015,19 +1083,31 @@ function renderOrganizerEditor() {
     <div class="save-status ${saveStatusIsError ? 'error' : 'ok'}">${escHtml(saveStatus)}</div>
 
     <div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Modules and content</div>
-    ${[['handsOn','Hands on'],['map','Map'],['industry','Industry'],['quiz','Test'],['contact','Contact']].map(([key,label]) => `
+    ${[['handsOn','Hands on'],['map','Map'],['industry','Industry'],['quiz','Test'],['evaluations','Faculty evaluations'],['contact','Contact']].map(([key,label]) => `
       <label class="module-toggle" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;display:flex;margin-bottom:8px;">
         <input type="checkbox" ${editMeta.modules && editMeta.modules[key] ? "checked" : ""} onchange="onToggleModule('${key}',this.checked)" style="width:18px;height:18px;margin-top:2px;accent-color:var(--pf-theme);flex-shrink:0;">
-        <div><div style="font-size:13.5px;font-weight:bold;">${label}</div><div style="font-size:11.5px;color:var(--pf-muted);">Show this tab to participants.</div></div>
+        <div><div style="font-size:13.5px;font-weight:bold;">${label}</div><div style="font-size:11.5px;color:var(--pf-muted);">${key==='evaluations'?'Enable faculty evaluation for this conference.':'Show this tab to participants.'}</div></div>
       </label>`).join('')}
     ${['handsOn','map','industry','quiz','contact'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
+    ${editMeta.modules && editMeta.modules.evaluations ? renderEvaluationEditor() : ''}
     <button class="save-btn" onclick="saveOrganizerChanges()">Save modules and content</button>
     <div class="save-status ${saveStatusIsError ? 'error' : 'ok'}">${escHtml(saveStatus)}</div>
 
     ${hasQuiz ? renderQuizEditor() : ""}
     ${hasQuiz ? renderQuizResetTool() : ""}
+    ${hasQuiz ? renderQuizAnalytics() : ""}
+    ${editMeta.modules && editMeta.modules.evaluations ? renderEvaluationAnalytics() : ""}
+    ${renderRegistrationResetTool()}
   `;
 }
+
+function renderQuizTextResponsesTab() {
+  if (!quizTextResponses) return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Open-text responses</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">Responses from questions where the organizer enabled a text field.</p><button class="save-btn" onclick="loadQuizTextResponses()">Load text responses</button>${quizTextResponsesError?`<div class="save-status error">${escHtml(quizTextResponsesError)}</div>`:''}`;
+  const rows=quizTextResponses.responses||[];
+  return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Open-text responses</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:12px;">${rows.length} response${rows.length===1?'':'s'} received.</p>${rows.map(r=>`<div class="info-card" style="margin-bottom:10px;"><div style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PARTICIPANT ${escHtml(r.nr)} · ${escHtml(r.email)}</div><div style="font-size:12px;font-weight:bold;margin-top:5px;">${escHtml(r.questionId)} — ${escHtml(r.questionText)}</div><div style="margin-top:8px;white-space:pre-wrap;line-height:1.5;">${escHtml(r.response)}</div><div style="font-size:10px;color:var(--pf-muted);margin-top:8px;">${escHtml(new Date(r.submittedAt).toLocaleString('en-GB'))}</div></div>`).join('') || '<div class="empty-note">No text responses yet.</div>'}<button class="save-btn" onclick="downloadQuizTextResponses()">Download text responses (.csv)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="quizTextResponses=null;quizTextResponsesError='';rerenderOrganizerScroll()">Refresh</button>`;
+}
+function loadQuizTextResponses(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/text-responses`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load text responses.');quizTextResponses=d;quizTextResponsesError='';rerenderOrganizerScroll();}).catch(e=>{quizTextResponsesError=e.message;rerenderOrganizerScroll();});}
+async function downloadQuizTextResponses(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/text-responses/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-text-responses.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
 
 function renderQuizEditor() {
   if (editQuizQuestions === null) {
@@ -1048,19 +1128,72 @@ function renderQuizEditor() {
           <span class="mini-label">Question ${i + 1}</span>
           <input type="text" value="${escHtml(q.text)}" placeholder="e.g. What is the recommended dose?" oninput="onEditQuizQuestion(${i},'text',this.value)">
         </div>
-        <span class="mini-label">Options (select the correct one)</span>
+        <div style="margin:10px 0 12px;">
+          <span class="mini-label">Image / short video (optional)</span>
+          ${q.media ? `<div style="margin:8px 0;"><${q.media.type === 'video' ? 'video controls playsinline' : 'img'} src="${escHtml(q.media.data)}" ${q.media.type === 'video' ? 'style="width:100%;max-height:260px;border-radius:8px;background:#000;"' : 'style="max-width:100%;max-height:260px;border-radius:8px;object-fit:contain;"'}></${q.media.type === 'video' ? 'video' : 'img'}></div>` : ''}
+          <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" onchange="onQuizQuestionMedia(${i},this.files[0])">
+          <div style="font-size:10.5px;color:var(--pf-muted);margin-top:5px;">Images up to 1 MB. Short MP4/WebM videos up to 8 MB.</div>
+          ${q.media ? `<button type="button" class="remove-btn" style="position:static;margin-top:6px;" onclick="removeQuizQuestionMedia(${i})">Remove media</button>` : ''}
+        </div>
+        <div class="field-group" style="margin:10px 0;">
+          <label>Question type</label>
+          <select onchange="onEditQuizMode(${i},this.value)" style="width:100%;padding:9px;border:2px solid var(--pf-border);border-radius:8px;font-size:13px;">
+            <option value="graded" ${q.mode !== 'survey' ? 'selected' : ''}>Graded — has a correct answer</option>
+            <option value="survey" ${q.mode === 'survey' ? 'selected' : ''}>Survey — no correct answer</option>
+          </select>
+        </div>
+        <span class="mini-label">Multiple-choice options ${q.mode === 'survey' ? '(optional)' : '(required)'}</span>
         ${[0,1,2,3].map(oi => `
           <div class="quiz-opt-edit-row">
-            <input type="radio" name="correct-${i}" ${q.correctIndex === oi ? "checked" : ""} onchange="onEditQuizCorrect(${i},${oi})">
+            ${q.mode === 'survey' ? '' : `<input type="radio" name="correct-${i}" ${q.correctIndex === oi ? "checked" : ""} onchange="onEditQuizCorrect(${i},${oi})">`}
             <input type="text" value="${escHtml(q.options[oi] || "")}" placeholder="Option ${oi+1}" oninput="onEditQuizOption(${i},${oi},this.value)">
           </div>
         `).join("")}
+        <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:12px;"><input type="checkbox" ${q.textResponse ? 'checked' : ''} onchange="onEditQuizTextResponse(${i},this.checked)"> Include a text response field</label>
       </div>
     `).join("")}
     <button class="add-btn" onclick="addQuizQuestion()">+ Add question</button>
     <button class="save-btn" onclick="saveQuizQuestions()">Save quiz questions</button>
     <div class="save-status ${quizSaveStatusIsError ? 'error' : 'ok'}">${escHtml(quizSaveStatus)}</div>
   `;
+}
+
+function renderQuizAnalytics() {
+  if (!quizAnalytics) return `
+    <div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Test results & data</div>
+    <p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">View aggregate results and download the complete participant answer file.</p>
+    <button class="save-btn" onclick="loadQuizAnalytics()">Load test results</button>
+    ${quizAnalyticsError ? `<div class="save-status error">${escHtml(quizAnalyticsError)}</div>` : ""}`;
+  const s = quizAnalytics.summary || {};
+  return `
+    <div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Test results & data</div>
+    <div class="info-grid" style="margin-bottom:14px;">
+      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PARTICIPANTS</span><strong>${s.expectedParticipants||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">SUBMISSIONS</span><strong>${s.submissions||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">NOT SUBMITTED</span><strong>${s.notSubmitted||0}</strong></div>
+      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PASSED</span><strong>${s.passed||0}</strong></div>
+      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">FAILED</span><strong>${s.failed||0}</strong></div>
+      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PASS RATE</span><strong>${s.passPct||0}%</strong></div>
+      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">AVERAGE SCORE</span><strong>${s.averageScorePct||0}%</strong></div>
+    </div>
+    <div class="info-card"><h3>Question statistics</h3>${(quizAnalytics.questionStats||[]).map(q=>`<div style="padding:9px 0;border-bottom:1px solid var(--pf-border);"><strong>${escHtml(q.id)}</strong> — ${escHtml(q.text)}<div style="font-size:11px;color:var(--pf-muted);margin-top:3px;">${q.mode==='survey' ? `${q.total} responses · No correct answer` : `${q.correct} correct · ${q.incorrect} incorrect · ${q.correctPct}% correct`}</div></div>`).join('') || '<div class="empty-note">No questions.</div>'}</div>
+    <button class="save-btn" onclick="downloadQuizExport()">Download participant answers (.csv)</button>
+    <button class="pin-btn" style="width:100%;margin-top:8px;" onclick="quizAnalytics=null;quizAnalyticsError='';rerenderOrganizerScroll()">Refresh results</button>
+    ${quizAnalyticsError ? `<div class="save-status error">${escHtml(quizAnalyticsError)}</div>` : ""}`;
+}
+
+function loadQuizAnalytics() {
+  quizAnalyticsLoading = true; quizAnalyticsError = ""; rerenderOrganizerScroll();
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/results`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({adminPin:pinInput}) })
+    .then(async r => { const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||"Couldn't load results."); return d; })
+    .then(d=>{quizAnalytics=d;quizAnalyticsLoading=false;rerenderOrganizerScroll();})
+    .catch(e=>{quizAnalyticsLoading=false;quizAnalyticsError=e.message;rerenderOrganizerScroll();});
+}
+
+async function downloadQuizExport() {
+  try {
+    const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/export`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({adminPin:pinInput})});
+    if(!r.ok) { const d=await r.json().catch(()=>({})); throw new Error(d.error||"Couldn't create export."); }
+    const blob=await r.blob(); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=`${confSlug}-quiz-results.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  } catch(e) { alert(e.message); }
 }
 
 function renderQuizResetTool() {
@@ -1101,7 +1234,7 @@ function onToggleModule(key, checked) {
 function ensureModuleContentDefaults() {
   const defaults = {
     handsOn:{title:'Hands on',intro:'',sessions:[newEditHandsOnSession()]}, map:{title:'Venue map',intro:'',address:'',image:''},
-    industry:{title:'Industry',intro:'',booths:[newEditIndustryBooth()]}, quiz:{title:'Final test',intro:'Answer all questions. The test can only be taken once.'}, contact:{title:'Contact',intro:'',coordinatorName:'',coordinatorPhone:'',coordinatorEmail:'',supportName:'',supportPhone:'',supportEmail:'',image:''}
+    industry:{title:'Industry',intro:'',booths:[newEditIndustryBooth()]}, quiz:{title:'Final test',intro:'Answer all questions. The test can only be taken once.'}, evaluations:{title:'Faculty evaluation',intro:'Evaluate each participant at your assigned post.',posts:[]}, contact:{title:'Contact',intro:'',coordinatorName:'',coordinatorPhone:'',coordinatorEmail:'',supportName:'',supportPhone:'',supportEmail:'',image:''}
   };
   for (const key of Object.keys(defaults)) {
     const existing=editModuleContent[key]||{};
@@ -1142,6 +1275,23 @@ function onEditQuizPassPct(val) {
 
 function onEditQuizQuestion(i, key, val) { editQuizQuestions[i][key] = val; }
 function onEditQuizOption(i, oi, val) { editQuizQuestions[i].options[oi] = val; }
+function onEditQuizMode(i, mode) { editQuizQuestions[i].mode = mode === 'survey' ? 'survey' : 'graded'; if(mode==='survey') editQuizQuestions[i].correctIndex=null; else if(editQuizQuestions[i].correctIndex===null) editQuizQuestions[i].correctIndex=0; rerenderOrganizerScroll(); }
+function onEditQuizTextResponse(i, checked) { editQuizQuestions[i].textResponse = !!checked; rerenderOrganizerScroll(); }
+function onQuizQuestionMedia(i, file) {
+  if (!file) return;
+  const isImage = file.type.startsWith('image/');
+  const isVideo = file.type === 'video/mp4' || file.type === 'video/webm';
+  const max = isImage ? 1024 * 1024 : 8 * 1024 * 1024;
+  if (!isImage && !isVideo) { alert('Please choose a JPG, PNG, WebP, MP4 or WebM file.'); return; }
+  if (file.size > max) { alert(isImage ? 'The image must be smaller than 1 MB.' : 'The video must be smaller than 8 MB.'); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    editQuizQuestions[i].media = { type: isImage ? 'image' : 'video', mime: file.type, data: reader.result };
+    rerenderOrganizerScroll();
+  };
+  reader.readAsDataURL(file);
+}
+function removeQuizQuestionMedia(i) { delete editQuizQuestions[i].media; rerenderOrganizerScroll(); }
 function onEditQuizCorrect(i, oi) {
   editQuizQuestions[i].correctIndex = oi;
   rerenderOrganizerScroll();
@@ -1159,9 +1309,13 @@ function saveQuizQuestions() {
   quizSaveStatus = "Saving…"; quizSaveStatusIsError = false;
   rerenderOrganizerScroll();
 
-  const cleanQuestions = editQuizQuestions.filter(q => q.text && q.text.trim() && q.options.every(o => o && o.trim()));
-  if (cleanQuestions.length === 0) {
-    quizSaveStatus = "Add at least one question with all 4 options filled in.";
+  const cleanQuestions = editQuizQuestions.filter(q => {
+    if (!q.text || !q.text.trim()) return false;
+    const options = (q.options || []).filter(Boolean);
+    return q.mode === 'survey' ? (options.length >= 1 || q.textResponse) : (options.length === 4 && Number.isInteger(q.correctIndex) && !!options[q.correctIndex]);
+  }).map(q => Object.assign({}, q, { mode:q.mode==='survey'?'survey':'graded', correctIndex:q.mode==='survey'?null:q.correctIndex, textResponse:!!q.textResponse }));
+  if (cleanQuestions.length === 0 || cleanQuestions.length !== editQuizQuestions.filter(q=>q.text && q.text.trim()).length) {
+    quizSaveStatus = "Each question needs a valid setup. Graded questions need 4 options and a correct answer; survey questions need at least one option or a text field.";
     quizSaveStatusIsError = true;
     rerenderOrganizerScroll();
     return;
@@ -1261,6 +1415,15 @@ function rerenderOrganizerScroll() {
   setHtmlPreservingFocus(document.getElementById("organizerScroll"), renderOrganizerEditor());
 }
 
+function onEditConferenceLogo(file){
+  if(!file)return;
+  if(file.size>1024*1024){alert("The logo must be smaller than 1 MB.");return;}
+  if(!file.type.startsWith("image/")){alert("Please choose an image file.");return;}
+  const reader=new FileReader();
+  reader.onload=()=>{if(!editMeta.branding)editMeta.branding={};editMeta.branding.logo=reader.result;rerenderOrganizerScroll();};
+  reader.readAsDataURL(file);
+}
+
 function saveOrganizerChanges() {
   if(editMeta.modules && editMeta.modules.handsOn && !validHandsOnConfig(editModuleContent.handsOn)){alert('Hands on is not valid. Add a date and make sure the total time fits every rotation (stations × minutes per rotation).');return;}
   saveStatus = "Saving…"; saveStatusIsError = false;
@@ -1274,6 +1437,7 @@ function saveOrganizerChanges() {
     contactEmail: editMeta.contactEmail,
     participantCount: editMeta.participantCount,
     facultyCount: editMeta.facultyCount,
+    branding: editMeta.branding || {logo:""},
     modules: editMeta.modules,
     moduleContent: editModuleContent,
     sessions: editSessions.filter(s => s.title && s.title.trim()),

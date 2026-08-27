@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>All Conferences — Conference Manager</title>
+<title>All Conferences — Conf Design</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -107,11 +107,10 @@
     <div class="top-brand-left">
       <div class="mark">CM</div>
       <div>
-        <h1>Conference Manager</h1>
+        <h1>Conf Design</h1>
         <p>All conferences on this platform</p>
       </div>
     </div>
-    <a class="new-btn" href="create.html">+ New</a>
   </div>
 
   <input type="text" class="search-box" id="searchBox" placeholder="Search conferences…" oninput="onSearch(this.value)">
@@ -160,7 +159,7 @@ function render() {
   const filtered = allConferences.filter(c => c.name.toLowerCase().includes(searchTerm));
 
   if (allConferences.length === 0) {
-    el.innerHTML = `<div class="state-note">No conferences yet. <a href="create.html">Create the first one →</a></div>`;
+    el.innerHTML = `<div class="state-note">No conferences made.</div>`;
     return;
   }
   if (filtered.length === 0) {

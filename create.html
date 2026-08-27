@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Create a Conference — Conference Manager</title>
+<title>Create a Conference — Conf Design</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -299,7 +299,7 @@
   <div class="top-brand">
     <div class="mark">CM</div>
     <div>
-      <h1>Conference Manager</h1>
+      <h1>Conf Design</h1>
       <p>Set up a new conference in a few minutes</p>
     </div>
   </div>
@@ -401,18 +401,20 @@ let form = {
   name: "",
   slug: "",
   themeColor: THEME_COLORS[0].hex,
+  branding: { logo: "" },
   startDate: "",
   endDate: "",
   contactEmail: "",
   adminPin: "",
   participantCount: 100,
   facultyCount: 20,
-  modules: { handsOn: false, map: false, industry: false, quiz: false, contact: false },
+  modules: { handsOn: false, map: false, industry: false, quiz: false, evaluations: false, contact: false },
   moduleContent: {
     handsOn: { title: "Hands on", intro: "", sessions: [newHandsOnSession()] },
     map: { title: "Venue map", intro: "", address: "", image: "" },
     industry: { title: "Industry", intro: "", booths: [newIndustryBooth()] },
     quiz: { title: "Final test", intro: "Answer all questions. The test can only be taken once." },
+    evaluations: { title: "Faculty evaluation", intro: "Evaluate each participant at your assigned post.", posts: [] },
     contact: { title: "Contact", intro: "", coordinatorName: "", coordinatorPhone: "", coordinatorEmail: "", supportName: "", supportPhone: "", supportEmail: "", image: "" },
   },
 };
@@ -533,6 +535,13 @@ function render() {
           `).join("")}
         </div>
       </div>
+
+      <div class="field-group">
+        <label>Conference logo</label>
+        <div class="field-hint">Shown to participants at the top of the conference and used as the shortcut icon on smartphones. Maximum 1 MB.</div>
+        <input type="file" accept="image/*" onchange="onConferenceLogo(this.files[0])">
+        ${form.branding.logo ? `<img class="image-preview" src="${form.branding.logo}" alt="Logo preview"><button type="button" class="remove-image-btn" onclick="removeConferenceLogo()">Remove logo</button>` : ""}
+      </div>
       </div></details>
 
     <details class="card" ${openCreateSection==='access'?'open':''} ontoggle="trackCreateSection(this,'access')">
@@ -577,6 +586,7 @@ function render() {
         ['map','◇','Map','Venue map and directions for participants.'],
         ['industry','▱','Industry','Exhibitors, stands and industry partners.'],
         ['quiz','☑','Test','Multiple-choice questions with automatic grading.'],
+        ['evaluations','✓','Faculty evaluations','Faculty can mark participants pass/fail and add comments.'],
         ['contact','⌕','Contact','Course coordinator and technical support details.']
       ].map(([key,icon,name,desc]) => `
         <div class="module-row">
@@ -591,6 +601,7 @@ function render() {
       ${form.modules.map ? renderModuleEditor('map') : ''}
       ${form.modules.industry ? renderModuleEditor('industry') : ''}
       ${form.modules.quiz ? renderModuleEditor('quiz') : ''}
+      ${form.modules.evaluations ? renderModuleEditor('evaluations') : ''}
       ${form.modules.contact ? renderModuleEditor('contact') : ''}
       </div></details>
 
@@ -652,6 +663,16 @@ function onSlug(val) {
   render();
 }
 
+function onConferenceLogo(file){
+  if(!file)return;
+  if(file.size>1024*1024){alert("The logo must be smaller than 1 MB.");return;}
+  if(!file.type.startsWith("image/")){alert("Please choose an image file.");return;}
+  const reader=new FileReader();
+  reader.onload=()=>{form.branding.logo=reader.result;render();};
+  reader.readAsDataURL(file);
+}
+function removeConferenceLogo(){form.branding.logo="";render();}
+
 function onField(key, val) {
   form[key] = val;
   if (key === 'themeColor') render(); else updateCreateReadiness();
@@ -691,6 +712,9 @@ function removeIndustryBooth(i){if(form.moduleContent.industry.booths.length>1)f
 function onIndustryBooth(i,key,value){form.moduleContent.industry.booths[i][key]=value;}
 function onIndustryBoothImage(i,file){if(!file)return;if(file.size>1024*1024){alert('The image must be smaller than 1 MB.');return;}const reader=new FileReader();reader.onload=()=>{form.moduleContent.industry.booths[i].image=reader.result;render();};reader.readAsDataURL(file);}
 
+function addEvaluationPost(){form.moduleContent.evaluations.posts.push({id:`P${form.moduleContent.evaluations.posts.length+1}`,name:''});render();}
+function removeEvaluationPost(i){form.moduleContent.evaluations.posts.splice(i,1);render();}
+function onEvaluationPost(i,val){form.moduleContent.evaluations.posts[i].name=val;}
 function renderModuleEditor(module) {
   const c = form.moduleContent[module];
   const common = `
@@ -700,6 +724,8 @@ function renderModuleEditor(module) {
   if (module === 'handsOn') { normalizeHandsOn(c); fields = `${c.sessions.map((hs,si)=>`<div class="session-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-indigo);margin-bottom:12px">Hands-on session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onHandsOnStationCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes/rotation</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-row"><span class="mini-label">Station ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(s.name)}" oninput="onHandsOnStation(${si},${i},'name',this.value)"></div><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}</div>`).join('')}<button type="button" class="add-session-btn" onclick="addHandsOnSession()">+ Add another Hands-on session</button><div id="handsOnValidation" class="field-hint ${validateHandsOn(c)?'':'error'}">Each session must fit stations × minutes per rotation.</div>`; }
   if (module === 'map') fields = `<div class="field-group"><label>Venue address</label><input type="text" value="${escHtml(c.address)}" oninput="onModuleContent('map','address',this.value)"></div>${renderImageField('map')}`;
   if (module === 'industry') { normalizeIndustry(c); fields = `${c.booths.map((b,i)=>`<div class="session-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input type="url" value="${escHtml(b.website)}" placeholder="https://..." oninput="onIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Booth image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onIndustryBoothImage(${i},this.files[0])">${b.image?`<img class="image-preview" src="${b.image}" alt="Preview"><button type="button" class="remove-image-btn" onclick="form.moduleContent.industry.booths[${i}].image='';render()">Remove image</button>`:''}</div></div>`).join('')}<button type="button" class="add-session-btn" onclick="addIndustryBooth()">+ Add industry booth</button>`; }
+  if (module === 'quiz') fields = `<div class="field-hint" style="margin-top:10px">Edit questions when conference is made.</div>`;
+  if (module === 'evaluations') { const posts=Array.isArray(c.posts)?c.posts:[]; fields = `${posts.map((p,i)=>`<div class="session-row">${posts.length>1?`<button class="remove-btn" onclick="removeEvaluationPost(${i})">✕</button>`:''}<span class="mini-label">Post ${i+1}</span><input value="${escHtml(p.name||'')}" placeholder="e.g. Airway" oninput="onEvaluationPost(${i},this.value)"></div>`).join('')}<button type="button" class="add-session-btn" onclick="addEvaluationPost()">+ Add post</button>`; }
   if (module === 'contact') fields = `
     <div class="field-row"><div class="field-group"><label>Coordinator name</label><input type="text" value="${escHtml(c.coordinatorName)}" oninput="onModuleContent('contact','coordinatorName',this.value)"></div><div class="field-group"><label>Phone</label><input type="text" value="${escHtml(c.coordinatorPhone)}" oninput="onModuleContent('contact','coordinatorPhone',this.value)"></div></div>
     <div class="field-group"><label>Coordinator email</label><input type="email" value="${escHtml(c.coordinatorEmail)}" oninput="onModuleContent('contact','coordinatorEmail',this.value)"></div>
@@ -774,6 +800,7 @@ function submitConference() {
     facultyCount: form.facultyCount,
     modules: form.modules,
     moduleContent: form.moduleContent,
+    branding: form.branding,
     sessions: sessions.filter(s => s.title.trim().length > 0),
   };
 
