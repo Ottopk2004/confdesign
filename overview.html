@@ -105,12 +105,13 @@
 <div class="shell">
   <div class="top-brand">
     <div class="top-brand-left">
-      <div class="mark">CM</div>
+      <div class="mark">CD</div>
       <div>
         <h1>Conf Design</h1>
         <p>All conferences on this platform</p>
       </div>
     </div>
+    <a class="new-btn" href="create.html">+ New</a>
   </div>
 
   <input type="text" class="search-box" id="searchBox" placeholder="Search conferences…" oninput="onSearch(this.value)">
@@ -159,7 +160,7 @@ function render() {
   const filtered = allConferences.filter(c => c.name.toLowerCase().includes(searchTerm));
 
   if (allConferences.length === 0) {
-    el.innerHTML = `<div class="state-note">No conferences made.</div>`;
+    el.innerHTML = `<div class="state-note">No conferences yet. <a href="create.html">Create the first one →</a></div>`;
     return;
   }
   if (filtered.length === 0) {
