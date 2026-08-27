@@ -439,8 +439,8 @@ function render() {
 
   if (created && createResult) {
     const code = form.slug.toUpperCase();
-    const loginUrl = new URL('login.html', location.href).href;
-    const organizerLink = new URL(`index.html?conf=${encodeURIComponent(form.slug)}&admin=1`, location.href).href;
+    const loginUrl = `${location.origin}${location.pathname.replace('create.html','')}login.html`;
+    const organizerLink = `${location.origin}${location.pathname.replace('create.html','')}index.html?conf=${form.slug}&admin=1`;
     setHtmlPreservingFocus(el, `
       <div class="result-card">
         <div class="check">✓</div>
@@ -452,21 +452,21 @@ function render() {
         <div class="link-box">
           <div class="link-label">Tell participants to go to ${escHtml(loginUrl)} and enter</div>
           <div class="link-value" id="participantCodeVal">${escHtml(code)} + their number (1–${form.participantCount})</div>
-          <button type="button" class="copy-btn" onclick="copyText('participantCodeVal', this)">Copy</button>
+          <button class="copy-btn" onclick="copyText('participantCodeVal')">Copy</button>
         </div>
 
         ${form.facultyCount > 0 ? `
         <div class="link-box">
           <div class="link-label">Tell faculty to enter</div>
           <div class="link-value" id="facultyCodeVal">${escHtml(code)} + their number (1000–${1000 + form.facultyCount - 1})</div>
-          <button type="button" class="copy-btn" onclick="copyText('facultyCodeVal', this)">Copy</button>
+          <button class="copy-btn" onclick="copyText('facultyCodeVal')">Copy</button>
         </div>
         ` : ""}
 
         <div class="link-box">
           <div class="link-label">Organizer link (keep private)</div>
           <div class="link-value" id="organizerLinkVal">${escHtml(organizerLink)}</div>
-          <button type="button" class="copy-btn" onclick="copyText('organizerLinkVal', this)">Copy</button>
+          <button class="copy-btn" onclick="copyText('organizerLinkVal')">Copy</button>
         </div>
 
         <div class="link-box">
@@ -506,7 +506,7 @@ function render() {
         <div class="field-hint ${form.slug && !slugValid ? "error" : ""}">
           ${form.slug && !slugValid ? "2–12 letters only, no numbers or spaces." : "Letters only — this is what people type to log in, e.g. \u201cHNUS42\u201d. Must be unique, and can't be changed later."}
         </div>
-        <div class="slug-preview">${form.slug ? "Direct link: " + new URL(`index.html?conf=${encodeURIComponent(form.slug)}`, location.href).href : ""}</div>
+        <div class="slug-preview">${form.slug ? "Direct link: " + location.origin + location.pathname.replace('create.html','') + "index.html?conf=" + form.slug : ""}</div>
       </div>
 
       <div class="field-row">
@@ -838,21 +838,14 @@ function submitConference() {
     });
 }
 
-async function copyText(id, btn) {
+function copyText(id) {
   const text = document.getElementById(id).textContent;
-  try {
-    await navigator.clipboard.writeText(text);
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
     const original = btn.textContent;
     btn.textContent = "Copied!";
     setTimeout(() => { btn.textContent = original; }, 1500);
-  } catch (_) {
-    const range = document.createRange();
-    range.selectNodeContents(document.getElementById(id));
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    alert("Copying was blocked by the browser. The text has been selected so you can copy it manually.");
-  }
+  });
 }
 
 function escHtml(str) {

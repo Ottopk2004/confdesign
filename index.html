@@ -607,7 +607,7 @@ function render() {
         <a href="login.html" style="text-decoration:none;"><button>Log out</button></a>
       </div>
       <div class="tab-bar">
-        ${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}
+        ${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" data-tab="${t.key}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}
       </div>
       <div class="panel-scroll" id="participantScroll">
         ${renderParticipantScrollContent()}
@@ -630,7 +630,7 @@ function render() {
         <div class="who">Logged in as #${escHtml(loginNr)}</div>
         <a href="login.html" style="text-decoration:none;"><button>Log out</button></a>
       </div>
-      <div class="tab-bar">${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}</div>
+      <div class="tab-bar">${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" data-tab="${t.key}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}</div>
       <div class="panel-scroll" id="participantScroll">
         ${renderParticipantModule(participantTab)}
       </div>
@@ -689,10 +689,16 @@ function loadRegistrationStatus(){
     if (!r.ok) throw new Error(d.error || "Couldn't check registration.");
     registrationChecked = true;
     registrationRegistered = !!d.registered;
-    // The address stays private on the server. This response only confirms
-    // whether the participant has completed the one-time registration.
-    participantEmail = "";
+    participantEmail = registrationRegistered ? String(d.email || "").trim() : "";
     registrationLoading = false;
+
+    // If the server says the number is registered but has no usable email,
+    // force a one-time re-registration instead of allowing the quiz to fail later.
+    if (registrationRegistered && !isValidEmail(participantEmail)) {
+      registrationRegistered = false;
+      registrationEmailInput = "";
+      registrationError = "Please enter your email address to complete registration.";
+    }
     rerenderParticipantScroll();
   })
   .catch(e => {
@@ -722,7 +728,7 @@ function getParticipantTabs(meta) {
     { key: "handsOn", icon: "▣", label: "Hands on", enabled: !!modules.handsOn },
     { key: "map", icon: "◇", label: "Map", enabled: !!modules.map },
     { key: "industry", icon: "▱", label: "Industry", enabled: !!modules.industry },
-    { key: "quiz", icon: "☑", label: "Test", enabled: !!modules.quiz },
+    { key: "quiz", icon: "☑", label: "Test", enabled: mode === "participant" && !!modules.quiz },
     { key: "evaluations", icon: "✓", label: "Evaluate", enabled: mode === "faculty" && !!modules.evaluations },
     { key: "conferenceFeedback", icon: "✎", label: "Feedback", enabled: !!modules.conferenceFeedback },
     { key: "contact", icon: "⌕", label: "Contact", enabled: !!modules.contact },
@@ -921,18 +927,29 @@ function switchParticipantTab(tab) {
   if (!allowed) return;
 
   participantTab = tab;
+
+  // Update the active tab immediately and again after asynchronous
+  // panel redraws, so Schedule cannot remain visually selected.
+  const setActiveTab = () => {
+    document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === participantTab);
+    });
+  };
+  setActiveTab();
+
   if (mode === "faculty" && tab === "evaluations" && !evaluationConfig && !evaluationLoading) {
     loadEvaluationConfig();
   }
   if (mode === "participant" && tab === "quiz" && !quizQuestions) {
-    loadQuizForParticipant();
+    loadQuiz();
   }
   if (mode === "participant" && tab === "conferenceFeedback" && !conferenceFeedbackConfig && !conferenceFeedbackLoading) {
     loadConferenceFeedbackConfig();
   }
-  rerenderParticipantScroll();
-}
 
+  rerenderParticipantScroll();
+  setActiveTab();
+}
 function loadQuiz() {
   quizLoading = true;
   rerenderParticipantScroll();
