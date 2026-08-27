@@ -991,7 +991,9 @@ function loadQuiz() {
 // Without this, a background refresh (e.g. after checking registration
 // status) could silently skip straight past the email-registration step.
 function renderParticipantScrollContent() {
-  return (!registrationChecked || !registrationRegistered) ? renderRegistrationGate() : renderParticipantModule(participantTab);
+  return mode === "participant" && (!registrationChecked || !registrationRegistered)
+    ? renderRegistrationGate()
+    : renderParticipantModule(participantTab);
 }
 
 function rerenderParticipantScroll() {
