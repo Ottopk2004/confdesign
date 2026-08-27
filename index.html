@@ -689,16 +689,10 @@ function loadRegistrationStatus(){
     if (!r.ok) throw new Error(d.error || "Couldn't check registration.");
     registrationChecked = true;
     registrationRegistered = !!d.registered;
-    participantEmail = registrationRegistered ? String(d.email || "").trim() : "";
+    // The address stays private on the server. This response only confirms
+    // whether the participant has completed the one-time registration.
+    participantEmail = "";
     registrationLoading = false;
-
-    // If the server says the number is registered but has no usable email,
-    // force a one-time re-registration instead of allowing the quiz to fail later.
-    if (registrationRegistered && !isValidEmail(participantEmail)) {
-      registrationRegistered = false;
-      registrationEmailInput = "";
-      registrationError = "Please enter your email address to complete registration.";
-    }
     rerenderParticipantScroll();
   })
   .catch(e => {
