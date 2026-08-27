@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Create a Conference — Conf Design</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --pf-ink:        #1E2233;
+    --pf-indigo:      #07558F;
+    --pf-indigo-light:#E5F0F8;
+    --pf-white:       #FFFFFF;
+    --pf-gray:        #F5F6FA;
+    --pf-border:      #DADFF0;
+    --pf-muted:       #656B85;
+    --pf-green:       #1E7A3D;
+    --pf-green-light: #E7F5EC;
+    --pf-red:         #B3261E;
+    --pf-red-light:   #FBECEA;
+  }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #eef0f6;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 24px 12px 80px;
+    color: var(--pf-ink);
+  }
+
+  .shell {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  .top-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .top-brand .mark {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: var(--pf-indigo); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 15px; flex-shrink: 0;
+  }
+  .top-brand h1 { font-size: 16px; color: var(--pf-ink); }
+  .top-brand p { font-size: 11.5px; color: var(--pf-muted); }
+
+  .card {
+    background: var(--pf-white);
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(30,34,51,0.08);
+    padding: 22px;
+    margin-bottom: 18px;
+  }
+  details.card { padding:0; overflow:hidden; }
+  details.card > summary { cursor:pointer; list-style:none; padding:18px 22px; color:var(--pf-indigo); font-size:15px; font-weight:bold; background:#fff; }
+  details.card > summary::-webkit-details-marker { display:none; }
+  details.card > summary::after { content:'⌄'; float:right; font-size:20px; }
+  details.card[open] > summary::after { content:'⌃'; }
+  .create-section-body { padding:0 22px 22px; }
+
+  .card h2 {
+    font-size: 15px;
+    color: var(--pf-indigo);
+    margin-bottom: 4px;
+  }
+  .card .card-sub {
+    font-size: 12px;
+    color: var(--pf-muted);
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+
+  .field-group { margin-bottom: 16px; }
+  .field-group:last-child { margin-bottom: 0; }
+  .field-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--pf-ink);
+    margin-bottom: 6px;
+  }
+  .field-group input[type="text"],
+  .field-group input[type="email"],
+  .field-group input[type="number"],
+  .field-group input[type="date"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--pf-border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--pf-ink);
+  }
+  .field-group textarea { width:100%; min-height:96px; resize:vertical; padding:10px 12px; border:2px solid var(--pf-border); border-radius:8px; font:14px inherit; }
+  .field-group textarea:focus { border-color:var(--pf-indigo); outline:none; }
+  .module-editor { margin:0 0 14px; padding:0; border:2px solid var(--pf-indigo); border-radius:12px; background:#fff; overflow:hidden; }
+  .module-editor summary { cursor:pointer; padding:14px 16px; color:var(--pf-indigo); font-weight:bold; background:var(--pf-indigo-light); }
+  .module-editor-body { padding:16px; }
+  .module-editor .editor-title { color:var(--pf-indigo); font-weight:bold; font-size:13px; margin-bottom:12px; }
+  .image-preview { max-width:100%; max-height:260px; display:block; border:2px solid var(--pf-border); border-radius:10px; margin-top:10px; }
+  .remove-image-btn { margin-top:8px; padding:7px 10px; border:1px solid var(--pf-red); color:var(--pf-red); background:#fff; border-radius:7px; cursor:pointer; }
+  .field-group input:focus { border-color: var(--pf-indigo); outline: none; }
+  .field-hint { font-size: 11px; color: var(--pf-muted); margin-top: 5px; line-height: 1.5; }
+  .field-hint.error { color: var(--pf-red); }
+  .field-row { display: flex; gap: 12px; }
+  .field-row .field-group { flex: 1; }
+
+  .slug-preview {
+    font-size: 12px;
+    color: var(--pf-indigo);
+    margin-top: 6px;
+    font-family: 'Courier New', monospace;
+    word-break: break-all;
+  }
+
+  .color-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+  .color-swatch {
+    width: 34px; height: 34px; border-radius: 8px;
+    cursor: pointer; border: 3px solid transparent;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px;
+  }
+  .color-swatch.selected { border-color: var(--pf-ink); }
+
+  .pin-input {
+    letter-spacing: 0.3em;
+    font-size: 20px !important;
+    font-weight: bold;
+    text-align: center;
+  }
+
+  /* Schedule builder */
+  .session-row {
+    border: 2px solid var(--pf-border);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .session-row .remove-btn {
+    position: absolute;
+    top: 8px; right: 8px;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    border: none;
+    background: var(--pf-red-light);
+    color: var(--pf-red);
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .session-row .field-row { margin-bottom: 8px; }
+  .session-row .field-row:last-child { margin-bottom: 0; }
+  .session-row input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 2px solid var(--pf-border);
+    border-radius: 7px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .session-row input:focus { border-color: var(--pf-indigo); outline: none; }
+  .session-row .mini-label {
+    font-size: 10px; font-weight: bold; color: var(--pf-muted);
+    text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; display: block;
+  }
+
+  .add-session-btn {
+    width: 100%;
+    padding: 11px;
+    border: 2px dashed var(--pf-border);
+    border-radius: 10px;
+    background: var(--pf-gray);
+    color: var(--pf-indigo);
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .add-session-btn:hover { border-color: var(--pf-indigo); }
+
+  .submit-btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: bold;
+    background: var(--pf-border);
+    color: #8a8a8a;
+    cursor: not-allowed;
+    margin-top: 4px;
+  }
+  .submit-btn.ready { background: var(--pf-indigo); color: #fff; cursor: pointer; }
+  .submit-btn.ready:hover { background: #333e82; }
+
+  .result-card {
+    background: var(--pf-green-light);
+    border: 2px solid var(--pf-green);
+    border-radius: 14px;
+    padding: 22px;
+    text-align: center;
+  }
+  .result-card .check {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--pf-green); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; margin: 0 auto 12px;
+  }
+  .result-card h2 { color: var(--pf-green); font-size: 17px; margin-bottom: 6px; }
+  .result-card p { font-size: 12.5px; color: var(--pf-ink); margin-bottom: 14px; }
+
+  .link-box {
+    background: #fff;
+    border: 1px solid var(--pf-green);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    text-align: left;
+  }
+  .link-box .link-label {
+    font-size: 10.5px; font-weight: bold; color: var(--pf-muted);
+    text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px;
+  }
+  .link-box .link-value {
+    font-size: 12px; color: var(--pf-indigo); word-break: break-all;
+    font-family: 'Courier New', monospace;
+  }
+  .copy-btn {
+    margin-top: 6px;
+    font-size: 11px;
+    padding: 5px 10px;
+    border: 1px solid var(--pf-indigo);
+    background: #fff;
+    color: var(--pf-indigo);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .module-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px; border: 2px solid #cfdae3; border-radius: 12px; margin-bottom: 10px;
+    background:#f7f8f9;
+  }
+  .module-row:has(input:checked) { border-color:var(--pf-indigo); background:var(--pf-indigo-light); }
+  .module-icon { width:28px; color:var(--pf-indigo); font-size:20px; text-align:center; flex-shrink:0; }
+  .module-row:last-child { margin-bottom: 0; }
+  .module-row.disabled { opacity: .55; }
+  .module-toggle { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; width: 100%; }
+  .module-row.disabled .module-toggle { cursor: default; }
+  .module-toggle input[type="checkbox"] { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--pf-indigo); flex-shrink: 0; }
+  .module-name { font-size: 13.5px; font-weight: bold; color: var(--pf-ink); margin-bottom: 3px; }
+  .module-desc { font-size: 11.5px; color: var(--pf-muted); line-height: 1.5; }
+  .soon-badge {
+    display: inline-block; font-size: 9.5px; font-weight: bold; color: var(--pf-muted);
+    background: var(--pf-gray); border: 1px solid var(--pf-border); padding: 1px 6px; border-radius: 999px; margin-left: 4px;
+  }
+
+  .dev-note {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--pf-gray);
+    border: 1px dashed var(--pf-border);
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--pf-muted);
+    line-height: 1.5;
+  }
+</style>
+<style>
+@media (max-width: 600px) {
+  body { padding:0 0 48px; background:#fff; }
+  .shell { max-width:none; }
+  .top-brand { padding:16px; margin:0; border-bottom:2px solid var(--pf-border); }
+  #wizard { padding:12px; }
+  .card { border-radius:12px; margin-bottom:12px; box-shadow:none; border:1px solid var(--pf-border); }
+  details.card > summary { padding:16px; font-size:16px; }
+  .create-section-body { padding:0 14px 16px; }
+  .field-row { flex-direction:column; gap:0; }
+  .field-group input, .field-group textarea, .session-row input { min-height:46px; font-size:16px; }
+  .module-row { padding:13px 11px; }
+  .module-editor-body { padding:12px; }
+  .session-row { padding:11px; }
+  .submit-btn { min-height:52px; font-size:16px; }
+  .color-swatch { width:40px; height:40px; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="top-brand">
+    <div class="mark">CD</div>
+    <div>
+      <h1>Conf Design</h1>
+      <p>Set up a new conference in a few minutes</p>
+    </div>
+  </div>
+
+  <div id="wizard"></div>
+</div>
+
+<script>
+// Point this at your platform worker once it's deployed (see
+// platform-setup-guide.md). Left empty for now, so the form can be built
+// and tested end to end before the backend exists.
+const PLATFORM_WORKER_URL = "https://cm-worker.conferenceplanner.workers.dev";
+
+// Replaces an element's HTML while preserving focus and cursor position in
+// whichever input the user is currently typing in. Without this, every
+// re-render recreates the DOM from scratch and the browser drops focus —
+// which looks like "I can only type one letter before I have to click the
+// field again". Works purely structurally (by child-index path), so it
+// doesn't require every input to have a unique id — including inputs
+// inside dynamically repeated rows (sessions, quiz options, etc).
+const SELECTABLE_INPUT_TYPES = new Set(["text", "search", "url", "tel", "password"]);
+
+function getFocusPath(root, el) {
+  if (!root.contains(el)) return null;
+  const path = [];
+  let node = el;
+  while (node !== root) {
+    const parent = node.parentElement;
+    if (!parent) return null;
+    path.unshift(Array.prototype.indexOf.call(parent.children, node));
+    node = parent;
+  }
+  return path;
+}
+
+function getElementByPath(root, path) {
+  let node = root;
+  for (const idx of path) {
+    if (!node || !node.children || idx < 0 || idx >= node.children.length) return null;
+    node = node.children[idx];
+  }
+  return node;
+}
+
+function setHtmlPreservingFocus(el, html) {
+  const active = document.activeElement;
+  const path = active ? getFocusPath(el, active) : null;
+  let selStart = null, selEnd = null;
+  let needsCaretEndFallback = false;
+  if (path) {
+    const tag = active.tagName.toLowerCase();
+    const type = (active.type || "text").toLowerCase();
+    if (tag === "textarea" || SELECTABLE_INPUT_TYPES.has(type)) {
+      try { selStart = active.selectionStart; selEnd = active.selectionEnd; } catch (e) { needsCaretEndFallback = true; }
+    } else {
+      // number/date/time/etc — the Selection API isn't supported at all,
+      // so the best we can do is put the caret at the end after re-render
+      // (matches how people normally type: left to right).
+      needsCaretEndFallback = true;
+    }
+  }
+
+  el.innerHTML = html;
+
+  if (path) {
+    const restored = getElementByPath(el, path);
+    if (restored && typeof restored.focus === "function") {
+      restored.focus();
+      if (selStart !== null && typeof restored.setSelectionRange === "function") {
+        try { restored.setSelectionRange(selStart, selEnd); } catch (e) { /* unsupported, ignore */ }
+      } else if (needsCaretEndFallback && "value" in restored && typeof restored.setSelectionRange === "function") {
+        // Temporarily swap to a plain text box just long enough to move the
+        // caret to the end — number/date/time inputs refuse this call
+        // directly, but a text input with the same value accepts it fine.
+        const originalType = restored.type;
+        try {
+          restored.type = "text";
+          const len = restored.value.length;
+          restored.setSelectionRange(len, len);
+        } catch (e) { /* give up silently */ }
+        finally { restored.type = originalType; }
+      }
+    }
+  }
+}
+
+const THEME_COLORS = [
+  { name: "HNUS blue", hex: "#07558F" },
+  { name: "Blue",   hex: "#004B87" },
+  { name: "Teal",   hex: "#0F7A6E" },
+  { name: "Green",  hex: "#1E7A3D" },
+  { name: "Purple", hex: "#6B3FA0" },
+  { name: "Rose",   hex: "#B3266B" },
+  { name: "Amber",  hex: "#B36A1E" },
+  { name: "Slate",  hex: "#3A4552" },
+];
+
+let form = {
+  name: "",
+  slug: "",
+  themeColor: THEME_COLORS[0].hex,
+  branding: { logo: "" },
+  startDate: "",
+  endDate: "",
+  contactEmail: "",
+  adminPin: "",
+  participantCount: 100,
+  facultyCount: 20,
+  modules: { handsOn: false, map: false, industry: false, quiz: false, evaluations: false, conferenceFeedback: false, contact: false },
+  moduleContent: {
+    handsOn: { title: "Hands on", intro: "", sessions: [newHandsOnSession()] },
+    map: { title: "Venue map", intro: "", address: "", image: "" },
+    industry: { title: "Industry", intro: "", booths: [newIndustryBooth()] },
+    quiz: { title: "Final test", intro: "Answer all questions. The test can only be taken once." },
+    evaluations: { title: "Faculty evaluation", intro: "Evaluate each participant at your assigned post.", posts: [] },
+    conferenceFeedback: { title: "Conference evaluation", intro: "We would value your feedback.", prompt: "How would you evaluate the conference?" },
+    contact: { title: "Contact", intro: "", coordinatorName: "", coordinatorPhone: "", coordinatorEmail: "", supportName: "", supportPhone: "", supportEmail: "", image: "" },
+  },
+};
+
+let sessions = [
+  { date: "", time: "", title: "", speaker: "" },
+];
+
+let created = false;
+let creating = false;
+let createResult = null;
+let openModule = '';
+let openCreateSection = 'details';
+
+function cleanCode(str) {
+  return str.toLowerCase().replace(/[^a-z]/g, "").slice(0, 12);
+}
+
+function render() {
+  const el = document.getElementById("wizard");
+
+  if (created && createResult) {
+    const code = form.slug.toUpperCase();
+    const loginUrl = new URL('login.html', location.href).href;
+    const organizerLink = new URL(`index.html?conf=${encodeURIComponent(form.slug)}&admin=1`, location.href).href;
+    setHtmlPreservingFocus(el, `
+      <div class="result-card">
+        <div class="check">✓</div>
+        <h2>Conference created</h2>
+        <p>Share the login code below with attendees and faculty. Keep the
+        organizer link and PIN private — that's how you'll edit this
+        conference later.</p>
+
+        <div class="link-box">
+          <div class="link-label">Tell participants to go to ${escHtml(loginUrl)} and enter</div>
+          <div class="link-value" id="participantCodeVal">${escHtml(code)} + their number (1–${form.participantCount})</div>
+          <button type="button" class="copy-btn" onclick="copyText('participantCodeVal', this)">Copy</button>
+        </div>
+
+        ${form.facultyCount > 0 ? `
+        <div class="link-box">
+          <div class="link-label">Tell faculty to enter</div>
+          <div class="link-value" id="facultyCodeVal">${escHtml(code)} + their number (1000–${1000 + form.facultyCount - 1})</div>
+          <button type="button" class="copy-btn" onclick="copyText('facultyCodeVal', this)">Copy</button>
+        </div>
+        ` : ""}
+
+        <div class="link-box">
+          <div class="link-label">Organizer link (keep private)</div>
+          <div class="link-value" id="organizerLinkVal">${escHtml(organizerLink)}</div>
+          <button type="button" class="copy-btn" onclick="copyText('organizerLinkVal', this)">Copy</button>
+        </div>
+
+        <div class="link-box">
+          <div class="link-label">Your admin PIN</div>
+          <div class="link-value">${escHtml(form.adminPin)}</div>
+        </div>
+
+        <a href="${escHtml(organizerLink)}" style="text-decoration:none;">
+          <button class="submit-btn ready" style="margin-top:20px;">Open and manage conference</button>
+        </a>
+      </div>
+    `);
+    return;
+  }
+
+  const slugValid = /^[a-z]{2,12}$/.test(form.slug);
+  const pinValid = /^\d{4,6}$/.test(form.adminPin);
+  const nameValid = form.name.trim().length >= 3;
+  const datesValid = form.startDate && form.endDate && form.startDate <= form.endDate;
+  const sessionsValid = sessions.some(s => s.title.trim().length > 0);
+  const handsOnValid = !form.modules.handsOn || validateHandsOn(form.moduleContent.handsOn);
+  const ready = slugValid && pinValid && nameValid && datesValid && sessionsValid && handsOnValid && !creating;
+
+  setHtmlPreservingFocus(el, `
+    <details class="card" ${openCreateSection==='details'?'open':''} ontoggle="trackCreateSection(this,'details')">
+      <summary>1. Conference details</summary><div class="create-section-body">
+      <div class="card-sub">This is the basic information attendees will see.</div>
+
+      <div class="field-group">
+        <label for="fName">Conference name</label>
+        <input type="text" id="fName" placeholder="e.g. Nordic Cardiology Symposium 2027" value="${escHtml(form.name)}" oninput="onName(this.value)">
+      </div>
+
+      <div class="field-group">
+        <label for="fSlug">Login code</label>
+        <input type="text" id="fSlug" placeholder="e.g. HNUS" value="${escHtml(form.slug)}" oninput="onSlug(this.value)" style="text-transform:uppercase;">
+        <div class="field-hint ${form.slug && !slugValid ? "error" : ""}">
+          ${form.slug && !slugValid ? "2–12 letters only, no numbers or spaces." : "Letters only — this is what people type to log in, e.g. \u201cHNUS42\u201d. Must be unique, and can't be changed later."}
+        </div>
+        <div class="slug-preview">${form.slug ? "Direct link: " + new URL(`index.html?conf=${encodeURIComponent(form.slug)}`, location.href).href : ""}</div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label for="fStart">Start date</label>
+          <input type="date" id="fStart" value="${escHtml(form.startDate)}" oninput="onField('startDate', this.value)">
+        </div>
+        <div class="field-group">
+          <label for="fEnd">End date</label>
+          <input type="date" id="fEnd" value="${escHtml(form.endDate)}" oninput="onField('endDate', this.value)">
+        </div>
+      </div>
+      <div class="field-hint error" id="dateValidation" style="margin-top:-8px;margin-bottom:12px;">${!datesValid && form.startDate && form.endDate ? "End date must be on or after the start date." : ""}</div>
+
+      <div class="field-group">
+        <label for="fEmail">Contact email (shown to participants, optional)</label>
+        <input type="email" id="fEmail" placeholder="organizer@hospital.dk" value="${escHtml(form.contactEmail)}" oninput="onField('contactEmail', this.value)">
+      </div>
+
+      <div class="field-group">
+        <label>Theme color</label>
+        <div class="color-swatches">
+          ${THEME_COLORS.map(c => `
+            <div class="color-swatch ${form.themeColor === c.hex ? "selected" : ""}"
+                 style="background:${c.hex};" title="${c.name}"
+                 onclick="onField('themeColor','${c.hex}')">${form.themeColor === c.hex ? "✓" : ""}</div>
+          `).join("")}
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label>Conference logo</label>
+        <div class="field-hint">Shown to participants at the top of the conference and used as the shortcut icon on smartphones. Maximum 1 MB.</div>
+        <input type="file" accept="image/*" onchange="onConferenceLogo(this.files[0])">
+        ${form.branding.logo ? `<img class="image-preview" src="${form.branding.logo}" alt="Logo preview"><button type="button" class="remove-image-btn" onclick="removeConferenceLogo()">Remove logo</button>` : ""}
+      </div>
+      </div></details>
+
+    <details class="card" ${openCreateSection==='access'?'open':''} ontoggle="trackCreateSection(this,'access')">
+      <summary>2. Access</summary><div class="create-section-body">
+      <div class="card-sub">Participants and faculty log in with your conference's login code plus a personal number, e.g. "${form.slug ? form.slug.toUpperCase() : "HNUS"}42". You use a PIN to edit this conference later.</div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label for="fCount">Participant numbers</label>
+          <input type="number" id="fCount" min="1" max="999" value="${form.participantCount}" oninput="onField('participantCount', parseInt(this.value)||0)">
+          <div class="field-hint">Log in with 1–${form.participantCount}.</div>
+        </div>
+        <div class="field-group">
+          <label for="fFacultyCount">Faculty numbers</label>
+          <input type="number" id="fFacultyCount" min="0" max="999" value="${form.facultyCount}" oninput="onField('facultyCount', parseInt(this.value)||0)">
+          <div class="field-hint">Log in with 1000–${1000 + (form.facultyCount||0) - 1}.</div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label for="fPin">Your admin PIN (4–6 digits)</label>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="pin-input" id="fPin" placeholder="••••" maxlength="6" value="${escHtml(form.adminPin)}" oninput="onPin(this.value)">
+        <div class="field-hint ${form.adminPin && !pinValid ? "error" : ""}">
+          ${form.adminPin && !pinValid ? "Must be 4–6 digits." : "You'll need this to edit the conference or reset participant tests later."}
+        </div>
+      </div>
+      </div></details>
+
+    <details class="card" ${openCreateSection==='modules'?'open':''} ontoggle="trackCreateSection(this,'modules')">
+      <summary>3. Modules</summary><div class="create-section-body">
+      <div class="card-sub">Choose the sections participants will see. Schedule is always included.</div>
+
+      <div class="module-row">
+        <label class="module-toggle">
+          <input type="checkbox" checked disabled>
+          <div class="module-icon">◷</div><div><div class="module-name">Schedule</div><div class="module-desc">The programme arranged by date and time.</div></div>
+        </label>
+      </div>
+
+      ${[
+        ['handsOn','▣','Hands on','Rotations, stations, rooms and practical course information.'],
+        ['map','◇','Map','Venue map and directions for participants.'],
+        ['industry','▱','Industry','Exhibitors, stands and industry partners.'],
+        ['quiz','☑','Test','Multiple-choice questions with automatic grading.'],
+        ['evaluations','✓','Faculty evaluations','Faculty can mark participants pass/fail and add comments.'],
+        ['conferenceFeedback','✎','Conference evaluation','Let participants submit a written evaluation of the conference.'],
+        ['contact','⌕','Contact','Course coordinator and technical support details.']
+      ].map(([key,icon,name,desc]) => `
+        <div class="module-row">
+          <label class="module-toggle">
+            <input type="checkbox" ${form.modules[key] ? "checked" : ""} onchange="onModuleToggle('${key}', this.checked)">
+            <div class="module-icon">${icon}</div><div><div class="module-name">${name}</div><div class="module-desc">${desc}</div></div>
+          </label>
+        </div>
+      `).join('')}
+
+      ${form.modules.handsOn ? renderModuleEditor('handsOn') : ''}
+      ${form.modules.map ? renderModuleEditor('map') : ''}
+      ${form.modules.industry ? renderModuleEditor('industry') : ''}
+      ${form.modules.quiz ? renderModuleEditor('quiz') : ''}
+      ${form.modules.evaluations ? renderModuleEditor('evaluations') : ''}
+      ${form.modules.conferenceFeedback ? renderModuleEditor('conferenceFeedback') : ''}
+      ${form.modules.contact ? renderModuleEditor('contact') : ''}
+      </div></details>
+
+    <details class="card" ${openCreateSection==='schedule'?'open':''} ontoggle="trackCreateSection(this,'schedule')">
+      <summary>4. Schedule</summary><div class="create-section-body">
+      <div class="card-sub">Add the sessions attendees will see. You can edit this anytime after creating the conference.</div>
+
+      ${sessions.map((s, i) => `
+        <div class="session-row">
+          ${sessions.length > 1 ? `<button class="remove-btn" onclick="removeSession(${i})">✕</button>` : ""}
+          <div class="field-row">
+            <div>
+              <span class="mini-label">Date</span>
+              <input type="date" value="${escHtml(s.date)}" oninput="onSessionField(${i},'date',this.value)">
+            </div>
+            <div>
+              <span class="mini-label">Time</span>
+              <input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" value="${escHtml(s.time)}" oninput="onTimeInput(this,${i})">
+            </div>
+          </div>
+          <div class="field-row">
+            <div>
+              <span class="mini-label">Session title</span>
+              <input type="text" placeholder="e.g. Opening keynote" value="${escHtml(s.title)}" oninput="onSessionField(${i},'title',this.value)">
+            </div>
+          </div>
+          <div class="field-row">
+            <div>
+              <span class="mini-label">Speaker / location (optional)</span>
+              <input type="text" placeholder="e.g. Dr. Jane Smith, Main Hall" value="${escHtml(s.speaker)}" oninput="onSessionField(${i},'speaker',this.value)">
+            </div>
+          </div>
+        </div>
+      `).join("")}
+
+      <button class="add-session-btn" onclick="addSession()">+ Add session</button>
+      </div></details>
+
+    <button id="createConferenceBtn" class="submit-btn ${ready ? "ready" : ""}" ${ready ? "" : "disabled"} onclick="submitConference()">
+      ${creating ? "Creating..." : "Create conference"}
+    </button>
+
+    <div class="dev-note">
+      <b>Note:</b> ${PLATFORM_WORKER_URL
+        ? "Submitting will save this conference to the platform backend."
+        : "No backend connected yet (PLATFORM_WORKER_URL is empty) — submitting will only simulate creation (logged to the browser console) until the backend is set up."}
+    </div>
+  `);
+}
+
+function onName(val) {
+  form.name = val;
+  render();
+}
+function trackCreateSection(el,key){if(el.open)openCreateSection=key;else if(openCreateSection===key)openCreateSection='';}
+
+function onSlug(val) {
+  form.slug = cleanCode(val);
+  render();
+}
+
+function onConferenceLogo(file){
+  if(!file)return;
+  if(file.size>1024*1024){alert("The logo must be smaller than 1 MB.");return;}
+  if(!file.type.startsWith("image/")){alert("Please choose an image file.");return;}
+  const reader=new FileReader();
+  reader.onload=()=>{form.branding.logo=reader.result;render();};
+  reader.readAsDataURL(file);
+}
+function removeConferenceLogo(){form.branding.logo="";render();}
+
+function onField(key, val) {
+  form[key] = val;
+  if (key === 'themeColor') render(); else updateCreateReadiness();
+}
+
+function onPin(val) {
+  form.adminPin = val.replace(/\D/g, "").slice(0, 6);
+  render();
+}
+
+function onModuleToggle(key, checked) {
+  form.modules[key] = checked;
+  render();
+}
+
+function onModuleContent(module, key, value) {
+  form.moduleContent[module][key] = value;
+  if(module==='handsOn' && ['date','startTime','endTime','rotationMinutes'].includes(key)) render();
+}
+function newHandsOnSession(){return {date:'',startTime:'09:00',endTime:'11:30',rotationMinutes:30,stationCount:5,stations:Array.from({length:5},(_,i)=>({name:`Station ${i+1}`,room:'',stand:`Stand ${i+1}`}))};}
+function normalizeHandsOn(c){if(!Array.isArray(c.sessions))c.sessions=[{date:c.date||'',startTime:c.startTime||'09:00',endTime:c.endTime||'11:30',rotationMinutes:c.rotationMinutes||30,stationCount:c.stationCount||5,stations:c.stations||newHandsOnSession().stations}];return c;}
+function addHandsOnSession(){form.moduleContent.handsOn.sessions.push(newHandsOnSession());render();}
+function removeHandsOnSession(i){if(form.moduleContent.handsOn.sessions.length>1)form.moduleContent.handsOn.sessions.splice(i,1);render();}
+function onHandsOnStationCount(sessionIndex,value) {
+  const c=form.moduleContent.handsOn.sessions[sessionIndex], count=Math.max(1,Math.min(30,parseInt(value)||1));
+  c.stationCount=count;c.stations=c.stations||[];
+  while(c.stations.length<count)c.stations.push({name:`Station ${c.stations.length+1}`,room:'',stand:`Stand ${c.stations.length+1}`});
+  c.stations=c.stations.slice(0,count);render();
+}
+function onHandsOnSession(i,key,value){form.moduleContent.handsOn.sessions[i][key]=value;updateCreateReadiness();}
+function onHandsOnStation(si,i,key,value){form.moduleContent.handsOn.sessions[si].stations[i][key]=value;}
+function validateHandsOn(c){const toMin=t=>{const m=String(t||'').match(/^(\d{2}):(\d{2})$/);return m?Number(m[1])*60+Number(m[2]):0;};normalizeHandsOn(c);return c.sessions.length>0&&c.sessions.every(s=>!!s.date&&toMin(s.endTime)>toMin(s.startTime)&&(toMin(s.endTime)-toMin(s.startTime))>=Number(s.stationCount||0)*Number(s.rotationMinutes||0));}
+function newIndustryBooth(){return {name:'',description:'',website:'',image:''};}
+function normalizeIndustry(c){if(!Array.isArray(c.booths)){c.booths=String(c.items||'').split(/\r?\n/).filter(Boolean).map(line=>{const p=line.split('|').map(x=>x.trim());return {name:p[0]||'',description:p[1]||'',website:p[2]||'',image:''};});if(!c.booths.length)c.booths=[newIndustryBooth()];}return c;}
+function addIndustryBooth(){if(form.moduleContent.industry.booths.length>=12){alert('A maximum of 12 industry booths is supported.');return;}form.moduleContent.industry.booths.push(newIndustryBooth());render();}
+function removeIndustryBooth(i){if(form.moduleContent.industry.booths.length>1)form.moduleContent.industry.booths.splice(i,1);render();}
+function onIndustryBooth(i,key,value){form.moduleContent.industry.booths[i][key]=value;}
+function onIndustryBoothImage(i,file){if(!file)return;if(file.size>1024*1024){alert('The image must be smaller than 1 MB.');return;}const reader=new FileReader();reader.onload=()=>{form.moduleContent.industry.booths[i].image=reader.result;render();};reader.readAsDataURL(file);}
+
+function addEvaluationPost(){form.moduleContent.evaluations.posts.push({id:`P${form.moduleContent.evaluations.posts.length+1}`,name:''});render();}
+function removeEvaluationPost(i){form.moduleContent.evaluations.posts.splice(i,1);render();}
+function onEvaluationPost(i,val){form.moduleContent.evaluations.posts[i].name=val;}
+function renderModuleEditor(module) {
+  const c = form.moduleContent[module];
+  const common = `
+    <div class="field-group"><label>Tab heading</label><input type="text" value="${escHtml(c.title)}" oninput="onModuleContent('${module}','title',this.value)"></div>
+    <div class="field-group"><label>Introduction</label><textarea placeholder="Information shown at the top of this section" oninput="onModuleContent('${module}','intro',this.value)">${escHtml(c.intro)}</textarea></div>`;
+  let fields = '';
+  if (module === 'handsOn') { normalizeHandsOn(c); fields = `${c.sessions.map((hs,si)=>`<div class="session-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-indigo);margin-bottom:12px">Hands-on session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onHandsOnStationCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes/rotation</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-row"><span class="mini-label">Station ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(s.name)}" oninput="onHandsOnStation(${si},${i},'name',this.value)"></div><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}</div>`).join('')}<button type="button" class="add-session-btn" onclick="addHandsOnSession()">+ Add another Hands-on session</button><div id="handsOnValidation" class="field-hint ${validateHandsOn(c)?'':'error'}">Each session must fit stations × minutes per rotation.</div>`; }
+  if (module === 'map') fields = `<div class="field-group"><label>Venue address</label><input type="text" value="${escHtml(c.address)}" oninput="onModuleContent('map','address',this.value)"></div>${renderImageField('map')}`;
+  if (module === 'industry') { normalizeIndustry(c); fields = `${c.booths.map((b,i)=>`<div class="session-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input type="url" value="${escHtml(b.website)}" placeholder="https://..." oninput="onIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Booth image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onIndustryBoothImage(${i},this.files[0])">${b.image?`<img class="image-preview" src="${b.image}" alt="Preview"><button type="button" class="remove-image-btn" onclick="form.moduleContent.industry.booths[${i}].image='';render()">Remove image</button>`:''}</div></div>`).join('')}<button type="button" class="add-session-btn" onclick="addIndustryBooth()">+ Add industry booth</button>`; }
+  if (module === 'conferenceFeedback') fields = `<div class="field-group"><label>Question / prompt shown to participants</label><textarea placeholder="How would you evaluate the conference?" oninput="onModuleContent('conferenceFeedback','prompt',this.value)">${escHtml(c.prompt||'How would you evaluate the conference?')}</textarea></div><div class="field-hint">Participants get one open text field. Responses are stored in a separate organizer tab.</div>`;
+  if (module === 'evaluations') { const posts=Array.isArray(c.posts)?c.posts:[]; fields = `${posts.map((p,i)=>`<div class="session-row">${posts.length>1?`<button class="remove-btn" onclick="removeEvaluationPost(${i})">✕</button>`:''}<span class="mini-label">Post ${i+1}</span><input value="${escHtml(p.name||'')}" placeholder="e.g. Airway" oninput="onEvaluationPost(${i},this.value)"></div>`).join('')}<button type="button" class="add-session-btn" onclick="addEvaluationPost()">+ Add post</button>`; }
+  if (module === 'contact') fields = `
+    <div class="field-row"><div class="field-group"><label>Coordinator name</label><input type="text" value="${escHtml(c.coordinatorName)}" oninput="onModuleContent('contact','coordinatorName',this.value)"></div><div class="field-group"><label>Phone</label><input type="text" value="${escHtml(c.coordinatorPhone)}" oninput="onModuleContent('contact','coordinatorPhone',this.value)"></div></div>
+    <div class="field-group"><label>Coordinator email</label><input type="email" value="${escHtml(c.coordinatorEmail)}" oninput="onModuleContent('contact','coordinatorEmail',this.value)"></div>
+    <div class="field-row"><div class="field-group"><label>Technical support</label><input type="text" value="${escHtml(c.supportName)}" oninput="onModuleContent('contact','supportName',this.value)"></div><div class="field-group"><label>Support phone</label><input type="text" value="${escHtml(c.supportPhone)}" oninput="onModuleContent('contact','supportPhone',this.value)"></div></div>
+    <div class="field-group"><label>Support email</label><input type="email" value="${escHtml(c.supportEmail)}" oninput="onModuleContent('contact','supportEmail',this.value)"></div>${renderImageField('contact')}`;
+  return `<details class="module-editor" ${openModule===module?'open':''} ontoggle="if(this.open)openModule='${module}';else if(openModule==='${module}')openModule='' "><summary>Edit ${escHtml(c.title || module)}</summary><div class="module-editor-body">${common}${fields}</div></details>`;
+}
+
+function renderImageField(module) {
+  const image = form.moduleContent[module].image;
+  return `<div class="field-group"><label>Image (optional, maximum 1 MB)</label><input type="file" accept="image/*" onchange="onModuleImage('${module}',this.files[0])">${image ? `<img class="image-preview" src="${image}" alt="Preview"><button type="button" class="remove-image-btn" onclick="removeModuleImage('${module}')">Remove image</button>` : ''}</div>`;
+}
+
+function onModuleImage(module, file) {
+  if (!file) return;
+  if (file.size > 1024 * 1024) { alert('The image must be smaller than 1 MB.'); return; }
+  const reader = new FileReader();
+  reader.onload = () => { form.moduleContent[module].image = reader.result; render(); };
+  reader.readAsDataURL(file);
+}
+function removeModuleImage(module) { form.moduleContent[module].image = ''; render(); }
+
+function addSession() {
+  sessions.push({ date: "", time: "", title: "", speaker: "" });
+  render();
+}
+
+function removeSession(i) {
+  sessions.splice(i, 1);
+  render();
+}
+
+function onSessionField(i, key, val) {
+  sessions[i][key] = val;
+  // Avoid full re-render on every keystroke in text fields so focus isn't
+  // lost — only re-render when it could affect validity (title determines
+  // whether the form is submittable).
+  if (key === "title") updateCreateReadiness();
+}
+
+function updateCreateReadiness(){
+  const datesValid=!!form.startDate&&!!form.endDate&&form.startDate<=form.endDate;
+  const sessionsValid=sessions.some(s=>s.title.trim().length>0);
+  const handsOnValid=!form.modules.handsOn||validateHandsOn(form.moduleContent.handsOn);
+  const ready=/^[a-z]{2,12}$/.test(form.slug)&&/^\d{4,6}$/.test(form.adminPin)&&form.name.trim().length>=3&&datesValid&&sessionsValid&&handsOnValid&&!creating;
+  const btn=document.getElementById('createConferenceBtn');if(btn){btn.disabled=!ready;btn.classList.toggle('ready',ready);}
+  const dateMsg=document.getElementById('dateValidation');if(dateMsg)dateMsg.textContent=!datesValid&&form.startDate&&form.endDate?'End date must be on or after the start date.':'';
+  const handsMsg=document.getElementById('handsOnValidation');if(handsMsg){handsMsg.classList.toggle('error',!handsOnValid);handsMsg.textContent=handsOnValid?'Each session is long enough for all rotations.':'Each session must fit stations × minutes per rotation.';}
+}
+
+function onTimeInput(input, i) {
+  const digits = input.value.replace(/\D/g, "").slice(0, 4);
+  let value = digits.slice(0, 2);
+  if (digits.length >= 2) value += ":" + digits.slice(2);
+  input.value = value;
+  sessions[i].time = value;
+}
+
+function submitConference() {
+  creating = true;
+  render();
+
+  const payload = {
+    name: form.name.trim(),
+    slug: form.slug,
+    themeColor: form.themeColor,
+    startDate: form.startDate,
+    endDate: form.endDate,
+    contactEmail: form.contactEmail.trim(),
+    adminPin: form.adminPin,
+    participantCount: form.participantCount,
+    facultyCount: form.facultyCount,
+    modules: form.modules,
+    moduleContent: form.moduleContent,
+    branding: form.branding,
+    sessions: sessions.filter(s => s.title.trim().length > 0),
+  };
+
+  if (!PLATFORM_WORKER_URL) {
+    console.log("Simulated conference creation (PLATFORM_WORKER_URL is not set yet):", payload);
+    setTimeout(() => {
+      creating = false;
+      created = true;
+      createResult = { ok: true };
+      render();
+    }, 300);
+    return;
+  }
+
+  fetch(`${PLATFORM_WORKER_URL}/conf/create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+    .then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ("Server error (" + res.status + ")"));
+      creating = false;
+      created = true;
+      createResult = data;
+      render();
+    })
+    .catch((err) => {
+      creating = false;
+      render();
+      alert("Couldn't create the conference: " + err.message);
+    });
+}
+
+async function copyText(id, btn) {
+  const text = document.getElementById(id).textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    const original = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  } catch (_) {
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById(id));
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    alert("Copying was blocked by the browser. The text has been selected so you can copy it manually.");
+  }
+}
+
+function escHtml(str) {
+  return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+render();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Conf Design</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --pf-theme:       #07558F; /* overridden per-conference via JS */
+    --pf-theme-light: #EEF0FA; /* overridden per-conference via JS */
+    --pf-ink:         #1E2233;
+    --pf-white:       #FFFFFF;
+    --pf-gray:        #F5F6FA;
+    --pf-border:      #DADFF0;
+    --pf-muted:       #656B85;
+    --pf-green:       #1E7A3D;
+    --pf-green-light: #E7F5EC;
+    --pf-red:         #B3261E;
+    --pf-red-light:   #FBECEA;
+  }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #eef0f6;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 24px 12px;
+    color: var(--pf-ink);
+  }
+
+  .shell {
+    width: 100%;
+    max-width: 960px;
+    background: var(--pf-white);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(30,34,51,0.10);
+    min-height: 600px;
+  }
+
+  /* ── Loading / error states ─────────────────────────────────────── */
+  .state-screen {
+    padding: 60px 24px;
+    text-align: center;
+    color: var(--pf-muted);
+    font-size: 13.5px;
+  }
+  .state-screen h2 { color: var(--pf-ink); font-size: 16px; margin-bottom: 8px; }
+
+  /* ── Header ──────────────────────────────────────────────────────── */
+  .conf-header {
+    background: #fff;
+    color: var(--pf-theme);
+    padding: 28px 32px;
+    border-bottom:4px solid var(--pf-theme);
+  }
+  .conf-header .eyebrow {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
+    opacity: .85; margin-bottom: 6px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .conf-header h1 { font-size: 19px; margin-bottom: 4px; }
+  .conference-logo-wrap { margin-bottom:12px; }
+  .conference-logo { max-width:180px; max-height:80px; object-fit:contain; display:block; border-radius:8px; }
+  .conf-header .dates { font-size: 14px; color:var(--pf-muted); }
+  .mode-badge {
+    background: rgba(255,255,255,0.2);
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: bold;
+  }
+
+  /* ── Login screen ────────────────────────────────────────────────── */
+  .login-body { padding: 28px 24px; }
+  .login-body .login-label {
+    font-size: 11px; font-weight: bold; color: var(--pf-theme);
+    text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px;
+  }
+  .login-body input[type="text"] {
+    width: 100%; border: 2px solid var(--pf-border); border-radius: 8px;
+    padding: 14px; font-size: 22px; font-weight: bold; text-align: center;
+    letter-spacing: .08em; color: var(--pf-ink); font-family: inherit;
+  }
+  .login-body input[type="text"]:focus { border-color: var(--pf-theme); outline: none; }
+  .login-hint { font-size: 11px; color: var(--pf-muted); margin-top: 8px; text-align: center; }
+  .login-error { font-size: 12px; color: var(--pf-red); margin-top: 8px; text-align: center; min-height: 16px; }
+  .login-btn {
+    width: 100%; margin-top: 16px; padding: 15px; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: bold; background: var(--pf-theme); color: #fff; cursor: pointer;
+  }
+  .login-btn:hover { filter: brightness(0.92); }
+  .login-divider {
+    display: flex; align-items: center; gap: 10px; margin: 20px 0;
+    color: var(--pf-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  }
+  .login-divider::before, .login-divider::after { content: ""; flex: 1; height: 1px; background: var(--pf-border); }
+  .pin-btn {
+    width: 100%; padding: 12px; border: 2px solid var(--pf-border); border-radius: 10px;
+    background: #fff; color: var(--pf-ink); font-size: 13px; font-weight: bold; cursor: pointer;
+  }
+  .pin-btn:hover { border-color: var(--pf-theme); }
+
+  /* ── Program view ────────────────────────────────────────────────── */
+  .toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 20px; border-bottom: 2px solid var(--pf-border);
+  }
+  .toolbar .who { font-size: 12px; color: var(--pf-muted); }
+  .toolbar button {
+    background: none; border: none; color: var(--pf-theme); font-size: 12px;
+    font-weight: bold; cursor: pointer;
+  }
+
+  .tab-bar { display: flex; border-bottom: 2px solid var(--pf-border); overflow-x:auto; background:#fff; }
+  .tab-btn {
+    flex: 1 0 auto; min-width:112px; text-align: center; padding: 15px 12px; font-size: 14px; font-weight: bold;
+    color: var(--pf-muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;
+  }
+  .tab-btn.active { color: var(--pf-theme); border-bottom-color: var(--pf-theme); background:var(--pf-theme-light); }
+
+  .panel-scroll { padding: 28px 32px 40px; max-height: 760px; overflow-y: auto; }
+  .module-placeholder { border:2px solid #cfdae3; border-radius:14px; background:#f7f8f9; padding:28px; }
+  .module-placeholder h2 { color:var(--pf-theme); margin-bottom:8px; }
+  .module-placeholder p { color:var(--pf-muted); line-height:1.55; }
+  .content-intro { color:var(--pf-muted); margin:4px 0 20px; line-height:1.55; }
+  .content-image { width:100%; max-height:560px; object-fit:contain; border:2px solid #cfdae3; border-radius:14px; background:#f7f8f9; margin:10px 0 20px; }
+  .info-card { border:2px solid #cfdae3; border-radius:14px; background:#f7f8f9; padding:18px 20px; margin-bottom:14px; }
+  .info-card h3 { color:var(--pf-theme); margin-bottom:8px; }
+  .info-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-top:12px; }
+  .info-cell span { display:block; font-size:10px; color:var(--pf-muted); text-transform:uppercase; font-weight:bold; }
+  .info-cell strong { display:block; margin-top:3px; }
+  .organizer-module { border:2px solid #cfdae3; border-radius:12px; margin-bottom:12px; overflow:hidden; }
+  .organizer-module summary { cursor:pointer; padding:14px 16px; background:var(--pf-theme-light); color:var(--pf-theme); font-weight:bold; }
+  .organizer-module-body { padding:16px; }
+  .next-up-card { color:#fff; border-radius:18px; padding:26px 28px; margin-bottom:22px; background:#c4145a; }
+  .next-up-card .next-label { font-size:12px; font-weight:bold; letter-spacing:.14em; margin-bottom:12px; opacity:.9; }
+  .next-up-card h2 { font-size:26px; line-height:1.15; margin-bottom:8px; color:#fff; }
+  .next-up-card .next-time { font-size:15px; font-weight:bold; line-height:1.45; }
+  .next-up-meta { display:flex; flex-wrap:wrap; gap:24px; margin-top:18px; }
+  .next-up-meta span { display:block; font-size:10px; font-weight:bold; letter-spacing:.06em; opacity:.75; }
+  .next-up-meta strong { display:block; font-size:16px; margin-top:2px; }
+
+  .day-group { margin-bottom: 16px; }
+  .day-label {
+    background: var(--pf-theme); color: #fff; padding: 8px 12px;
+    border-radius: 8px 8px 0 0; font-size: 12.5px; font-weight: bold;
+  }
+  .session-card {
+    border: 2px solid var(--pf-border); border-top: none;
+    padding: 14px 18px; font-size: 14px;
+  }
+  .day-group .session-card:last-child { border-radius: 0 0 8px 8px; }
+  .session-card .time { font-size: 11px; color: var(--pf-theme); font-weight: bold; }
+  .session-card .title { font-weight: bold; margin: 2px 0; }
+  .session-card .speaker { font-size: 11.5px; color: var(--pf-muted); }
+
+  .empty-note { text-align:center; color: var(--pf-muted); font-size: 13px; padding: 30px 10px; }
+
+  /* ── Organizer edit mode ─────────────────────────────────────────── */
+  .field-group { margin-bottom: 14px; }
+  .field-group label { display:block; font-size:11.5px; font-weight:bold; color:var(--pf-muted); margin-bottom:5px; }
+  .field-group input, .field-group textarea {
+    width: 100%; padding: 9px 11px; border: 2px solid var(--pf-border); border-radius: 8px;
+    font-size: 13.5px; font-family: inherit; color: var(--pf-ink);
+  }
+  .field-group input:focus, .field-group textarea:focus { border-color: var(--pf-theme); outline: none; }
+  .field-row { display:flex; gap:10px; }
+  .field-row .field-group { flex:1; }
+
+  .session-edit-row {
+    border: 2px solid var(--pf-border); border-radius: 10px; padding: 10px; margin-bottom: 10px; position: relative;
+  }
+  .session-edit-row .remove-btn {
+    position:absolute; top:6px; right:6px; width:22px; height:22px; border-radius:50%;
+    border:none; background:var(--pf-red-light); color:var(--pf-red); font-size:12px; font-weight:bold; cursor:pointer;
+  }
+  .mini-label { font-size:10px; font-weight:bold; color:var(--pf-muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:3px; display:block; }
+
+  .add-btn {
+    width:100%; padding:10px; border:2px dashed var(--pf-border); border-radius:10px;
+    background: var(--pf-gray); color: var(--pf-theme); font-size:12.5px; font-weight:bold; cursor:pointer; margin-bottom: 14px;
+  }
+  .save-btn {
+    width:100%; padding:14px; border:none; border-radius:10px; font-size:14.5px; font-weight:bold;
+    background: var(--pf-theme); color:#fff; cursor:pointer;
+  }
+  .save-btn:hover { filter: brightness(0.92); }
+  .save-status { font-size:12px; text-align:center; margin-top:8px; color: var(--pf-muted); }
+  .save-status.error { color: var(--pf-red); }
+  .save-status.ok { color: var(--pf-green); }
+
+  /* ── Quiz module ─────────────────────────────────────────────────── */
+  .quiz-intro { font-size: 12.5px; color: var(--pf-muted); margin-bottom: 16px; line-height: 1.5; }
+  .quiz-question-card {
+    border: 2px solid var(--pf-border); border-radius: 10px; padding: 12px; margin-bottom: 12px;
+  }
+  .quiz-question-card.answered { border-color: var(--pf-theme); }
+  .quiz-question-card .qnum {
+    font-size: 10.5px; font-weight: bold; color: var(--pf-theme); text-transform: uppercase;
+    letter-spacing: .05em; margin-bottom: 5px;
+  }
+  .quiz-question-card .qtext { font-weight: bold; font-size: 13.5px; margin-bottom: 8px; }
+  .quiz-option-row {
+    display: flex; align-items: center; gap: 9px; padding: 8px 10px;
+    border: 2px solid var(--pf-border); border-radius: 8px; margin-bottom: 5px; cursor: pointer;
+  }
+  .quiz-option-row:last-child { margin-bottom: 0; }
+  .quiz-option-row.checked { border-color: var(--pf-theme); background: var(--pf-theme-light); }
+  .quiz-option-row input { accent-color: var(--pf-theme); width: 15px; height: 15px; flex-shrink: 0; }
+  .quiz-option-row span { font-size: 13px; }
+  .quiz-submit-btn {
+    width: 100%; margin-top: 8px; padding: 13px; border: none; border-radius: 10px;
+    font-size: 14px; font-weight: bold; background: var(--pf-border); color: #8a8a8a; cursor: not-allowed;
+  }
+  .quiz-submit-btn.ready { background: var(--pf-theme); color: #fff; cursor: pointer; }
+  .quiz-result-card {
+    border-radius: 12px; padding: 20px; text-align: center;
+  }
+  .quiz-result-card.pass { background: var(--pf-green-light); border: 2px solid var(--pf-green); }
+  .quiz-result-card.fail { background: var(--pf-red-light); border: 2px solid var(--pf-red); }
+  .quiz-result-card .big-score { font-size: 30px; font-weight: bold; margin: 6px 0; }
+  .quiz-result-card.pass .big-score { color: var(--pf-green); }
+  .quiz-result-card.fail .big-score { color: var(--pf-red); }
+  .quiz-result-card .verdict { font-size: 15px; font-weight: bold; }
+  .quiz-result-card.pass .verdict { color: var(--pf-green); }
+  .quiz-result-card.fail .verdict { color: var(--pf-red); }
+  .evaluation-form { max-width: 720px; }
+  .evaluation-choice-row { display:flex; gap:10px; }
+  .evaluation-choice { flex:1; border:2px solid var(--pf-border); border-radius:10px; padding:12px; text-align:center; font-weight:bold; cursor:pointer; }
+  .evaluation-choice.selected { border-color:var(--pf-theme); background:var(--pf-theme-light); color:var(--pf-theme); }
+  .evaluation-choice input { display:none; }
+  .evaluation-status { margin-top:12px; }
+
+  /* ── Organizer quiz question editor ─────────────────────────────── */
+  .quiz-edit-row {
+    border: 2px solid var(--pf-border); border-radius: 10px; padding: 12px; margin-bottom: 10px; position: relative;
+  }
+  .quiz-edit-row .remove-btn {
+    position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:50%;
+    border:none; background:var(--pf-red-light); color:var(--pf-red); font-size:12px; font-weight:bold; cursor:pointer;
+  }
+  .quiz-opt-edit-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .quiz-opt-edit-row input[type="radio"] { accent-color: var(--pf-theme); flex-shrink: 0; }
+  .quiz-opt-edit-row input[type="text"] { flex: 1; padding: 7px 9px; font-size: 12.5px; }
+</style>
+<style>
+@media (max-width: 600px) {
+  body { padding:0; background:#fff; }
+  .shell { max-width:none; min-height:100vh; border-radius:0; box-shadow:none; }
+  .conf-header { padding:20px 16px; }
+  .conf-header h1 { font-size:21px; }
+  .toolbar { padding:11px 16px; }
+  .tab-bar { scrollbar-width:thin; -webkit-overflow-scrolling:touch; }
+  .tab-btn { min-width:104px; padding:14px 10px; font-size:13px; }
+  .panel-scroll { padding:18px 14px 32px; max-height:none; }
+  .field-row { flex-direction:column; gap:0; }
+  .field-group input, .field-group textarea { min-height:46px; font-size:16px; }
+  .next-up-card { padding:22px 18px; border-radius:15px; }
+  .next-up-card h2 { font-size:23px; }
+  .next-up-meta { gap:16px; }
+  .next-up-meta > div { min-width:72px; flex:1; }
+  .info-card { padding:15px; border-radius:12px; }
+  .info-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .content-image { max-height:420px; }
+  .session-card { padding:13px 12px; }
+  .login-body { padding:24px 16px; }
+  .save-btn, .add-btn, .login-btn, .pin-btn { min-height:48px; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell" id="shell">
+  <div class="state-screen">Loading conference…</div>
+</div>
+
+<script>
+// Point this at your platform worker once it's deployed (see
+// platform-setup-guide.md). Left empty for now — the app falls back to a
+// small built-in demo conference so the UI can be built and tested before
+// the backend exists.
+const PLATFORM_WORKER_URL = "https://cm-worker.conferenceplanner.workers.dev";
+
+// Replaces an element's HTML while preserving focus and cursor position in
+// whichever input the user is currently typing in. Without this, every
+// re-render recreates the DOM from scratch and the browser drops focus —
+// which looks like "I can only type one letter before I have to click the
+// field again". Works purely structurally (by child-index path), so it
+// doesn't require every input to have a unique id — including inputs
+// inside dynamically repeated rows (sessions, quiz options, etc).
+const SELECTABLE_INPUT_TYPES = new Set(["text", "search", "url", "tel", "password"]);
+
+function getFocusPath(root, el) {
+  if (!root.contains(el)) return null;
+  const path = [];
+  let node = el;
+  while (node !== root) {
+    const parent = node.parentElement;
+    if (!parent) return null;
+    path.unshift(Array.prototype.indexOf.call(parent.children, node));
+    node = parent;
+  }
+  return path;
+}
+
+function getElementByPath(root, path) {
+  let node = root;
+  for (const idx of path) {
+    if (!node || !node.children || idx < 0 || idx >= node.children.length) return null;
+    node = node.children[idx];
+  }
+  return node;
+}
+
+function setHtmlPreservingFocus(el, html) {
+  const active = document.activeElement;
+  const path = active ? getFocusPath(el, active) : null;
+  let selStart = null, selEnd = null;
+  let needsCaretEndFallback = false;
+  if (path) {
+    const tag = active.tagName.toLowerCase();
+    const type = (active.type || "text").toLowerCase();
+    if (tag === "textarea" || SELECTABLE_INPUT_TYPES.has(type)) {
+      try { selStart = active.selectionStart; selEnd = active.selectionEnd; } catch (e) { needsCaretEndFallback = true; }
+    } else {
+      needsCaretEndFallback = true;
+    }
+  }
+
+  el.innerHTML = html;
+
+  if (path) {
+    const restored = getElementByPath(el, path);
+    if (restored && typeof restored.focus === "function") {
+      restored.focus();
+      if (selStart !== null && typeof restored.setSelectionRange === "function") {
+        try { restored.setSelectionRange(selStart, selEnd); } catch (e) { /* unsupported, ignore */ }
+      } else if (needsCaretEndFallback && "value" in restored && typeof restored.setSelectionRange === "function") {
+        const originalType = restored.type;
+        try {
+          restored.type = "text";
+          const len = restored.value.length;
+          restored.setSelectionRange(len, len);
+        } catch (e) { /* give up silently */ }
+        finally { restored.type = originalType; }
+      }
+    }
+  }
+}
+
+const DEMO_CONFERENCE = {
+  meta: {
+    name: "Demo Conference 2027",
+    slug: "demo",
+    themeColor: "#07558F",
+    startDate: "2027-06-10",
+    endDate: "2027-06-11",
+    contactEmail: "demo@example.com",
+    participantCount: 50,
+    facultyCount: 10,
+  },
+  schedule: [
+    { date: "2027-06-10", time: "09:00", title: "Welcome & opening remarks", speaker: "Dr. A. Organizer" },
+    { date: "2027-06-10", time: "10:00", title: "Keynote: The future of the field", speaker: "Prof. B. Speaker" },
+    { date: "2027-06-11", time: "09:30", title: "Workshop session", speaker: "Dr. C. Facilitator" },
+  ],
+};
+
+const params = new URLSearchParams(location.search);
+const confSlug = params.get("conf");
+const wantsAdmin = params.get("admin") === "1";
+const nrParam = params.get("nr");
+
+// Number blocks for the login system — mirrors platform-worker.js.
+// Participant: 1 to meta.participantCount. Faculty: 1000 to
+// 1000+meta.facultyCount-1. The two can never overlap.
+const NUMBER_BLOCK_SIZE = 1000;
+function deriveRole(nrRaw, meta) {
+  const n = parseInt(nrRaw, 10);
+  if (!n || n < 1) return null;
+  if (n <= meta.participantCount) return "participant";
+  const facultyStart = NUMBER_BLOCK_SIZE;
+  const facultyEnd = NUMBER_BLOCK_SIZE + (meta.facultyCount || 0) - 1;
+  if (n >= facultyStart && n <= facultyEnd) return "faculty";
+  return null;
+}
+
+let confData = null;   // { meta, schedule }
+let mode = "loading";  // loading | error-* | participant | faculty | organizer-login | organizer
+let loginNr = "";
+let pinInput = "";
+let pinError = "";
+let editMeta = null;
+let editSessions = null;
+let editModuleContent = null;
+let editOpenModule = '';
+let saveStatus = "";
+let saveStatusIsError = false;
+
+// ── Quiz module state (participant side) ─────────────────────────────
+let participantTab = "schedule"; // "schedule" | "quiz"
+let organizerTab = "setup"; // "setup" | "textResponses" | "conferenceFeedback"
+let quizTextResponses = null;
+let quizTextResponsesError = "";
+let quizQuestions = null;   // fetched lazily, null = not fetched yet
+let quizLoading = false;
+let quizAnswers = {};
+let participantEmail = "";
+let registrationChecked = false;
+let registrationRegistered = false;
+let registrationEmailInput = "";
+let registrationLoading = false;
+let registrationError = "";
+let evaluationConfig = null;
+let evaluationLoading = false;
+let evaluationState = { participantNr:"", postId:"", passed:null, comment:"", submitting:false, message:"", error:false };
+let evaluationResults = null;
+let evaluationResultsError = "";
+let conferenceFeedbackConfig = null;
+let conferenceFeedbackLoading = false;
+let conferenceFeedbackResponse = "";
+let conferenceFeedbackSubmitting = false;
+let conferenceFeedbackMessage = "";
+let conferenceFeedbackError = false;
+let conferenceFeedbackResults = null;
+let conferenceFeedbackResultsError = "";
+let registrationResetNr = "";
+let registrationResetResult = null;
+let quizStatus = null;      // { locked, submittedAt, emailSent } from server
+let quizSubmitting = false;
+let quizResult = null;      // { submitted: true, emailSent: boolean } only
+let handsOnRefreshTimer = null;
+
+// ── Quiz module state (organizer side) ────────────────────────────────
+let editQuizQuestions = null;
+let editQuizPassPct = 70;
+let resetLookupNr = "";
+let resetLookupResult = null; // { locked, submittedAt, passed, scorePct } | { error }
+let quizSaveStatus = "";
+let quizSaveStatusIsError = false;
+let quizAnalytics = null;
+let quizAnalyticsLoading = false;
+let quizAnalyticsError = "";
+
+function applyTheme(hex) {
+  const light = hexToLight(hex);
+  document.documentElement.style.setProperty("--pf-theme", hex);
+  document.documentElement.style.setProperty("--pf-theme-light", light);
+}
+function hexToLight(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  const mix = (c) => Math.round(c + (255 - c) * 0.9);
+  return `rgb(${mix(r)},${mix(g)},${mix(b)})`;
+}
+
+async function loadConference() {
+  if (!confSlug) {
+    location.replace("login.html");
+    return;
+  }
+
+  if (!PLATFORM_WORKER_URL) {
+    confData = DEMO_CONFERENCE;
+    applyTheme(confData.meta.themeColor);
+    afterConfLoaded();
+    return;
+  }
+
+  try {
+    const res = await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}`);
+    if (!res.ok) {
+      mode = "error-notfound";
+      render();
+      return;
+    }
+    confData = await res.json();
+    applyTheme(confData.meta.themeColor);
+    afterConfLoaded();
+  } catch (err) {
+    mode = "error-network";
+    render();
+  }
+}
+
+function afterConfLoaded() {
+  if (wantsAdmin) {
+    mode = "organizer-login";
+    render();
+    return;
+  }
+  if (nrParam) {
+    const role = deriveRole(nrParam, confData.meta);
+    if (!role) {
+      mode = "error-badnumber";
+      render();
+      return;
+    }
+    loginNr = nrParam;
+    if (role === "participant") { resetQuizParticipantState(); resetRegistrationState(); }
+    if (role === "faculty") resetEvaluationState();
+    mode = role; // "participant" or "faculty"
+    render();
+    if (role === "participant") loadRegistrationStatus();
+    if (role === "faculty" && confData.meta.modules?.evaluations) loadEvaluationConfig();
+    return;
+  }
+  // Reached this page without going through login.html first.
+  mode = "error-nonumber";
+  render();
+}
+
+function applyConferenceBranding(meta){
+  const logo=meta && meta.branding && meta.branding.logo ? meta.branding.logo : "";
+  const logoUrl=logo ? `${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/branding` : "";
+  let icon=document.getElementById("confFavicon");
+  if(!icon){icon=document.createElement("link");icon.id="confFavicon";icon.rel="icon";document.head.appendChild(icon);}
+  let apple=document.getElementById("confAppleTouchIcon");
+  if(!apple){apple=document.createElement("link");apple.id="confAppleTouchIcon";apple.rel="apple-touch-icon";document.head.appendChild(apple);}
+  if(logo){ icon.href=logoUrl; apple.href=logoUrl; }
+  else { icon.removeAttribute("href"); apple.removeAttribute("href"); }
+}
+function conferenceLogoHtml(meta){
+  const logo=meta && meta.branding && meta.branding.logo ? meta.branding.logo : "";
+  if(!logo) return "";
+  const logoUrl=`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/branding`;
+  return `<div class="conference-logo-wrap"><img class="conference-logo" src="${escHtml(logoUrl)}" alt="Conference logo"></div>`;
+}
+
+function render() {
+  const shell = document.getElementById("shell");
+
+  if (mode === "loading") {
+    shell.innerHTML = `<div class="state-screen">Loading conference…</div>`;
+    return;
+  }
+  if (mode === "error-noslug") {
+    shell.innerHTML = `<div class="state-screen"><h2>No conference specified</h2>
+      This link doesn't say which conference to show.
+      <div style="margin-top:16px;"><a class="login-btn" style="display:inline-block;text-decoration:none;padding:12px 22px;" href="login.html">Go to login</a></div>
+    </div>`;
+    return;
+  }
+  if (mode === "error-notfound") {
+    shell.innerHTML = `<div class="state-screen"><h2>Conference not found</h2>Check the code and try again, or contact the organizer.
+      <div style="margin-top:16px;"><a class="login-btn" style="display:inline-block;text-decoration:none;padding:12px 22px;" href="login.html">Back to login</a></div>
+    </div>`;
+    return;
+  }
+  if (mode === "error-network") {
+    shell.innerHTML = `<div class="state-screen"><h2>Couldn't connect</h2>Check your internet connection and reload the page.</div>`;
+    return;
+  }
+  if (mode === "error-badnumber") {
+    shell.innerHTML = `<div class="state-screen"><h2>Number not recognised</h2>That number doesn't match a participant or faculty range for this conference.
+      <div style="margin-top:16px;"><a class="login-btn" style="display:inline-block;text-decoration:none;padding:12px 22px;" href="login.html">Back to login</a></div>
+    </div>`;
+    return;
+  }
+  if (mode === "error-nonumber") {
+    shell.innerHTML = `<div class="state-screen"><h2>Please log in first</h2>This page needs your code and number — please start from the login page.
+      <div style="margin-top:16px;"><a class="login-btn" style="display:inline-block;text-decoration:none;padding:12px 22px;" href="login.html">Go to login</a></div>
+    </div>`;
+    return;
+  }
+
+  const meta = confData.meta;
+  applyConferenceBranding(meta);
+
+  if (mode === "organizer-login") {
+    setHtmlPreservingFocus(shell, `
+      <div class="conf-header">
+        <div class="eyebrow"><span>Organizer access</span></div>
+        <h1>${escHtml(meta.name)}</h1>
+        <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
+      </div>
+      <div class="login-body">
+        <div class="login-label">Admin PIN</div>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" id="pinInputField"
+          placeholder="••••" maxlength="6" value="${escHtml(pinInput)}"
+          oninput="onPinInput(this.value)" onkeydown="if(event.key==='Enter')doOrganizerLogin()">
+        <div class="login-error">${escHtml(pinError)}</div>
+        <button class="login-btn" onclick="doOrganizerLogin()">Unlock editing</button>
+        <div class="login-divider">or</div>
+        <a href="login.html" style="text-decoration:none;"><button class="pin-btn">Back to login</button></a>
+      </div>
+    `);
+    return;
+  }
+
+  if (mode === "participant") {
+    const hasQuiz = meta.modules && meta.modules.quiz;
+    const tabs = getParticipantTabs(meta);
+    if (!tabs.some(t => t.key === participantTab)) participantTab = "schedule";
+    setHtmlPreservingFocus(shell, `
+      <div class="conf-header">
+        ${conferenceLogoHtml(meta)}
+        <div class="eyebrow"><span>Programme</span><span class="mode-badge">Participant</span></div>
+        <h1>${escHtml(meta.name)}</h1>
+        <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
+      </div>
+      <div class="toolbar">
+        <div class="who">Logged in as #${escHtml(loginNr)}</div>
+        <a href="login.html" style="text-decoration:none;"><button>Log out</button></a>
+      </div>
+      <div class="tab-bar">
+        ${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}
+      </div>
+      <div class="panel-scroll" id="participantScroll">
+        ${renderParticipantScrollContent()}
+      </div>
+    `);
+    scheduleHandsOnRefresh();
+    return;
+  }
+
+  if (mode === "faculty") {
+    const tabs = getParticipantTabs(meta);
+    if (!tabs.some(t => t.key === participantTab)) participantTab = "schedule";
+    setHtmlPreservingFocus(shell, `
+      <div class="conf-header">
+        <div class="eyebrow"><span>Programme</span><span class="mode-badge">Faculty</span></div>
+        <h1>${escHtml(meta.name)}</h1>
+        <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
+      </div>
+      <div class="toolbar">
+        <div class="who">Logged in as #${escHtml(loginNr)}</div>
+        <a href="login.html" style="text-decoration:none;"><button>Log out</button></a>
+      </div>
+      <div class="tab-bar">${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}</div>
+      <div class="panel-scroll" id="participantScroll">
+        ${renderParticipantModule(participantTab)}
+      </div>
+    `);
+    return;
+  }
+
+  if (mode === "organizer") {
+    setHtmlPreservingFocus(shell, `
+      <div class="conf-header">
+        <div class="eyebrow"><span>Editing</span><span class="mode-badge">Organizer</span></div>
+        <h1>${escHtml(meta.name)}</h1>
+        <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
+      </div>
+      <div class="toolbar">
+        <div class="who">Unlocked with admin PIN</div>
+        <a href="login.html" style="text-decoration:none;"><button>Log out</button></a>
+      </div>
+      <div class="panel-scroll" id="organizerScroll">${renderOrganizerEditor()}</div>
+    `);
+    return;
+  }
+}
+
+function resetQuizParticipantState() {
+  participantTab = "schedule";
+  quizQuestions = null;
+  quizLoading = false;
+  quizAnswers = {};
+  quizStatus = null;
+  quizSubmitting = false;
+  quizResult = null;
+}
+
+function resetRegistrationState(){registrationChecked=false;registrationRegistered=false;registrationEmailInput="";registrationLoading=false;registrationError="";participantEmail="";}
+function resetEvaluationState(){evaluationConfig=null;evaluationLoading=false;evaluationState={participantNr:"",postId:"",passed:null,comment:"",submitting:false,message:"",error:false};}
+function loadRegistrationStatus(){
+  registrationLoading = true;
+  registrationError = "";
+  rerenderParticipantScroll();
+
+  if (!PLATFORM_WORKER_URL) {
+    registrationChecked = true;
+    registrationRegistered = false;
+    participantEmail = "";
+    registrationLoading = false;
+    rerenderParticipantScroll();
+    return;
+  }
+
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/registration?nr=${encodeURIComponent(loginNr)}`, {
+    cache: "no-store"
+  })
+  .then(async r => {
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || "Couldn't check registration.");
+    registrationChecked = true;
+    registrationRegistered = !!d.registered;
+    participantEmail = registrationRegistered ? String(d.email || "").trim() : "";
+    registrationLoading = false;
+
+    // If the server says the number is registered but has no usable email,
+    // force a one-time re-registration instead of allowing the quiz to fail later.
+    if (registrationRegistered && !isValidEmail(participantEmail)) {
+      registrationRegistered = false;
+      registrationEmailInput = "";
+      registrationError = "Please enter your email address to complete registration.";
+    }
+    rerenderParticipantScroll();
+  })
+  .catch(e => {
+    registrationChecked = false;
+    registrationRegistered = false;
+    participantEmail = "";
+    registrationLoading = false;
+    registrationError = e.message;
+    rerenderParticipantScroll();
+  });
+}
+function isValidEmail(value){const email=String(value||"").trim();if(!email||email.length>254||/\s/.test(email))return false;const at=email.indexOf("@");if(at<=0||at!==email.lastIndexOf("@")||at===email.length-1)return false;const local=email.slice(0,at),domain=email.slice(at+1);if(!local||local.length>64||local.startsWith(".")||local.endsWith(".")||local.includes(".."))return false;if(!/^[^@]+$/.test(local))return false;if(!/^[A-Za-z0-9.-]+$/.test(domain)||domain.startsWith(".")||domain.endsWith(".")||domain.includes(".."))return false;const labels=domain.split(".");return labels.length>=2&&labels.every(label=>label.length>0&&!label.startsWith("-")&&!label.endsWith("-"));}
+function submitRegistration(){const email=registrationEmailInput.trim();if(!isValidEmail(email)){registrationError="Enter a valid email address, e.g. name@example.com.";rerenderParticipantScroll();return;}registrationLoading=true;registrationError="";rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){registrationChecked=true;registrationRegistered=true;participantEmail=email;registrationLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/registration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nr:loginNr,email})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't register.");registrationChecked=true;registrationRegistered=true;participantEmail=email;registrationLoading=false;rerenderParticipantScroll();}).catch(e=>{registrationLoading=false;registrationError=e.message;rerenderParticipantScroll();});}
+function renderRegistrationGate(){if(registrationLoading)return `<div class="empty-note">Checking registration…</div>`;return `<div class="info-card" style="max-width:620px;margin:auto"><h2 style="color:var(--pf-theme)">Welcome, participant #${escHtml(loginNr)}</h2><p style="margin:8px 0 18px;line-height:1.5;color:var(--pf-muted)">Please enter your email address once. We use this registered email for your test result and any faculty evaluations.</p><div class="field-group"><label>Email address</label><input type="email" value="${escHtml(registrationEmailInput)}" placeholder="you@example.com" autocomplete="email" oninput="registrationEmailInput=this.value"></div><div class="save-status error">${escHtml(registrationError)}</div><button class="save-btn" onclick="submitRegistration()">Register email</button></div>`;}
+function loadEvaluationConfig(){evaluationLoading=true;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){evaluationConfig={title:"Faculty evaluation",intro:"Evaluate the participant.",posts:[{id:"P1",name:"Post 1"}]};evaluationLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't load evaluation posts.");evaluationConfig=d;evaluationLoading=false;rerenderParticipantScroll();}).catch(e=>{evaluationLoading=false;evaluationConfig=null;evaluationState.error=true;evaluationState.message=e.message;rerenderParticipantScroll();});}
+function renderEvaluationTab(){if(evaluationLoading)return `<div class="empty-note">Loading evaluation posts…</div>`;if(!evaluationConfig)return `<div class="save-status error">${escHtml(evaluationState.message||"Faculty evaluations are not available.")}</div>`;const posts=evaluationConfig.posts||[];return `<div class="evaluation-form"><h2 style="color:var(--pf-theme)">${escHtml(evaluationConfig.title||"Faculty evaluation")}</h2>${evaluationConfig.intro?`<p class="content-intro">${escHtml(evaluationConfig.intro)}</p>`:""}<div class="field-group"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(evaluationState.participantNr)}" placeholder="e.g. 42" oninput="evaluationState.participantNr=this.value.replace(/\D/g,'')"></div><div class="field-group"><label>Post</label><select onchange="evaluationState.postId=this.value;rerenderParticipantScroll()" style="width:100%;padding:12px;border:2px solid var(--pf-border);border-radius:8px;font-size:14px"><option value="">Select a post…</option>${posts.map(p=>`<option value="${escHtml(p.id)}" ${evaluationState.postId===p.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}</select></div><div class="field-group"><label>Result</label><div class="evaluation-choice-row"><label class="evaluation-choice ${evaluationState.passed===true?'selected':''}"><input type="radio" name="eval-result" onchange="evaluationState.passed=true;rerenderParticipantScroll()">PASS</label><label class="evaluation-choice ${evaluationState.passed===false?'selected':''}"><input type="radio" name="eval-result" onchange="evaluationState.passed=false;rerenderParticipantScroll()">FAIL</label></div></div><div class="field-group"><label>Comment</label><textarea maxlength="5000" placeholder="Feedback for the participant…" oninput="evaluationState.comment=this.value">${escHtml(evaluationState.comment)}</textarea></div><button class="save-btn" onclick="submitEvaluation()" ${evaluationState.submitting?'disabled':''}>${evaluationState.submitting?'Sending…':'Submit evaluation'}</button>${evaluationState.message?`<div class="save-status ${evaluationState.error?'error':'ok'} evaluation-status">${escHtml(evaluationState.message)}</div>`:""}</div>`;}
+function submitEvaluation(){const e=evaluationState;if(!/^\d+$/.test(e.participantNr)||Number(e.participantNr)<1||Number(e.participantNr)>Number(confData.meta.participantCount||0)){e.error=true;e.message="Enter a valid participant number.";rerenderParticipantScroll();return;}if(!e.postId||typeof e.passed!=="boolean"){e.error=true;e.message="Select a post and PASS or FAIL.";rerenderParticipantScroll();return;}e.submitting=true;e.message="";e.error=false;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){setTimeout(()=>{e.submitting=false;e.message="Evaluation saved and sent by email.";rerenderParticipantScroll();},300);return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({facultyNr:loginNr,participantNr:e.participantNr,postId:e.postId,passed:e.passed,comment:e.comment})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok&&r.status!==202)throw new Error(d.error||"Couldn't submit evaluation.");e.submitting=false;e.message=d.emailSent===false?"Evaluation saved, but the email could not be sent.":"Evaluation saved and sent by email.";e.error=d.emailSent===false;}).catch(err=>{e.submitting=false;e.error=true;e.message=err.message;}).finally(()=>rerenderParticipantScroll());}
+
+function loadConferenceFeedbackConfig(){conferenceFeedbackLoading=true;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){conferenceFeedbackConfig={title:"Conference evaluation",intro:"We would value your feedback.",prompt:"How would you evaluate the conference?"};conferenceFeedbackLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't load conference evaluation.");conferenceFeedbackConfig=d;conferenceFeedbackLoading=false;rerenderParticipantScroll();}).catch(e=>{conferenceFeedbackLoading=false;conferenceFeedbackError=true;conferenceFeedbackMessage=e.message;rerenderParticipantScroll();});}
+function renderConferenceFeedbackTab(){if(conferenceFeedbackLoading)return `<div class="empty-note">Loading conference evaluation…</div>`;if(!conferenceFeedbackConfig)return `<div class="save-status error">${escHtml(conferenceFeedbackMessage||"Conference evaluation is not available.")}</div>`;return `<div class="evaluation-form"><h2 style="color:var(--pf-theme)">${escHtml(conferenceFeedbackConfig.title||"Conference evaluation")}</h2>${conferenceFeedbackConfig.intro?`<p class="content-intro">${escHtml(conferenceFeedbackConfig.intro)}</p>`:""}<div class="field-group"><label>${escHtml(conferenceFeedbackConfig.prompt||"How would you evaluate the conference?")}</label><textarea maxlength="10000" placeholder="Write your feedback…" oninput="conferenceFeedbackResponse=this.value">${escHtml(conferenceFeedbackResponse)}</textarea></div><button class="save-btn" onclick="submitConferenceFeedback()" ${conferenceFeedbackSubmitting?'disabled':''}>${conferenceFeedbackSubmitting?'Sending…':'Submit feedback'}</button>${conferenceFeedbackMessage?`<div class="save-status ${conferenceFeedbackError?'error':'ok'}">${escHtml(conferenceFeedbackMessage)}</div>`:""}</div>`;}
+function submitConferenceFeedback(){const text=conferenceFeedbackResponse.trim();if(!text){conferenceFeedbackError=true;conferenceFeedbackMessage="Please enter a response.";rerenderParticipantScroll();return;}conferenceFeedbackSubmitting=true;conferenceFeedbackError=false;conferenceFeedbackMessage="";rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){setTimeout(()=>{conferenceFeedbackSubmitting=false;conferenceFeedbackMessage="Thank you — your feedback was submitted.";rerenderParticipantScroll();},300);return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nr:loginNr,response:text})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't submit feedback.");conferenceFeedbackSubmitting=false;conferenceFeedbackMessage="Thank you — your feedback was submitted.";conferenceFeedbackResponse="";}).catch(e=>{conferenceFeedbackSubmitting=false;conferenceFeedbackError=true;conferenceFeedbackMessage=e.message;}).finally(()=>rerenderParticipantScroll());}
+
+function getParticipantTabs(meta) {
+  const modules = meta.modules || {};
+  return [
+    { key: "schedule", icon: "◷", label: "Schedule", enabled: true },
+    { key: "handsOn", icon: "▣", label: "Hands on", enabled: !!modules.handsOn },
+    { key: "map", icon: "◇", label: "Map", enabled: !!modules.map },
+    { key: "industry", icon: "▱", label: "Industry", enabled: !!modules.industry },
+    { key: "quiz", icon: "☑", label: "Test", enabled: !!modules.quiz },
+    { key: "evaluations", icon: "✓", label: "Evaluate", enabled: mode === "faculty" && !!modules.evaluations },
+    { key: "conferenceFeedback", icon: "✎", label: "Feedback", enabled: !!modules.conferenceFeedback },
+    { key: "contact", icon: "⌕", label: "Contact", enabled: !!modules.contact },
+  ].filter(t => t.enabled);
+}
+
+function renderParticipantModule(tab) {
+  if (mode === "faculty" && tab === "evaluations") return renderEvaluationTab();
+  if (tab === "schedule") return renderScheduleReadOnly(confData.schedule);
+  if (tab === "quiz") return renderQuizTab();
+  if (tab === "evaluations") return renderEvaluationTab();
+  if (tab === "conferenceFeedback") return renderConferenceFeedbackTab();
+  const c = (confData.moduleContent || {})[tab] || {};
+  const heading = c.title || ({ handsOn:'Hands on', map:'Map', industry:'Industry', contact:'Contact' }[tab] || 'Information');
+  const top = `<h2 style="color:var(--pf-theme)">${escHtml(heading)}</h2>${c.intro ? `<p class="content-intro">${escHtml(c.intro)}</p>` : ''}${c.image ? `<img class="content-image" src="${c.image}" alt="${escHtml(heading)}">` : ''}`;
+  if (tab === 'map') return `${top}${c.address ? `<div class="info-card"><h3>Venue</h3><p>${escHtml(c.address)}</p></div>` : emptyModule()}`;
+  if (tab === 'handsOn') {
+    return top + renderHandsOnAssignment(c);
+  }
+  if (tab === 'industry') {
+    const booths=Array.isArray(c.booths)?c.booths:parseRows(c.items).map(r=>({name:r[0],description:r[1],website:r[2],image:''}));
+    const cards = booths.map((b,i) => `<div class="info-card"><h3>${escHtml(b.name || `Industry ${i+1}`)}</h3>${b.image?`<img class="content-image" src="${b.image}" alt="${escHtml(b.name||'Industry booth')}">`:''}${b.description ? `<p>${escHtml(b.description)}</p>` : ''}${b.website ? `<p style="margin-top:8px"><a href="${safeUrl(b.website)}" target="_blank" rel="noopener">Visit website</a></p>` : ''}</div>`).join('');
+    return top + (cards || emptyModule());
+  }
+  if (tab === 'contact') {
+    const coordinator = contactCard('Course Coordinator', c.coordinatorName, c.coordinatorPhone, c.coordinatorEmail || confData.meta.contactEmail);
+    const support = contactCard('Technical Support', c.supportName, c.supportPhone, c.supportEmail);
+    return top + (coordinator + support || emptyModule());
+  }
+  return top + emptyModule();
+}
+function parseRows(text) { return String(text || '').split(/\r?\n/).map(x => x.split('|').map(y => y.trim())).filter(r => r.some(Boolean)); }
+function emptyModule() { return `<div class="module-placeholder"><p>No content has been added yet.</p></div>`; }
+function safeUrl(url) { const s=String(url||''); return /^https?:\/\//i.test(s) ? escHtml(s) : '#'; }
+function contactCard(title,name,phone,email) { if(!name&&!phone&&!email)return ''; return `<div class="info-card"><h3>${escHtml(title)}</h3>${name?`<p><strong>${escHtml(name)}</strong></p>`:''}${phone?`<p>☎ ${escHtml(phone)}</p>`:''}${email?`<p>✉ <a href="mailto:${escHtml(email)}">${escHtml(email)}</a></p>`:''}</div>`; }
+function balancedBucket(position,total,buckets){const base=Math.floor(total/buckets),extra=total%buckets,small=buckets-extra;let start=1;for(let b=0;b<buckets;b++){const size=base+(b>=small?1:0),end=start+size-1;if(position>=start&&position<=end)return b;start=end+1;}return Math.max(0,buckets-1);}
+function bucketMembers(bucket,total,buckets,offset=0){const out=[];for(let p=1;p<=total;p++)if(balancedBucket(p,total,buckets)===bucket)out.push(p+offset);return out;}
+function minutesOf(t){const m=String(t||'').match(/^(\d{1,2}):(\d{2})$/);return m?Number(m[1])*60+Number(m[2]):0;}
+function timeOf(m){return `${String(Math.floor(m/60)%24).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;}
+function renderHandsOnAssignment(c){
+  const sessions=normalizeDisplayHandsOn(c);if(!sessions.length)return emptyModule();
+  if(mode==='faculty')return sessions.map((hs,si)=>renderFacultyHandsOnSession(hs,si)).join('');
+  return `${renderNextUpAcrossSessions(sessions)}${sessions.map((hs,si)=>renderParticipantHandsOnSession(hs,si)).join('')}`;
+}
+function normalizeDisplayHandsOn(c){const sessions=Array.isArray(c.sessions)?c.sessions:(c.date?[{date:c.date,startTime:c.startTime,endTime:c.endTime,rotationMinutes:c.rotationMinutes,stationCount:c.stationCount,stations:c.stations||[]}]:[]);return sessions.slice().sort((a,b)=>`${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));}
+function sessionDates(hs){const base=hs.date?new Date(`${hs.date}T00:00:00`):null;if(!base||isNaN(base))return null;const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),from=new Date(base),to=new Date(base);from.setHours(Math.floor(start/60),start%60,0,0);to.setHours(Math.floor(end/60),end%60,0,0);return {base,from,to,start,end};}
+
+
+function renderFacultyHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const facultyPosition=Number(loginNr)-999,total=Number(confData.meta.facultyCount)||0,baseBucket=balancedBucket(facultyPosition,total,n),stationIndex=(baseBucket+sessionIndex)%n,s=stations[stationIndex]||{};const originalBucket=(stationIndex-sessionIndex+n)%n,colleagues=bucketMembers(originalBucket,total,n,999);return `<div class="day-label" style="margin-top:16px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div><div class="info-card"><h3>Your station: ${escHtml(s.name||`Station ${stationIndex+1}`)}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(s.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(s.stand||'TBA')}</strong></div></div><p style="margin-top:14px"><strong>Faculty at this station:</strong> ${colleagues.map(x=>'#'+x).join(', ')}</p></div>`;}
+function renderParticipantHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=balancedBucket(Number(loginNr),total,n);let cards='';for(let r=0;r<n;r++){const from=start+r*step,to=Math.min(from+step,end),station=stations[(group+sessionIndex+r)%n]||{};if(from>=end)break;cards+=`<div class="info-card"><h3>${escHtml(station.name||'Station')}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${timeOf(from)}–${timeOf(to)}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(station.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(station.stand||'TBA')}</strong></div></div></div>`;}return `<div class="day-label" style="margin-top:18px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${cards}`;}
+function renderNextUpAcrossSessions(sessions){const now=new Date();let chosen=null;for(let si=0;si<sessions.length;si++){const d=sessionDates(sessions[si]);if(!d)continue;if(now<d.to){chosen={hs:sessions[si],si,d};break;}}if(!chosen)return `<div class="next-up-card" style="background:#41708f"><div class="next-label">HANDS ON</div><h2>All rotations completed</h2></div>`;const hs=chosen.hs,stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length,step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=balancedBucket(Number(loginNr),total,n);return renderNextUpCard(hs,stations,group,n,chosen.d.start,chosen.d.end,step,chosen.si);}
+function renderNextUpCard(c,stations,group,n,start,end,step,sessionIndex=0){
+  const now=new Date(), base=c.date?new Date(`${c.date}T00:00:00`):null;
+  if(!base||isNaN(base)||!n)return `<div class="next-up-card"><div class="next-label">NEXT UP</div><h2>Hands-on schedule TBA</h2></div>`;
+  const dayStart=new Date(base);dayStart.setHours(Math.floor(start/60),start%60,0,0);
+  const finish=new Date(base);finish.setHours(Math.floor(end/60),end%60,0,0);
+  let rotation=Math.floor((now-dayStart)/(step*60000));
+  let status=''; if(now<dayStart){rotation=0;status=`Starts ${relativeTime(dayStart-now)}`;}else if(now>=finish||rotation>=n){return `<div class="next-up-card" style="background:#41708f"><div class="next-label">HANDS ON</div><h2>All rotations completed</h2><div class="next-time">Group ${group+1} of ${n}</div></div>`;}else status='Happening now';
+  const from=start+rotation*step,to=Math.min(from+step,end),stationIndex=(group+sessionIndex+rotation)%n,s=stations[stationIndex]||{};
+  const colors=['#f5a619','#c4145a','#0b62a4','#bb162b','#16805b','#6b3fa0'];
+  return `<div class="next-up-card" style="background:${colors[stationIndex%colors.length]}"><div class="next-label">${now<dayStart?'NEXT UP':'CURRENT ROTATION'}</div><h2>${escHtml(s.name||`Station ${stationIndex+1}`)} · ${escHtml(s.room||'Room TBA')}</h2><div class="next-time">${formatHandsOnDate(base)}, ${timeOf(from)}–${timeOf(to)} · ${escHtml(s.stand||`Stand ${stationIndex+1}`)} · ${status}</div><div class="next-up-meta"><div><span>COURSE</span><strong>${escHtml(confData.meta.name)}</strong></div><div><span>GROUP</span><strong>${group+1} of ${n}</strong></div><div><span>STATION</span><strong>${stationIndex+1}</strong></div></div></div>`;
+}
+function relativeTime(ms){const mins=Math.max(0,Math.ceil(ms/60000)),days=Math.floor(mins/1440),hours=Math.floor((mins%1440)/60),rest=mins%60;if(days)return `in ${days}d ${hours}h`;if(hours)return `in ${hours}h ${rest}m`;return `in ${rest}m`;}
+function formatHandsOnDate(d){return d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'long'});}
+function scheduleHandsOnRefresh(){if(handsOnRefreshTimer){clearTimeout(handsOnRefreshTimer);handsOnRefreshTimer=null;}if(participantTab==='handsOn'&&mode==='participant'){handsOnRefreshTimer=setTimeout(()=>{if(participantTab==='handsOn'&&mode==='participant')render();},60000);}}
+
+function onPinInput(v) { pinInput = v.replace(/\D/g, "").slice(0, 6); }
+
+function doOrganizerLogin() {
+  if (!PLATFORM_WORKER_URL) {
+    // Demo mode: any 4+ digit PIN "works" so the editor UI can be tried.
+    if (pinInput.length < 4) { pinError = "Enter at least 4 digits."; render(); return; }
+    enterOrganizerMode();
+    return;
+  }
+
+  // We don't have a dedicated "verify pin" endpoint — the update endpoint
+  // itself checks the PIN, so we do a harmless no-op update (sending no
+  // fields) purely to validate the PIN before entering edit mode.
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ adminPin: pinInput }),
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        pinError = data.error || "Incorrect PIN.";
+        render();
+        return;
+      }
+      enterOrganizerMode();
+    })
+    .catch(() => { pinError = "Couldn't verify PIN — check your connection."; render(); });
+}
+
+function enterOrganizerMode() {
+  editMeta = Object.assign({}, confData.meta);
+  if(!editMeta.branding) editMeta.branding = {logo:""};
+  if (!editMeta.modules) editMeta.modules = { quiz: false, stations: false };
+  editSessions = confData.schedule.map(s => Object.assign({}, s));
+  editModuleContent = JSON.parse(JSON.stringify(confData.moduleContent || {}));
+  ensureModuleContentDefaults();
+  if (editSessions.length === 0) editSessions.push({ date: "", time: "", title: "", speaker: "" });
+  saveStatus = ""; saveStatusIsError = false;
+
+  editQuizQuestions = null;
+  editQuizPassPct = 70;
+  resetLookupNr = ""; resetLookupResult = null;
+
+  mode = "organizer";
+  render();
+  loadQuizForEdit();
+}
+
+function loadQuizForEdit() {
+  if (!PLATFORM_WORKER_URL) {
+    editQuizQuestions = confData.quizQuestions ? confData.quizQuestions.map(q => Object.assign({}, q)) : [];
+    if (editQuizQuestions.length === 0) editQuizQuestions.push(blankQuizQuestion());
+    rerenderOrganizerScroll();
+    return;
+  }
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/edit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ adminPin: pinInput }),
+  })
+    .then(res => res.json())
+    .then(data => {
+      editQuizQuestions = (data.questions || []).map(q => Object.assign({}, q));
+      if (editQuizQuestions.length === 0) editQuizQuestions.push(blankQuizQuestion());
+      if (data.config && data.config.passThreshold) editQuizPassPct = Math.round(data.config.passThreshold * 100);
+      rerenderOrganizerScroll();
+    })
+    .catch(() => {
+      editQuizQuestions = [blankQuizQuestion()];
+      rerenderOrganizerScroll();
+    });
+}
+
+function blankQuizQuestion() {
+  return { text: "", options: ["", "", "", ""], mode: "graded", correctIndex: 0, textResponse: false };
+}
+function setOrganizerTab(tab) { organizerTab = tab; rerenderOrganizerScroll(); }
+
+// ── Read-only schedule (participant view) ────────────────────────────
+function renderScheduleReadOnly(schedule) {
+  if (!schedule || schedule.length === 0) {
+    return `<div class="empty-note">The programme hasn't been published yet — check back soon.</div>`;
+  }
+  const byDay = groupByDate(schedule);
+  return Object.keys(byDay).sort().map(date => `
+    <div class="day-group">
+      <div class="day-label">${formatDateLabel(date)}</div>
+      ${byDay[date].map(s => `
+        <div class="session-card">
+          <div class="time">${escHtml(s.time || "")}</div>
+          <div class="title">${escHtml(s.title)}</div>
+          ${s.speaker ? `<div class="speaker">${escHtml(s.speaker)}</div>` : ""}
+        </div>
+      `).join("")}
+    </div>
+  `).join("");
+}
+
+function groupByDate(schedule) {
+  const groups = {};
+  schedule.forEach(s => {
+    const key = s.date || "unscheduled";
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(s);
+  });
+  Object.values(groups).forEach(list => list.sort((a,b) => (a.time||"").localeCompare(b.time||"")));
+  return groups;
+}
+
+function formatDateLabel(dateStr) {
+  if (dateStr === "unscheduled") return "Unscheduled";
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+}
+
+function formatDateRange(start, end) {
+  if (!start || !end) return "";
+  const s = new Date(start + "T00:00:00"), e = new Date(end + "T00:00:00");
+  const opts = { day: "numeric", month: "long", year: "numeric" };
+  if (start === end) return s.toLocaleDateString("en-GB", opts);
+  return `${s.toLocaleDateString("en-GB", { day: "numeric", month: "long" })} – ${e.toLocaleDateString("en-GB", opts)}`;
+}
+
+// ── Quiz module (participant side) ────────────────────────────────────
+function switchParticipantTab(tab) {
+  const meta = confData?.meta || {};
+  const allowed = getParticipantTabs(meta).some(t => t.key === tab);
+  if (!allowed) return;
+
+  participantTab = tab;
+  if (mode === "faculty" && tab === "evaluations" && !evaluationConfig && !evaluationLoading) {
+    loadEvaluationConfig();
+  }
+  if (mode === "participant" && tab === "quiz" && !quizQuestions) {
+    loadQuizForParticipant();
+  }
+  if (mode === "participant" && tab === "conferenceFeedback" && !conferenceFeedbackConfig && !conferenceFeedbackLoading) {
+    loadConferenceFeedbackConfig();
+  }
+  rerenderParticipantScroll();
+}
+
+function loadQuiz() {
+  quizLoading = true;
+  rerenderParticipantScroll();
+
+  if (!PLATFORM_WORKER_URL) {
+    // Demo mode: a couple of made-up questions so the flow can be tried.
+    setTimeout(() => {
+      quizQuestions = [
+        { id: "Q1", text: "Demo question 1 — pick option B.", options: ["Option A", "Option B", "Option C", "Option D"] },
+        { id: "Q2", text: "Demo question 2 — pick option A.", options: ["Option A", "Option B", "Option C", "Option D"] },
+      ];
+      quizStatus = { locked: false };
+      quizLoading = false;
+      rerenderParticipantScroll();
+    }, 200);
+    return;
+  }
+
+  Promise.all([
+    fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz`).then(r => r.json()),
+    fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/status?nr=${encodeURIComponent(loginNr)}`).then(r => r.json()),
+  ])
+    .then(([quizData, statusData]) => {
+      quizQuestions = (quizData.questions || []).map((q, i) => ({ ...q, id: q.id || `Q${i + 1}` }));
+      quizStatus = statusData;
+      quizLoading = false;
+      rerenderParticipantScroll();
+    })
+    .catch(() => {
+      quizQuestions = [];
+      quizStatus = null;
+      quizLoading = false;
+      rerenderParticipantScroll();
+    });
+}
+
+// Shared so the registration gate is respected everywhere the
+// participant panel gets redrawn — not just on the very first render.
+// Without this, a background refresh (e.g. after checking registration
+// status) could silently skip straight past the email-registration step.
+function renderParticipantScrollContent() {
+  return (!registrationChecked || !registrationRegistered) ? renderRegistrationGate() : renderParticipantModule(participantTab);
+}
+
+function rerenderParticipantScroll() {
+  const el = document.getElementById("participantScroll");
+  if (el) setHtmlPreservingFocus(el, renderParticipantScrollContent());
+}
+
+function renderQuizTab() {
+  if (quizLoading) return `<div class="empty-note">Loading…</div>`;
+  if (quizResult) {
+    return `
+      <div class="quiz-result-card pass">
+        <div class="verdict">Test submitted</div>
+        <div style="font-size:12.5px;color:var(--pf-muted);">${quizResult.emailSent ? `Your result has been sent by email.` : "Your test was submitted, but the result email could not be sent. Please contact the organizer."}</div>
+      </div>`;
+  }
+  if (quizStatus && quizStatus.locked) {
+    return `
+      <div class="quiz-result-card pass">
+        <div class="verdict">Test already submitted</div>
+        <div style="font-size:12.5px;color:var(--pf-muted);">This test was already submitted${quizStatus.submittedAt ? " on " + new Date(quizStatus.submittedAt).toLocaleString("en-GB") : ""}. Your result was sent by email.</div>
+      </div>`;
+  }
+  if (!quizQuestions || quizQuestions.length === 0) return `<div class="empty-note">The test hasn't been set up yet — check back soon.</div>`;
+
+  const quizCopy = (confData.moduleContent || {}).quiz || {};
+  const answeredCount = quizQuestions.filter(q => { const a=quizAnswers[q.id]||{}; const hasChoice=(q.options||[]).some((o,i)=>o && a.choice===i); const hasText=!!q.textResponse && String(a.text||"").trim().length>0; return hasChoice || hasText; }).length;
+  const allAnswered = answeredCount === quizQuestions.length;
+  const questionsHtml = quizQuestions.map((q, questionIndex) => {
+    const questionId = q.id || `Q${questionIndex + 1}`;
+    const isAnswered = quizAnswers[questionId] !== undefined;
+    return `
+      <div class="quiz-question-card ${isAnswered ? 'answered' : ''}">
+        <div class="qnum">${escHtml(questionId)}</div>
+        <div class="qtext">${escHtml(q.text)}</div>
+        ${q.media ? (q.media.type === 'video'
+          ? `<div style="margin:12px 0;"><video controls playsinline preload="metadata" src="${escHtml(q.media.data)}" style="width:100%;max-height:320px;border-radius:10px;background:#000;"></video></div>`
+          : `<div style="margin:12px 0;"><img src="${escHtml(q.media.data)}" alt="Question image" style="width:100%;max-height:320px;object-fit:contain;border-radius:10px;"></div>`) : ''}
+        ${(q.options || []).filter(Boolean).map((opt, i) => { const actualIndex=(q.options||[]).indexOf(opt); const a=quizAnswers[questionId] || {}; return `
+          <label class="quiz-option-row ${a.choice === actualIndex ? 'checked' : ''}">
+            <input type="radio" name="answer-${questionId}" ${a.choice === actualIndex ? "checked" : ""} onchange="onQuizAnswer('${questionId}',${actualIndex})">
+            <span>${escHtml(opt)}</span>
+          </label>`; }).join("")}
+        ${q.textResponse ? `<div class="field-group" style="margin-top:12px;margin-bottom:0;"><label>Response</label><textarea maxlength="5000" placeholder="Your response…" oninput="onQuizTextAnswer('${questionId}',this.value)">${escHtml((quizAnswers[questionId]||{}).text||"")}</textarea></div>` : ""}
+      </div>`;
+  }).join("");
+
+  return `
+    <div class="info-card" style="background:var(--pf-theme);color:#fff;border-color:var(--pf-theme);"><h2>${escHtml(quizCopy.title || 'Final test')}</h2><p style="margin-top:8px;line-height:1.5;">${escHtml(quizCopy.intro || 'Answer all questions, then submit. Your answers are locked once you submit — the test can only be taken once.')}</p></div>
+    ${questionsHtml}
+    <button class="quiz-submit-btn ${allAnswered ? 'ready' : ''}" id="quizSubmitBtn" ${allAnswered ? "" : "disabled"} onclick="submitQuiz()">${quizSubmitting ? "Submitting..." : "Submit answers"}</button>
+  `;
+}
+
+
+function onQuizAnswer(qid, optionIndex) {
+  quizAnswers[qid] = Object.assign({}, quizAnswers[qid] || {}, {choice: optionIndex});
+  rerenderParticipantScroll();
+}
+function onQuizTextAnswer(qid, text) {
+  quizAnswers[qid] = Object.assign({}, quizAnswers[qid] || {}, {text});
+  rerenderParticipantScroll();
+}
+
+function submitQuiz() {
+  const allAnswered = quizQuestions.every(q => { const a=quizAnswers[q.id]||{}; return (q.options||[]).some((o,i)=>o && a.choice===i) || (!!q.textResponse && String(a.text||"").trim().length>0); });
+  if (!allAnswered) return;
+  if (!confirm("Are you sure? You won't be able to change your answers once you submit.")) return;
+
+  quizSubmitting = true;
+  rerenderParticipantScroll();
+
+  if (!PLATFORM_WORKER_URL) {
+    setTimeout(() => { quizSubmitting = false; quizResult = { submitted:true, emailSent:true }; rerenderParticipantScroll(); }, 300);
+    return;
+  }
+
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nr: loginNr, answers: quizAnswers }),
+  })
+    .then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok && res.status !== 202) throw new Error(data.error || ("Server error (" + res.status + ")"));
+      quizSubmitting = false;
+      quizResult = { submitted:true, emailSent: data.emailSent !== false };
+      rerenderParticipantScroll();
+    })
+    .catch((err) => { quizSubmitting = false; rerenderParticipantScroll(); alert("Couldn't submit: " + err.message); });
+}
+
+
+// ── Organizer editor ───────────────────────────────────────────────
+function addEvaluationPost(){if(!editModuleContent.evaluations)editModuleContent.evaluations={title:'Faculty evaluation',intro:'',posts:[]};editModuleContent.evaluations.posts.push({id:`P${editModuleContent.evaluations.posts.length+1}`,name:''});rerenderOrganizerScroll();}
+function removeEvaluationPost(i){editModuleContent.evaluations.posts.splice(i,1);rerenderOrganizerScroll();}
+function onEvaluationPost(i,val){editModuleContent.evaluations.posts[i].name=val;}
+function renderEvaluationEditor(){const c=editModuleContent.evaluations||{title:'Faculty evaluation',intro:'',posts:[]};if(!Array.isArray(c.posts))c.posts=[];return `<div class="mini-label" style="margin:20px 0 8px;font-size:12px;">Faculty evaluation posts</div><div class="field-group"><label>Title</label><input value="${escHtml(c.title||'Faculty evaluation')}" oninput="onEditModuleContent('evaluations','title',this.value)"></div><div class="field-group"><label>Introduction</label><textarea oninput="onEditModuleContent('evaluations','intro',this.value)">${escHtml(c.intro||'')}</textarea></div>${c.posts.map((p,i)=>`<div class="session-row">${c.posts.length>1?`<button class="remove-btn" onclick="removeEvaluationPost(${i})">✕</button>`:''}<span class="mini-label">Post ${i+1}</span><input value="${escHtml(p.name||'')}" placeholder="e.g. Airway" oninput="onEvaluationPost(${i},this.value)"></div>`).join('')}<button class="add-btn" onclick="addEvaluationPost()">+ Add post</button>`;}
+function renderRegistrationResetTool(){return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Reset participant registration</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">Use this if a participant registered an email on the wrong participant number. This removes only the registration; it does not move or delete quiz/evaluation records.</p><div class="field-row" style="align-items:flex-end;"><div class="field-group" style="margin-bottom:0;"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(registrationResetNr)}" oninput="registrationResetNr=this.value.replace(/\D/g,'')"></div><button class="save-btn" style="width:auto;padding:9px 16px;margin-top:0;" onclick="doRegistrationReset()">Reset registration</button></div>${registrationResetResult?`<div class="save-status ${registrationResetResult.error?'error':'ok'}">${escHtml(registrationResetResult.message)}</div>`:''}`;}
+function doRegistrationReset(){if(!registrationResetNr)return;if(!confirm(`Reset registration for participant ${registrationResetNr}?`))return;fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/registration/reset`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nr:registrationResetNr,adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not reset registration.');registrationResetResult={message:`Registration for participant ${registrationResetNr} was reset.`};rerenderOrganizerScroll();}).catch(e=>{registrationResetResult={error:true,message:e.message};rerenderOrganizerScroll();});}
+function loadEvaluationResults(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations/results`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load evaluations.');evaluationResults=d;evaluationResultsError='';rerenderOrganizerScroll();}).catch(e=>{evaluationResultsError=e.message;rerenderOrganizerScroll();});}
+async function downloadEvaluationExport(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-faculty-evaluations.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
+function renderEvaluationAnalytics(){if(!evaluationResults)return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">See evaluation totals and download the evaluation data.</p><button class="save-btn" onclick="loadEvaluationResults()">Load faculty evaluations</button>${evaluationResultsError?`<div class="save-status error">${escHtml(evaluationResultsError)}</div>`:''}`;const s=evaluationResults.summary||{};return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><div class="info-grid"><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">EVALUATIONS</span><strong>${s.evaluations||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PASS</span><strong>${s.passed||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">FAIL</span><strong>${s.failed||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PASS RATE</span><strong>${s.passPct||0}%</strong></div></div><div class="info-card"><h3>By post</h3>${(evaluationResults.postStats||[]).map(p=>`<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(p.name)}</strong><div style="font-size:11px;color:var(--pf-muted)">${p.passed} pass · ${p.failed} fail · ${p.passPct}% pass</div></div>`).join('')||'<div class="empty-note">No posts.</div>'}</div><button class="save-btn" onclick="downloadEvaluationExport()">Download evaluations (.csv)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="evaluationResults=null;evaluationResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
+
+function renderOrganizerEditor() {
+  const hasQuiz = editMeta.modules && editMeta.modules.quiz;
+  const hasFeedback = editMeta.modules && editMeta.modules.conferenceFeedback;
+  const organizerTabs = `<div class="tab-bar" style="margin:-16px -16px 18px;position:sticky;top:0;z-index:2;"><div class="tab-btn ${organizerTab==='setup'?'active':''}" onclick="setOrganizerTab('setup')">⚙ Setup</div>${(hasQuiz||hasFeedback) ? `<div class="tab-btn ${organizerTab==='textResponses'?'active':''}" onclick="setOrganizerTab('textResponses')">✎ Text responses</div>` : ''}</div>`;
+  if (organizerTab === 'textResponses' && (hasQuiz||hasFeedback)) return organizerTabs + renderOrganizerTextResponsesTab(hasQuiz,hasFeedback);
+  return organizerTabs + `
+    <div class="field-group">
+      <label>Conference name</label>
+      <input type="text" value="${escHtml(editMeta.name)}" oninput="onEditMeta('name', this.value)">
+    </div>
+    <div class="field-group">
+      <label>Conference logo</label>
+      <div class="field-hint">Shown to participants and used as the smartphone shortcut icon. Maximum 1 MB.</div>
+      <input type="file" accept="image/*" onchange="onEditConferenceLogo(this.files[0])">
+      ${editMeta.branding && editMeta.branding.logo ? `<img class="content-image" style="max-width:180px;max-height:80px;object-fit:contain" src="${escHtml(editMeta.branding.logo)}" alt="Logo preview"><button class="pin-btn" type="button" onclick="editMeta.branding.logo='';rerenderOrganizerScroll()">Remove logo</button>` : ""}
+    </div>
+    <div class="field-row">
+      <div class="field-group">
+        <label>Start date</label>
+        <input type="date" value="${escHtml(editMeta.startDate)}" oninput="onEditMeta('startDate', this.value)">
+      </div>
+      <div class="field-group">
+        <label>End date</label>
+        <input type="date" value="${escHtml(editMeta.endDate)}" oninput="onEditMeta('endDate', this.value)">
+      </div>
+    </div>
+    <div class="field-group">
+      <label>Contact email</label>
+      <input type="email" value="${escHtml(editMeta.contactEmail || "")}" oninput="onEditMeta('contactEmail', this.value)">
+    </div>
+    <div class="field-row">
+      <div class="field-group">
+        <label>Participant numbers open</label>
+        <input type="number" min="1" max="999" value="${editMeta.participantCount}" oninput="onEditMeta('participantCount', parseInt(this.value)||0)">
+      </div>
+      <div class="field-group">
+        <label>Faculty numbers open</label>
+        <input type="number" min="0" max="999" value="${editMeta.facultyCount || 0}" oninput="onEditMeta('facultyCount', parseInt(this.value)||0)">
+      </div>
+    </div>
+    <div class="field-hint" style="margin:-6px 0 14px;">
+      Participants log in with ${escHtml(editMeta.slug.toUpperCase())} + 1–${editMeta.participantCount}.
+      Faculty log in with ${escHtml(editMeta.slug.toUpperCase())} + 1000–${1000 + (editMeta.facultyCount || 0) - 1}.
+    </div>
+
+    <div class="mini-label" style="margin:16px 0 8px;font-size:12px;">Schedule</div>
+    ${editSessions.map((s, i) => `
+      <div class="session-edit-row">
+        ${editSessions.length > 1 ? `<button class="remove-btn" onclick="removeEditSession(${i})">✕</button>` : ""}
+        <div class="field-row" style="margin-bottom:8px;">
+          <div>
+            <span class="mini-label">Date</span>
+            <input type="date" value="${escHtml(s.date)}" oninput="onEditSession(${i},'date',this.value)">
+          </div>
+          <div>
+            <span class="mini-label">Time</span>
+            <input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" value="${escHtml(s.time)}" oninput="onEditTimeInput(this,${i})">
+          </div>
+        </div>
+        <div style="margin-bottom:8px;">
+          <span class="mini-label">Title</span>
+          <input type="text" value="${escHtml(s.title)}" oninput="onEditSession(${i},'title',this.value)">
+        </div>
+        <div>
+          <span class="mini-label">Speaker / location</span>
+          <input type="text" value="${escHtml(s.speaker)}" oninput="onEditSession(${i},'speaker',this.value)">
+        </div>
+      </div>
+    `).join("")}
+    <button class="add-btn" onclick="addEditSession()">+ Add session</button>
+
+    <button class="save-btn" onclick="saveOrganizerChanges()">Save changes</button>
+    <div class="save-status ${saveStatusIsError ? 'error' : 'ok'}">${escHtml(saveStatus)}</div>
+
+    <div class="mini-label" style="margin:24px 0 4px;font-size:12px;">Modules and content</div>
+    <div class="field-hint" style="margin:0 0 12px;">You can add or remove modules at any time, even after the conference has been created. Turn on a module below, edit its content, then save.</div>
+    ${[['handsOn','Hands on'],['map','Map'],['industry','Industry'],['quiz','Test'],['evaluations','Faculty evaluations'],['conferenceFeedback','Conference evaluation'],['contact','Contact']].map(([key,label]) => `
+      <label class="module-toggle" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;display:flex;margin-bottom:8px;">
+        <input type="checkbox" ${editMeta.modules && editMeta.modules[key] ? "checked" : ""} onchange="onToggleModule('${key}',this.checked)" style="width:18px;height:18px;margin-top:2px;accent-color:var(--pf-theme);flex-shrink:0;">
+        <div><div style="font-size:13.5px;font-weight:bold;">${label}</div><div style="font-size:11.5px;color:var(--pf-muted);">${key==='evaluations'?'Enable faculty evaluation for this conference.':'Show this tab to participants.'}</div></div>
+      </label>`).join('')}
+    ${['handsOn','map','industry','quiz','conferenceFeedback','contact'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
+    ${editMeta.modules && editMeta.modules.evaluations ? renderEvaluationEditor() : ''}
+    <button class="save-btn" onclick="saveOrganizerChanges()">Save modules and content</button>
+    <div class="save-status ${saveStatusIsError ? 'error' : 'ok'}">${escHtml(saveStatus)}</div>
+
+    ${hasQuiz ? renderQuizEditor() : ""}
+    ${hasQuiz ? renderQuizResetTool() : ""}
+    ${hasQuiz ? renderQuizAnalytics() : ""}
+    ${editMeta.modules && editMeta.modules.evaluations ? renderEvaluationAnalytics() : ""}
+    ${renderRegistrationResetTool()}
+  `;
+}
+
+function renderOrganizerTextResponsesTab(hasQuiz,hasFeedback){return `${hasFeedback?renderConferenceFeedbackResponses():''}${hasQuiz?renderQuizTextResponsesTab():''}`;}
+function renderConferenceFeedbackResponses(){if(!conferenceFeedbackResults)return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Conference evaluation responses</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">Written feedback submitted by participants.</p><button class="save-btn" onclick="loadConferenceFeedbackResults()">Load conference feedback</button>${conferenceFeedbackResultsError?`<div class="save-status error">${escHtml(conferenceFeedbackResultsError)}</div>`:''}`;const rows=conferenceFeedbackResults.records||[];return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Conference evaluation responses (${rows.length})</div>${rows.map(r=>`<div class="info-card" style="margin-bottom:10px;"><div style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PARTICIPANT ${escHtml(r.nr)} · ${escHtml(r.email)}</div><div style="margin-top:8px;white-space:pre-wrap;line-height:1.5;">${escHtml(r.response)}</div><div style="font-size:10px;color:var(--pf-muted);margin-top:8px;">${escHtml(new Date(r.submittedAt).toLocaleString('en-GB'))}</div></div>`).join('')||'<div class="empty-note">No conference feedback yet.</div>'}<button class="save-btn" onclick="downloadConferenceFeedback()">Download conference feedback (.csv)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="conferenceFeedbackResults=null;conferenceFeedbackResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
+function loadConferenceFeedbackResults(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/results`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load conference feedback.');conferenceFeedbackResults=d;conferenceFeedbackResultsError='';rerenderOrganizerScroll();}).catch(e=>{conferenceFeedbackResultsError=e.message;rerenderOrganizerScroll();});}
+async function downloadConferenceFeedback(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-conference-feedback.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
+
+function renderQuizTextResponsesTab() {
+  if (!quizTextResponses) return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Open-text responses</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">Responses from questions where the organizer enabled a text field.</p><button class="save-btn" onclick="loadQuizTextResponses()">Load text responses</button>${quizTextResponsesError?`<div class="save-status error">${escHtml(quizTextResponsesError)}</div>`:''}`;
+  const rows=quizTextResponses.responses||[];
+  return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Open-text responses</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:12px;">${rows.length} response${rows.length===1?'':'s'} received.</p>${rows.map(r=>`<div class="info-card" style="margin-bottom:10px;"><div style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PARTICIPANT ${escHtml(r.nr)} · ${escHtml(r.email)}</div><div style="font-size:12px;font-weight:bold;margin-top:5px;">${escHtml(r.questionId)} — ${escHtml(r.questionText)}</div><div style="margin-top:8px;white-space:pre-wrap;line-height:1.5;">${escHtml(r.response)}</div><div style="font-size:10px;color:var(--pf-muted);margin-top:8px;">${escHtml(new Date(r.submittedAt).toLocaleString('en-GB'))}</div></div>`).join('') || '<div class="empty-note">No text responses yet.</div>'}<button class="save-btn" onclick="downloadQuizTextResponses()">Download text responses (.csv)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="quizTextResponses=null;quizTextResponsesError='';rerenderOrganizerScroll()">Refresh</button>`;
+}
+function loadQuizTextResponses(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/text-responses`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load text responses.');quizTextResponses=d;quizTextResponsesError='';rerenderOrganizerScroll();}).catch(e=>{quizTextResponsesError=e.message;rerenderOrganizerScroll();});}
+async function downloadQuizTextResponses(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/text-responses/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-text-responses.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
+
+function renderQuizEditor() {
+  if (editQuizQuestions === null) {
+    return `<div class="mini-label" style="margin:20px 0 8px;font-size:12px;">Quiz questions</div><div class="empty-note">Loading…</div>`;
+  }
+  return `
+    <div class="mini-label" style="margin:20px 0 8px;font-size:12px;">Quiz questions</div>
+
+    <div class="field-group">
+      <label>Pass mark (%)</label>
+      <input type="number" min="1" max="100" value="${editQuizPassPct}" oninput="onEditQuizPassPct(this.value)" style="max-width:120px;">
+    </div>
+
+    ${editQuizQuestions.map((q, i) => `
+      <div class="quiz-edit-row">
+        ${editQuizQuestions.length > 1 ? `<button class="remove-btn" onclick="removeQuizQuestion(${i})">✕</button>` : ""}
+        <div style="margin-bottom:8px;">
+          <span class="mini-label">Question ${i + 1}</span>
+          <input type="text" value="${escHtml(q.text)}" placeholder="e.g. What is the recommended dose?" oninput="onEditQuizQuestion(${i},'text',this.value)">
+        </div>
+        <div style="margin:10px 0 12px;">
+          <span class="mini-label">Image / short video (optional)</span>
+          ${q.media ? `<div style="margin:8px 0;"><${q.media.type === 'video' ? 'video controls playsinline' : 'img'} src="${escHtml(q.media.data)}" ${q.media.type === 'video' ? 'style="width:100%;max-height:260px;border-radius:8px;background:#000;"' : 'style="max-width:100%;max-height:260px;border-radius:8px;object-fit:contain;"'}></${q.media.type === 'video' ? 'video' : 'img'}></div>` : ''}
+          <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" onchange="onQuizQuestionMedia(${i},this.files[0])">
+          <div style="font-size:10.5px;color:var(--pf-muted);margin-top:5px;">Images up to 1 MB. Short MP4/WebM videos up to 8 MB.</div>
+          ${q.media ? `<button type="button" class="remove-btn" style="position:static;margin-top:6px;" onclick="removeQuizQuestionMedia(${i})">Remove media</button>` : ''}
+        </div>
+        <div class="field-group" style="margin:10px 0;">
+          <label>Question type</label>
+          <select onchange="onEditQuizMode(${i},this.value)" style="width:100%;padding:9px;border:2px solid var(--pf-border);border-radius:8px;font-size:13px;">
+            <option value="graded" ${q.mode !== 'survey' ? 'selected' : ''}>Graded — has a correct answer</option>
+            <option value="survey" ${q.mode === 'survey' ? 'selected' : ''}>Survey — no correct answer</option>
+          </select>
+        </div>
+        <span class="mini-label">Multiple-choice options ${q.mode === 'survey' ? '(optional)' : '(required)'}</span>
+        ${[0,1,2,3].map(oi => `
+          <div class="quiz-opt-edit-row">
+            ${q.mode === 'survey' ? '' : `<input type="radio" name="correct-${i}" ${q.correctIndex === oi ? "checked" : ""} onchange="onEditQuizCorrect(${i},${oi})">`}
+            <input type="text" value="${escHtml(q.options[oi] || "")}" placeholder="Option ${oi+1}" oninput="onEditQuizOption(${i},${oi},this.value)">
+          </div>
+        `).join("")}
+        <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:12px;"><input type="checkbox" ${q.textResponse ? 'checked' : ''} onchange="onEditQuizTextResponse(${i},this.checked)"> Include a text response field</label>
+      </div>
+    `).join("")}
+    <button class="add-btn" onclick="addQuizQuestion()">+ Add question</button>
+    <button class="save-btn" onclick="saveQuizQuestions()">Save quiz questions</button>
+    <div class="save-status ${quizSaveStatusIsError ? 'error' : 'ok'}">${escHtml(quizSaveStatus)}</div>
+  `;
+}
+
+function renderQuizAnalytics() {
+  if (!quizAnalytics) return `
+    <div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Test results & data</div>
+    <p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">View aggregate results and download the complete participant answer file.</p>
+    <button class="save-btn" onclick="loadQuizAnalytics()">Load test results</button>
+    ${quizAnalyticsError ? `<div class="save-status error">${escHtml(quizAnalyticsError)}</div>` : ""}`;
+  const s = quizAnalytics.summary || {};
+  return `
+    <div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Test results & data</div>
+    <div class="info-grid" style="margin-bottom:14px;">
+      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PARTICIPANTS</span><strong>${s.expectedParticipants||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">SUBMISSIONS</span><strong>${s.submissions||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">NOT SUBMITTED</span><strong>${s.notSubmitted||0}</strong></div>
+      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PASSED</span><strong>${s.passed||0}</strong></div>
+      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">FAILED</span><strong>${s.failed||0}</strong></div>
+      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PASS RATE</span><strong>${s.passPct||0}%</strong></div>
+      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">AVERAGE SCORE</span><strong>${s.averageScorePct||0}%</strong></div>
+    </div>
+    <div class="info-card"><h3>Question statistics</h3>${(quizAnalytics.questionStats||[]).map(q=>`<div style="padding:9px 0;border-bottom:1px solid var(--pf-border);"><strong>${escHtml(q.id)}</strong> — ${escHtml(q.text)}<div style="font-size:11px;color:var(--pf-muted);margin-top:3px;">${q.mode==='survey' ? `${q.total} responses · No correct answer` : `${q.correct} correct · ${q.incorrect} incorrect · ${q.correctPct}% correct`}</div></div>`).join('') || '<div class="empty-note">No questions.</div>'}</div>
+    <button class="save-btn" onclick="downloadQuizExport()">Download participant answers (.csv)</button>
+    <button class="pin-btn" style="width:100%;margin-top:8px;" onclick="quizAnalytics=null;quizAnalyticsError='';rerenderOrganizerScroll()">Refresh results</button>
+    ${quizAnalyticsError ? `<div class="save-status error">${escHtml(quizAnalyticsError)}</div>` : ""}`;
+}
+
+function loadQuizAnalytics() {
+  quizAnalyticsLoading = true; quizAnalyticsError = ""; rerenderOrganizerScroll();
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/results`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({adminPin:pinInput}) })
+    .then(async r => { const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||"Couldn't load results."); return d; })
+    .then(d=>{quizAnalytics=d;quizAnalyticsLoading=false;rerenderOrganizerScroll();})
+    .catch(e=>{quizAnalyticsLoading=false;quizAnalyticsError=e.message;rerenderOrganizerScroll();});
+}
+
+async function downloadQuizExport() {
+  try {
+    const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/export`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({adminPin:pinInput})});
+    if(!r.ok) { const d=await r.json().catch(()=>({})); throw new Error(d.error||"Couldn't create export."); }
+    const blob=await r.blob(); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=`${confSlug}-quiz-results.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  } catch(e) { alert(e.message); }
+}
+
+function renderQuizResetTool() {
+  return `
+    <div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Reset a participant's quiz</div>
+    <div class="field-row" style="align-items:flex-end;">
+      <div class="field-group" style="margin-bottom:0;">
+        <label>Participant number</label>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="${escHtml(resetLookupNr)}" oninput="onResetLookupNr(this.value)">
+      </div>
+      <button class="save-btn" style="width:auto;padding:9px 16px;margin-top:0;" onclick="lookupQuizStatus()">Look up</button>
+    </div>
+    ${renderResetLookupResult()}
+  `;
+}
+
+function renderResetLookupResult() {
+  if (!resetLookupResult) return "";
+  if (resetLookupResult.error) {
+    return `<div class="save-status error">${escHtml(resetLookupResult.error)}</div>`;
+  }
+  if (!resetLookupResult.locked) {
+    return `<div class="save-status ok">Participant ${escHtml(resetLookupNr)} hasn't submitted the quiz yet — nothing to reset.</div>`;
+  }
+  return `
+    <div class="save-status ok">Participant ${escHtml(resetLookupNr)}: submitted${resetLookupResult.submittedAt ? " on " + new Date(resetLookupResult.submittedAt).toLocaleString("en-GB") : ""} — ${resetLookupResult.passed ? "Passed" : "Not passed"}.</div>
+    <button class="save-btn" style="background:var(--pf-red);margin-top:8px;" onclick="doQuizReset()">Reset, so they can take it again</button>
+  `;
+}
+
+function onToggleModule(key, checked) {
+  if (!editMeta.modules) editMeta.modules = {};
+  editMeta.modules[key] = !!checked;
+  saveStatus = "";
+  saveStatusIsError = false;
+  // Module content is intentionally preserved when a module is turned off,
+  // so an organizer can enable it again later without rebuilding it.
+  if (key === 'quiz' && checked && editQuizQuestions === null) loadQuizForEdit();
+  rerenderOrganizerScroll();
+}
+
+function ensureModuleContentDefaults() {
+  const defaults = {
+    handsOn:{title:'Hands on',intro:'',sessions:[newEditHandsOnSession()]}, map:{title:'Venue map',intro:'',address:'',image:''},
+    industry:{title:'Industry',intro:'',booths:[newEditIndustryBooth()]}, quiz:{title:'Final test',intro:'Answer all questions. The test can only be taken once.'}, evaluations:{title:'Faculty evaluation',intro:'Evaluate each participant at your assigned post.',posts:[]}, conferenceFeedback:{title:'Conference evaluation',intro:'We would value your feedback.',prompt:'How would you evaluate the conference?'}, contact:{title:'Contact',intro:'',coordinatorName:'',coordinatorPhone:'',coordinatorEmail:'',supportName:'',supportPhone:'',supportEmail:'',image:''}
+  };
+  for (const key of Object.keys(defaults)) {
+    const existing=editModuleContent[key]||{};
+    if(key==='handsOn'&&!Array.isArray(existing.sessions)&&existing.date) existing.sessions=[{date:existing.date,startTime:existing.startTime||'09:00',endTime:existing.endTime||'11:30',rotationMinutes:existing.rotationMinutes||30,stationCount:existing.stationCount||5,stations:existing.stations||newEditHandsOnSession().stations}];
+    if(key==='industry'&&!Array.isArray(existing.booths)&&existing.items) existing.booths=String(existing.items).split(/\r?\n/).filter(Boolean).map(line=>{const p=line.split('|').map(x=>x.trim());return {name:p[0]||'',description:p[1]||'',website:p[2]||'',image:''};});
+    editModuleContent[key]=Object.assign({},defaults[key],existing);
+  }
+}
+function onEditModuleContent(module,key,value) { editModuleContent[module][key] = value; }
+function newEditHandsOnSession(){return {date:'',startTime:'09:00',endTime:'11:30',rotationMinutes:30,stationCount:5,stations:Array.from({length:5},(_,i)=>({name:`Station ${i+1}`,room:'',stand:`Stand ${i+1}`}))};}
+function normalizeEditHandsOn(c){if(!Array.isArray(c.sessions))c.sessions=[{date:c.date||'',startTime:c.startTime||'09:00',endTime:c.endTime||'11:30',rotationMinutes:c.rotationMinutes||30,stationCount:c.stationCount||5,stations:c.stations||newEditHandsOnSession().stations}];return c;}
+function addEditHandsOnSession(){editModuleContent.handsOn.sessions.push(newEditHandsOnSession());rerenderOrganizerScroll();}
+function removeEditHandsOnSession(i){if(editModuleContent.handsOn.sessions.length>1)editModuleContent.handsOn.sessions.splice(i,1);rerenderOrganizerScroll();}
+function onEditHandsOnCount(si,value){const c=editModuleContent.handsOn.sessions[si],count=Math.max(1,Math.min(30,parseInt(value)||1));c.stationCount=count;c.stations=c.stations||[];while(c.stations.length<count)c.stations.push({name:`Station ${c.stations.length+1}`,room:'',stand:`Stand ${c.stations.length+1}`});c.stations=c.stations.slice(0,count);rerenderOrganizerScroll();}
+function onEditHandsOnSession(si,key,value){editModuleContent.handsOn.sessions[si][key]=value;}
+function onEditHandsOnStation(si,i,key,value){editModuleContent.handsOn.sessions[si].stations[i][key]=value;}
+function newEditIndustryBooth(){return {name:'',description:'',website:'',image:''};}
+function normalizeEditIndustry(c){if(!Array.isArray(c.booths)){c.booths=String(c.items||'').split(/\r?\n/).filter(Boolean).map(line=>{const p=line.split('|').map(x=>x.trim());return {name:p[0]||'',description:p[1]||'',website:p[2]||'',image:''};});if(!c.booths.length)c.booths=[newEditIndustryBooth()];}return c;}
+function addEditIndustryBooth(){if(editModuleContent.industry.booths.length>=12){alert('A maximum of 12 industry booths is supported.');return;}editModuleContent.industry.booths.push(newEditIndustryBooth());rerenderOrganizerScroll();}
+function removeEditIndustryBooth(i){if(editModuleContent.industry.booths.length>1)editModuleContent.industry.booths.splice(i,1);rerenderOrganizerScroll();}
+function onEditIndustryBooth(i,key,value){editModuleContent.industry.booths[i][key]=value;}
+function onEditIndustryImage(i,file){if(!file)return;if(file.size>1024*1024){alert('The image must be smaller than 1 MB.');return;}const reader=new FileReader();reader.onload=()=>{editModuleContent.industry.booths[i].image=reader.result;rerenderOrganizerScroll();};reader.readAsDataURL(file);}
+function renderOrganizerModuleContent(module) {
+  const c=editModuleContent[module];
+  let specific='';
+  if(module==='handsOn'){normalizeEditHandsOn(c);specific=`${c.sessions.map((hs,si)=>`<div class="session-edit-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeEditHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-theme);margin-bottom:10px">Session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onEditHandsOnCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onEditHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-edit-row"><span class="mini-label">Station ${i+1}</span><input value="${escHtml(s.name)}" oninput="onEditHandsOnStation(${si},${i},'name',this.value)"><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onEditHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onEditHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}</div>`).join('')}<button class="add-btn" onclick="addEditHandsOnSession()">+ Add another session</button>`;}
+  if(module==='map') specific=`<div class="field-group"><label>Address</label><input value="${escHtml(c.address)}" oninput="onEditModuleContent('map','address',this.value)"></div>${renderOrganizerImage('map')}`;
+  if(module==='conferenceFeedback') specific=`<div class="field-group"><label>Question / prompt shown to participants</label><textarea oninput="onEditModuleContent('conferenceFeedback','prompt',this.value)">${escHtml(c.prompt||'How would you evaluate the conference?')}</textarea></div><div class="field-hint">Participants get one open text field. Responses appear under the organizer Text responses tab.</div>`;
+    if(module==='industry'){normalizeEditIndustry(c);specific=`${c.booths.map((b,i)=>`<div class="session-edit-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeEditIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onEditIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onEditIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input value="${escHtml(b.website)}" placeholder="https://..." oninput="onEditIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditIndustryImage(${i},this.files[0])">${b.image?`<img class="content-image" src="${b.image}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent.industry.booths[${i}].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div></div>`).join('')}<button class="add-btn" onclick="addEditIndustryBooth()">+ Add industry booth</button>`;}
+  if(module==='contact') specific=`<div class="field-group"><label>Coordinator name</label><input value="${escHtml(c.coordinatorName)}" oninput="onEditModuleContent('contact','coordinatorName',this.value)"></div><div class="field-row"><div class="field-group"><label>Phone</label><input value="${escHtml(c.coordinatorPhone)}" oninput="onEditModuleContent('contact','coordinatorPhone',this.value)"></div><div class="field-group"><label>Email</label><input value="${escHtml(c.coordinatorEmail)}" oninput="onEditModuleContent('contact','coordinatorEmail',this.value)"></div></div><div class="field-group"><label>Technical support name</label><input value="${escHtml(c.supportName)}" oninput="onEditModuleContent('contact','supportName',this.value)"></div><div class="field-row"><div class="field-group"><label>Support phone</label><input value="${escHtml(c.supportPhone)}" oninput="onEditModuleContent('contact','supportPhone',this.value)"></div><div class="field-group"><label>Support email</label><input value="${escHtml(c.supportEmail)}" oninput="onEditModuleContent('contact','supportEmail',this.value)"></div></div>${renderOrganizerImage('contact')}`;
+  return `<details class="organizer-module" ${editOpenModule===module?'open':''} ontoggle="if(this.open)editOpenModule='${module}';else if(editOpenModule==='${module}')editOpenModule='' "><summary>Edit ${escHtml(c.title||module)}</summary><div class="organizer-module-body"><div class="field-group"><label>Heading</label><input value="${escHtml(c.title)}" oninput="onEditModuleContent('${module}','title',this.value)"></div><div class="field-group"><label>Introduction</label><textarea oninput="onEditModuleContent('${module}','intro',this.value)">${escHtml(c.intro)}</textarea></div>${specific}</div></details>`;
+}
+function renderOrganizerImage(module){const img=editModuleContent[module].image;return `<div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditModuleImage('${module}',this.files[0])">${img?`<img class="content-image" src="${img}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent['${module}'].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div>`;}
+function onEditModuleImage(module,file){if(!file)return;if(file.size>1024*1024){alert('The image must be smaller than 1 MB.');return;}const reader=new FileReader();reader.onload=()=>{editModuleContent[module].image=reader.result;rerenderOrganizerScroll();};reader.readAsDataURL(file);}
+
+function onEditQuizPassPct(val) {
+  editQuizPassPct = parseInt(val) || 0;
+}
+
+function onEditQuizQuestion(i, key, val) { editQuizQuestions[i][key] = val; }
+function onEditQuizOption(i, oi, val) { editQuizQuestions[i].options[oi] = val; }
+function onEditQuizMode(i, mode) { editQuizQuestions[i].mode = mode === 'survey' ? 'survey' : 'graded'; if(mode==='survey') editQuizQuestions[i].correctIndex=null; else if(editQuizQuestions[i].correctIndex===null) editQuizQuestions[i].correctIndex=0; rerenderOrganizerScroll(); }
+function onEditQuizTextResponse(i, checked) { editQuizQuestions[i].textResponse = !!checked; rerenderOrganizerScroll(); }
+function onQuizQuestionMedia(i, file) {
+  if (!file) return;
+  const isImage = file.type.startsWith('image/');
+  const isVideo = file.type === 'video/mp4' || file.type === 'video/webm';
+  const max = isImage ? 1024 * 1024 : 8 * 1024 * 1024;
+  if (!isImage && !isVideo) { alert('Please choose a JPG, PNG, WebP, MP4 or WebM file.'); return; }
+  if (file.size > max) { alert(isImage ? 'The image must be smaller than 1 MB.' : 'The video must be smaller than 8 MB.'); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    editQuizQuestions[i].media = { type: isImage ? 'image' : 'video', mime: file.type, data: reader.result };
+    rerenderOrganizerScroll();
+  };
+  reader.readAsDataURL(file);
+}
+function removeQuizQuestionMedia(i) { delete editQuizQuestions[i].media; rerenderOrganizerScroll(); }
+function onEditQuizCorrect(i, oi) {
+  editQuizQuestions[i].correctIndex = oi;
+  rerenderOrganizerScroll();
+}
+function addQuizQuestion() {
+  editQuizQuestions.push(blankQuizQuestion());
+  rerenderOrganizerScroll();
+}
+function removeQuizQuestion(i) {
+  editQuizQuestions.splice(i, 1);
+  rerenderOrganizerScroll();
+}
+
+function saveQuizQuestions() {
+  quizSaveStatus = "Saving…"; quizSaveStatusIsError = false;
+  rerenderOrganizerScroll();
+
+  const cleanQuestions = editQuizQuestions.filter(q => {
+    if (!q.text || !q.text.trim()) return false;
+    const options = (q.options || []).filter(Boolean);
+    return q.mode === 'survey' ? (options.length >= 1 || q.textResponse) : (options.length === 4 && Number.isInteger(q.correctIndex) && !!options[q.correctIndex]);
+  }).map(q => Object.assign({}, q, { mode:q.mode==='survey'?'survey':'graded', correctIndex:q.mode==='survey'?null:q.correctIndex, textResponse:!!q.textResponse }));
+  if (cleanQuestions.length === 0 || cleanQuestions.length !== editQuizQuestions.filter(q=>q.text && q.text.trim()).length) {
+    quizSaveStatus = "Each question needs a valid setup. Graded questions need 4 options and a correct answer; survey questions need at least one option or a text field.";
+    quizSaveStatusIsError = true;
+    rerenderOrganizerScroll();
+    return;
+  }
+
+  const payload = {
+    adminPin: pinInput,
+    quizQuestions: cleanQuestions,
+    quizConfig: { passThreshold: Math.min(1, Math.max(0.01, editQuizPassPct / 100)) },
+  };
+
+  if (!PLATFORM_WORKER_URL) {
+    console.log("Simulated quiz question save (PLATFORM_WORKER_URL is not set yet):", payload);
+    quizSaveStatus = "Saved (simulated — no backend connected yet).";
+    quizSaveStatusIsError = false;
+    rerenderOrganizerScroll();
+    return;
+  }
+
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+    .then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ("Server error (" + res.status + ")"));
+      quizSaveStatus = "Saved — participants will see the updated quiz.";
+      quizSaveStatusIsError = false;
+      rerenderOrganizerScroll();
+    })
+    .catch((err) => {
+      quizSaveStatus = "Couldn't save: " + err.message;
+      quizSaveStatusIsError = true;
+      rerenderOrganizerScroll();
+    });
+}
+
+function onResetLookupNr(val) { resetLookupNr = val.replace(/\D/g, ""); }
+
+function lookupQuizStatus() {
+  if (!resetLookupNr) return;
+  resetLookupResult = null;
+  rerenderOrganizerScroll();
+
+  if (!PLATFORM_WORKER_URL) {
+    resetLookupResult = { locked: false };
+    rerenderOrganizerScroll();
+    return;
+  }
+
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/status?nr=${encodeURIComponent(resetLookupNr)}`)
+    .then(res => res.json())
+    .then(data => { resetLookupResult = data; rerenderOrganizerScroll(); })
+    .catch(() => { resetLookupResult = { error: "Couldn't check status." }; rerenderOrganizerScroll(); });
+}
+
+function doQuizReset() {
+  if (!confirm(`Reset the quiz for participant ${resetLookupNr}? They'll be able to take it again.`)) return;
+
+  if (!PLATFORM_WORKER_URL) {
+    console.log("Simulated quiz reset (PLATFORM_WORKER_URL is not set yet) for nr", resetLookupNr);
+    resetLookupResult = { locked: false };
+    rerenderOrganizerScroll();
+    return;
+  }
+
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nr: resetLookupNr, adminPin: pinInput }),
+  })
+    .then(res => res.json())
+    .then(() => { resetLookupResult = { locked: false }; rerenderOrganizerScroll(); })
+    .catch(() => alert("Couldn't reset — check your connection."));
+}
+
+
+function onEditMeta(key, val) { editMeta[key] = val; }
+function onEditSession(i, key, val) { editSessions[i][key] = val; }
+function onEditTimeInput(input, i) {
+  const digits = input.value.replace(/\D/g, "").slice(0, 4);
+  let value = digits.slice(0, 2);
+  if (digits.length >= 2) value += ":" + digits.slice(2);
+  input.value = value;
+  editSessions[i].time = value;
+}
+function addEditSession() {
+  editSessions.push({ date: "", time: "", title: "", speaker: "" });
+  rerenderOrganizerScroll();
+}
+function removeEditSession(i) {
+  editSessions.splice(i, 1);
+  rerenderOrganizerScroll();
+}
+function rerenderOrganizerScroll() {
+  setHtmlPreservingFocus(document.getElementById("organizerScroll"), renderOrganizerEditor());
+}
+
+function onEditConferenceLogo(file){
+  if(!file)return;
+  if(file.size>1024*1024){alert("The logo must be smaller than 1 MB.");return;}
+  if(!file.type.startsWith("image/")){alert("Please choose an image file.");return;}
+  const reader=new FileReader();
+  reader.onload=()=>{if(!editMeta.branding)editMeta.branding={};editMeta.branding.logo=reader.result;rerenderOrganizerScroll();};
+  reader.readAsDataURL(file);
+}
+
+function saveOrganizerChanges() {
+  if(editMeta.modules && editMeta.modules.handsOn && !validHandsOnConfig(editModuleContent.handsOn)){alert('Hands on is not valid. Add a date and make sure the total time fits every rotation (stations × minutes per rotation).');return;}
+  saveStatus = "Saving…"; saveStatusIsError = false;
+  rerenderOrganizerScroll();
+
+  const payload = {
+    adminPin: pinInput,
+    name: editMeta.name,
+    startDate: editMeta.startDate,
+    endDate: editMeta.endDate,
+    contactEmail: editMeta.contactEmail,
+    participantCount: editMeta.participantCount,
+    facultyCount: editMeta.facultyCount,
+    branding: editMeta.branding || {logo:""},
+    modules: editMeta.modules,
+    moduleContent: editModuleContent,
+    sessions: editSessions.filter(s => s.title && s.title.trim()),
+  };
+
+  if (!PLATFORM_WORKER_URL) {
+    console.log("Simulated save (PLATFORM_WORKER_URL is not set yet):", payload);
+    confData.meta = Object.assign({}, confData.meta, payload);
+    confData.schedule = payload.sessions;
+    confData.moduleContent = payload.moduleContent;
+    saveStatus = "Saved (simulated — no backend connected yet)."; saveStatusIsError = false;
+    rerenderOrganizerScroll();
+    return;
+  }
+
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+    .then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || ("Server error (" + res.status + ")"));
+      confData.meta = Object.assign({}, confData.meta, payload);
+      confData.schedule = payload.sessions;
+      confData.moduleContent = payload.moduleContent;
+      saveStatus = "Saved — participants will see the update next time they load the page.";
+      saveStatusIsError = false;
+      rerenderOrganizerScroll();
+    })
+    .catch((err) => {
+      saveStatus = "Couldn't save: " + err.message;
+      saveStatusIsError = true;
+      rerenderOrganizerScroll();
+    });
+}
+function validHandsOnConfig(c){if(!c)return false;const sessions=normalizeEditHandsOn(c).sessions;return sessions.length>0&&sessions.every(s=>!!s.date&&minutesOf(s.endTime)>minutesOf(s.startTime)&&(minutesOf(s.endTime)-minutesOf(s.startTime))>=Number(s.stationCount||0)*Number(s.rotationMinutes||0));}
+
+function escHtml(str) {
+  return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+loadConference();
+</script>
+
+</body>
+</html>
