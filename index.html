@@ -734,19 +734,6 @@ function renderHandsOnAssignment(c){
 function normalizeDisplayHandsOn(c){const sessions=Array.isArray(c.sessions)?c.sessions:(c.date?[{date:c.date,startTime:c.startTime,endTime:c.endTime,rotationMinutes:c.rotationMinutes,stationCount:c.stationCount,stations:c.stations||[]}]:[]);return sessions.slice().sort((a,b)=>`${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));}
 function sessionDates(hs){const base=hs.date?new Date(`${hs.date}T00:00:00`):null;if(!base||isNaN(base))return null;const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),from=new Date(base),to=new Date(base);from.setHours(Math.floor(start/60),start%60,0,0);to.setHours(Math.floor(end/60),end%60,0,0);return {base,from,to,start,end};}
 
-function getHandsOnPostsForFaculty(meta) {
-  const hands = meta && meta.handsOn;
-  if (!hands) return [];
-  if (Array.isArray(hands)) return hands.map((p, i) => ({
-    id: p.id || p.slug || String(i),
-    name: p.name || p.title || p.label || `Post ${i + 1}`
-  }));
-  if (Array.isArray(hands.posts)) return hands.posts.map((p, i) => ({
-    id: p.id || p.slug || String(i),
-    name: p.name || p.title || p.label || `Post ${i + 1}`
-  }));
-  return [];
-}
 
 function renderFacultyHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const facultyPosition=Number(loginNr)-999,total=Number(confData.meta.facultyCount)||0,baseBucket=balancedBucket(facultyPosition,total,n),stationIndex=(baseBucket+sessionIndex)%n,s=stations[stationIndex]||{};const originalBucket=(stationIndex-sessionIndex+n)%n,colleagues=bucketMembers(originalBucket,total,n,999);return `<div class="day-label" style="margin-top:16px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div><div class="info-card"><h3>Your station: ${escHtml(s.name||`Station ${stationIndex+1}`)}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(s.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(s.stand||'TBA')}</strong></div></div><p style="margin-top:14px"><strong>Faculty at this station:</strong> ${colleagues.map(x=>'#'+x).join(', ')}</p></div>`;}
 function renderParticipantHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=balancedBucket(Number(loginNr),total,n);let cards='';for(let r=0;r<n;r++){const from=start+r*step,to=Math.min(from+step,end),station=stations[(group+sessionIndex+r)%n]||{};if(from>=end)break;cards+=`<div class="info-card"><h3>${escHtml(station.name||'Station')}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${timeOf(from)}–${timeOf(to)}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(station.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(station.stand||'TBA')}</strong></div></div></div>`;}return `<div class="day-label" style="margin-top:18px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${cards}`;}
