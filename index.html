@@ -271,6 +271,22 @@
   .save-btn, .add-btn, .login-btn, .pin-btn { min-height:48px; }
 }
 </style>
+<style>
+/* Organizer editor navigation: stays pinned to the top of its scroll area. */
+.organizer-editor-tabs {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  margin: -28px -32px 22px !important;
+  box-shadow: 0 1px 0 var(--pf-border);
+}
+.editor-tab-content { min-height: 120px; }
+@media (max-width: 600px) {
+  .organizer-editor-tabs {
+    margin: -18px -14px 18px !important;
+  }
+}
+</style>
 </head>
 <body>
 
@@ -403,7 +419,7 @@ let saveStatusIsError = false;
 
 // ── Quiz module state (participant side) ─────────────────────────────
 let participantTab = "schedule"; // "schedule" | "quiz"
-let organizerTab = "setup"; // "setup" | "textResponses" | "conferenceFeedback"
+let organizerTab = "general"; // "general" | "schedule" | "addons" | "administration"
 let quizTextResponses = null;
 let quizTextResponsesError = "";
 let quizQuestions = null;   // fetched lazily, null = not fetched yet
@@ -1099,97 +1115,159 @@ async function downloadEvaluationExport(){try{const r=await fetch(`${PLATFORM_WO
 function renderEvaluationAnalytics(){if(!evaluationResults)return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">See evaluation totals and download the evaluation data.</p><button class="save-btn" onclick="loadEvaluationResults()">Load faculty evaluations</button>${evaluationResultsError?`<div class="save-status error">${escHtml(evaluationResultsError)}</div>`:''}`;const s=evaluationResults.summary||{};return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><div class="info-grid"><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">EVALUATIONS</span><strong>${s.evaluations||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PASS</span><strong>${s.passed||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">FAIL</span><strong>${s.failed||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PASS RATE</span><strong>${s.passPct||0}%</strong></div></div><div class="info-card"><h3>By post</h3>${(evaluationResults.postStats||[]).map(p=>`<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(p.name)}</strong><div style="font-size:11px;color:var(--pf-muted)">${p.passed} pass · ${p.failed} fail · ${p.passPct}% pass</div></div>`).join('')||'<div class="empty-note">No posts.</div>'}</div><button class="save-btn" onclick="downloadEvaluationExport()">Download evaluations (.csv)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="evaluationResults=null;evaluationResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
 
 function renderOrganizerEditor() {
-  const hasQuiz = editMeta.modules && editMeta.modules.quiz;
-  const hasFeedback = editMeta.modules && editMeta.modules.conferenceFeedback;
-  const organizerTabs = `<div class="tab-bar" style="margin:-16px -16px 18px;position:sticky;top:0;z-index:2;"><div class="tab-btn ${organizerTab==='setup'?'active':''}" onclick="setOrganizerTab('setup')">⚙ Setup</div>${(hasQuiz||hasFeedback) ? `<div class="tab-btn ${organizerTab==='textResponses'?'active':''}" onclick="setOrganizerTab('textResponses')">✎ Text responses</div>` : ''}</div>`;
-  if (organizerTab === 'textResponses' && (hasQuiz||hasFeedback)) return organizerTabs + renderOrganizerTextResponsesTab(hasQuiz,hasFeedback);
+  const hasQuiz = !!(editMeta.modules && editMeta.modules.quiz);
+  const hasFeedback = !!(editMeta.modules && editMeta.modules.conferenceFeedback);
+  const hasEvaluations = !!(editMeta.modules && editMeta.modules.evaluations);
+
+  const organizerTabs = `
+    <div class="tab-bar organizer-editor-tabs">
+      <div class="tab-btn ${organizerTab==='general'?'active':''}" onclick="setOrganizerTab('general')">General</div>
+      <div class="tab-btn ${organizerTab==='schedule'?'active':''}" onclick="setOrganizerTab('schedule')">Schedule</div>
+      <div class="tab-btn ${organizerTab==='addons'?'active':''}" onclick="setOrganizerTab('addons')">Add-ons</div>
+      <div class="tab-btn ${organizerTab==='administration'?'active':''}" onclick="setOrganizerTab('administration')">Administration</div>
+    </div>`;
+
+  const saveButton = `
+    <div style="margin-top:24px;">
+      <button class="save-btn" onclick="saveOrganizerChanges()">Save changes</button>
+      <div class="save-status ${saveStatusIsError ? 'error' : 'ok'}">${escHtml(saveStatus)}</div>
+    </div>`;
+
+  if (organizerTab === 'general') {
+    return organizerTabs + `
+      <div class="editor-tab-content">
+        <div class="mini-label" style="margin:0 0 12px;font-size:12px;">Conference details</div>
+
+        <div class="field-group">
+          <label>Conference name</label>
+          <input type="text" value="${escHtml(editMeta.name)}" oninput="onEditMeta('name', this.value)">
+        </div>
+
+        <div class="field-group">
+          <label>Conference logo</label>
+          <div class="field-hint">Shown beside the conference title to participants and used as the smartphone shortcut icon. Maximum 1 MB.</div>
+          <input type="file" accept="image/*" onchange="onEditConferenceLogo(this.files[0])">
+          ${editMeta.branding && editMeta.branding.logo ? `<img class="content-image" style="max-width:180px;max-height:80px;object-fit:contain" src="${escHtml(editMeta.branding.logo)}" alt="Logo preview"><button class="pin-btn" type="button" onclick="editMeta.branding.logo='';rerenderOrganizerScroll()">Remove logo</button>` : ""}
+        </div>
+
+        <div class="field-row">
+          <div class="field-group">
+            <label>Start date</label>
+            <input type="date" value="${escHtml(editMeta.startDate)}" oninput="onEditMeta('startDate', this.value)">
+          </div>
+          <div class="field-group">
+            <label>End date</label>
+            <input type="date" value="${escHtml(editMeta.endDate)}" oninput="onEditMeta('endDate', this.value)">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label>Contact email</label>
+          <input type="email" value="${escHtml(editMeta.contactEmail || "")}" oninput="onEditMeta('contactEmail', this.value)">
+        </div>
+
+        <div class="field-row">
+          <div class="field-group">
+            <label>Participant numbers open</label>
+            <input type="number" min="1" max="999" value="${editMeta.participantCount}" oninput="onEditMeta('participantCount', parseInt(this.value)||0)">
+          </div>
+          <div class="field-group">
+            <label>Faculty numbers open</label>
+            <input type="number" min="0" max="999" value="${editMeta.facultyCount || 0}" oninput="onEditMeta('facultyCount', parseInt(this.value)||0)">
+          </div>
+        </div>
+
+        <div class="field-hint" style="margin:-6px 0 14px;">
+          Participants log in with ${escHtml(editMeta.slug.toUpperCase())} + 1–${editMeta.participantCount}.
+          Faculty log in with ${escHtml(editMeta.slug.toUpperCase())} + 1000–${1000 + (editMeta.facultyCount || 0) - 1}.
+        </div>
+
+        <div class="info-card" style="margin-top:18px;">
+          <strong>Organizer PIN</strong>
+          <div class="field-hint" style="margin-top:5px;">The PIN used to unlock this conference's organizer settings is required when saving changes and managing participant data.</div>
+        </div>
+      </div>
+      ${saveButton}`;
+  }
+
+  if (organizerTab === 'schedule') {
+    return organizerTabs + `
+      <div class="editor-tab-content">
+        <div class="mini-label" style="margin:0 0 12px;font-size:12px;">Schedule</div>
+        <div class="field-hint" style="margin:0 0 14px;">Add or edit the sessions participants will see. Schedule can be changed at any time after the conference has been created.</div>
+        ${editSessions.map((session, i) => `
+          <div class="session-edit-row">
+            ${editSessions.length > 1 ? `<button class="remove-btn" onclick="removeEditSession(${i})">✕</button>` : ""}
+            <div class="field-row" style="margin-bottom:8px;">
+              <div>
+                <span class="mini-label">Date</span>
+                <input type="date" value="${escHtml(session.date)}" oninput="onEditSession(${i},'date',this.value)">
+              </div>
+              <div>
+                <span class="mini-label">Time</span>
+                <input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" value="${escHtml(session.time)}" oninput="onEditTimeInput(this,${i})">
+              </div>
+            </div>
+            <div style="margin-bottom:8px;">
+              <span class="mini-label">Title</span>
+              <input type="text" value="${escHtml(session.title)}" oninput="onEditSession(${i},'title',this.value)">
+            </div>
+            <div>
+              <span class="mini-label">Speaker / location</span>
+              <input type="text" value="${escHtml(session.speaker)}" oninput="onEditSession(${i},'speaker',this.value)">
+            </div>
+          </div>
+        `).join("")}
+        <button class="add-btn" onclick="addEditSession()">+ Add session</button>
+      </div>
+      ${saveButton}`;
+  }
+
+  if (organizerTab === 'addons') {
+    return organizerTabs + `
+      <div class="editor-tab-content">
+        <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Modules and add-ons</div>
+        <div class="field-hint" style="margin:0 0 12px;">You can add or remove modules at any time, even after the conference has been created. Turn a module on, edit its content, then save changes.</div>
+
+        ${[['handsOn','Hands on'],['map','Map'],['industry','Industry'],['quiz','Quiz'],['evaluations','Faculty evaluation'],['conferenceFeedback','Conference evaluation'],['contact','Contact']].map(([key,label]) => `
+          <label class="module-toggle" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;display:flex;margin-bottom:8px;">
+            <input type="checkbox" ${editMeta.modules && editMeta.modules[key] ? "checked" : ""} onchange="onToggleModule('${key}',this.checked)" style="width:18px;height:18px;margin-top:2px;accent-color:var(--pf-theme);flex-shrink:0;">
+            <div><div style="font-size:13.5px;font-weight:bold;">${label}</div><div style="font-size:11.5px;color:var(--pf-muted);">${key==='evaluations'?'Enable faculty evaluation for this conference.':'Show this module to participants.'}</div></div>
+          </label>`).join('')}
+
+        ${['handsOn','map','industry','conferenceFeedback','contact'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
+        ${hasEvaluations ? renderEvaluationEditor() : ''}
+
+        ${hasQuiz ? `
+          <div style="margin-top:26px;border-top:2px solid var(--pf-border);padding-top:8px;">
+            ${renderQuizEditor()}
+          </div>` : `
+          <div class="info-card" style="margin-top:18px;">
+            <strong>Quiz questions</strong>
+            <div class="field-hint" style="margin-top:5px;">Enable the Quiz module above to add and edit quiz questions.</div>
+          </div>`}
+      </div>
+      ${saveButton}`;
+  }
+
+  // Administration
   return organizerTabs + `
-    <div class="field-group">
-      <label>Conference name</label>
-      <input type="text" value="${escHtml(editMeta.name)}" oninput="onEditMeta('name', this.value)">
-    </div>
-    <div class="field-group">
-      <label>Conference logo</label>
-      <div class="field-hint">Shown to participants and used as the smartphone shortcut icon. Maximum 1 MB.</div>
-      <input type="file" accept="image/*" onchange="onEditConferenceLogo(this.files[0])">
-      ${editMeta.branding && editMeta.branding.logo ? `<img class="content-image" style="max-width:180px;max-height:80px;object-fit:contain" src="${escHtml(editMeta.branding.logo)}" alt="Logo preview"><button class="pin-btn" type="button" onclick="editMeta.branding.logo='';rerenderOrganizerScroll()">Remove logo</button>` : ""}
-    </div>
-    <div class="field-row">
-      <div class="field-group">
-        <label>Start date</label>
-        <input type="date" value="${escHtml(editMeta.startDate)}" oninput="onEditMeta('startDate', this.value)">
-      </div>
-      <div class="field-group">
-        <label>End date</label>
-        <input type="date" value="${escHtml(editMeta.endDate)}" oninput="onEditMeta('endDate', this.value)">
-      </div>
-    </div>
-    <div class="field-group">
-      <label>Contact email</label>
-      <input type="email" value="${escHtml(editMeta.contactEmail || "")}" oninput="onEditMeta('contactEmail', this.value)">
-    </div>
-    <div class="field-row">
-      <div class="field-group">
-        <label>Participant numbers open</label>
-        <input type="number" min="1" max="999" value="${editMeta.participantCount}" oninput="onEditMeta('participantCount', parseInt(this.value)||0)">
-      </div>
-      <div class="field-group">
-        <label>Faculty numbers open</label>
-        <input type="number" min="0" max="999" value="${editMeta.facultyCount || 0}" oninput="onEditMeta('facultyCount', parseInt(this.value)||0)">
-      </div>
-    </div>
-    <div class="field-hint" style="margin:-6px 0 14px;">
-      Participants log in with ${escHtml(editMeta.slug.toUpperCase())} + 1–${editMeta.participantCount}.
-      Faculty log in with ${escHtml(editMeta.slug.toUpperCase())} + 1000–${1000 + (editMeta.facultyCount || 0) - 1}.
-    </div>
+    <div class="editor-tab-content">
+      <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Participant administration</div>
+      ${hasQuiz ? renderQuizResetTool() : `
+        <div class="info-card"><strong>Reset a participant's quiz</strong><div class="field-hint" style="margin-top:5px;">Quiz is not enabled for this conference.</div></div>`}
+      ${renderRegistrationResetTool()}
 
-    <div class="mini-label" style="margin:16px 0 8px;font-size:12px;">Schedule</div>
-    ${editSessions.map((s, i) => `
-      <div class="session-edit-row">
-        ${editSessions.length > 1 ? `<button class="remove-btn" onclick="removeEditSession(${i})">✕</button>` : ""}
-        <div class="field-row" style="margin-bottom:8px;">
-          <div>
-            <span class="mini-label">Date</span>
-            <input type="date" value="${escHtml(s.date)}" oninput="onEditSession(${i},'date',this.value)">
-          </div>
-          <div>
-            <span class="mini-label">Time</span>
-            <input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" value="${escHtml(s.time)}" oninput="onEditTimeInput(this,${i})">
-          </div>
-        </div>
-        <div style="margin-bottom:8px;">
-          <span class="mini-label">Title</span>
-          <input type="text" value="${escHtml(s.title)}" oninput="onEditSession(${i},'title',this.value)">
-        </div>
-        <div>
-          <span class="mini-label">Speaker / location</span>
-          <input type="text" value="${escHtml(s.speaker)}" oninput="onEditSession(${i},'speaker',this.value)">
-        </div>
-      </div>
-    `).join("")}
-    <button class="add-btn" onclick="addEditSession()">+ Add session</button>
+      ${hasQuiz ? renderQuizAnalytics() : `
+        <div class="info-card" style="margin-top:18px;"><strong>Test results and data</strong><div class="field-hint" style="margin-top:5px;">Quiz is not enabled for this conference.</div></div>`}
 
-    <button class="save-btn" onclick="saveOrganizerChanges()">Save changes</button>
-    <div class="save-status ${saveStatusIsError ? 'error' : 'ok'}">${escHtml(saveStatus)}</div>
+      ${hasEvaluations ? renderEvaluationAnalytics() : `
+        <div class="info-card" style="margin-top:18px;"><strong>Faculty evaluations</strong><div class="field-hint" style="margin-top:5px;">Faculty evaluation is not enabled for this conference.</div></div>`}
 
-    <div class="mini-label" style="margin:24px 0 4px;font-size:12px;">Modules and content</div>
-    <div class="field-hint" style="margin:0 0 12px;">You can add or remove modules at any time, even after the conference has been created. Turn on a module below, edit its content, then save.</div>
-    ${[['handsOn','Hands on'],['map','Map'],['industry','Industry'],['quiz','Test'],['evaluations','Faculty evaluations'],['conferenceFeedback','Conference evaluation'],['contact','Contact']].map(([key,label]) => `
-      <label class="module-toggle" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;display:flex;margin-bottom:8px;">
-        <input type="checkbox" ${editMeta.modules && editMeta.modules[key] ? "checked" : ""} onchange="onToggleModule('${key}',this.checked)" style="width:18px;height:18px;margin-top:2px;accent-color:var(--pf-theme);flex-shrink:0;">
-        <div><div style="font-size:13.5px;font-weight:bold;">${label}</div><div style="font-size:11.5px;color:var(--pf-muted);">${key==='evaluations'?'Enable faculty evaluation for this conference.':'Show this tab to participants.'}</div></div>
-      </label>`).join('')}
-    ${['handsOn','map','industry','quiz','conferenceFeedback','contact'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
-    ${editMeta.modules && editMeta.modules.evaluations ? renderEvaluationEditor() : ''}
-    <button class="save-btn" onclick="saveOrganizerChanges()">Save modules and content</button>
-    <div class="save-status ${saveStatusIsError ? 'error' : 'ok'}">${escHtml(saveStatus)}</div>
-
-    ${hasQuiz ? renderQuizEditor() : ""}
-    ${hasQuiz ? renderQuizResetTool() : ""}
-    ${hasQuiz ? renderQuizAnalytics() : ""}
-    ${editMeta.modules && editMeta.modules.evaluations ? renderEvaluationAnalytics() : ""}
-    ${renderRegistrationResetTool()}
-  `;
+      ${(hasQuiz || hasFeedback) ? renderOrganizerTextResponsesTab(hasQuiz,hasFeedback) : `
+        <div class="info-card" style="margin-top:18px;"><strong>Text responses</strong><div class="field-hint" style="margin-top:5px;">No text-response module is enabled for this conference.</div></div>`}
+    </div>
+    ${saveButton}`;
 }
 
 function renderOrganizerTextResponsesTab(hasQuiz,hasFeedback){return `${hasFeedback?renderConferenceFeedbackResponses():''}${hasQuiz?renderQuizTextResponsesTab():''}`;}
