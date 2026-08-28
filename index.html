@@ -246,27 +246,7 @@
   .quiz-opt-edit-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .quiz-opt-edit-row input[type="radio"] { accent-color: var(--pf-theme); flex-shrink: 0; }
   .quiz-opt-edit-row input[type="text"] { flex: 1; padding: 7px 9px; font-size: 12.5px; }
-<style>
-.editor-tabs {
-  position: fixed !important;
-  top: 0 !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: min(calc(100% - 32px), 1100px) !important;
-  max-width: 1100px !important;
-  box-sizing: border-box !important;
-  z-index: 1000 !important;
-  display: flex !important;
-  align-items: stretch !important;
-  overflow-x: auto !important;
-  white-space: nowrap !important;
-}
-.editor-tabs button {
-  flex: 1 1 0 !important;
-  min-width: 0 !important;
-  white-space: nowrap !important;
-}
-</style></style>
+</style>
 <style>
 @media (max-width: 600px) {
   body { padding:0; background:#fff; }
@@ -304,14 +284,41 @@
   margin: -28px -32px 22px !important;
   box-shadow: 0 1px 0 var(--pf-border);
 }
-.editor-tab-content { min-height: 120px; padding-top: 76px; }
+.editor-tab-content { min-height: 120px; padding-top: 72px; }
 @media (max-width: 600px) {
   .organizer-editor-tabs {
     margin: -18px -14px 18px !important;
   }
 }
 </style>
-</head>
+<style id="organizer-tabs-rebuild-fix">
+.editor-tabs{
+  position:fixed!important;
+  top:0!important;
+  left:0!important;
+  right:0!important;
+  width:100%!important;
+  max-width:none!important;
+  transform:none!important;
+  z-index:1000!important;
+  box-sizing:border-box!important;
+  overflow-x:auto!important;
+}
+.editor-tabs button{
+  flex:0 1 auto!important;
+  min-width:0!important;
+  white-space:nowrap!important;
+}
+.editor-tabs-inner,.editor-tabs .tabs-inner{
+  width:min(calc(100% - 32px),1100px)!important;
+  max-width:1100px!important;
+  margin:0 auto!important;
+}
+.editor-tab-content{padding-top:76px!important}
+</style><style id="organizer-tabs-width-fallback">
+.editor-tabs{padding-left:max(16px,calc((100vw - 1100px)/2));padding-right:max(16px,calc((100vw - 1100px)/2))}
+.editor-tabs button{flex:1 1 0!important}
+</style></head>
 <body>
 
 <div class="shell" id="shell">
