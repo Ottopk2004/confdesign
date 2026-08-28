@@ -274,13 +274,17 @@
 <style>
 /* Organizer editor navigation: stays pinned to the top of its scroll area. */
 .organizer-editor-tabs {
-  position: sticky !important;
+  position: fixed !important;
   top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
   z-index: 20 !important;
   margin: -28px -32px 22px !important;
   box-shadow: 0 1px 0 var(--pf-border);
 }
-.editor-tab-content { min-height: 120px; }
+.editor-tab-content { min-height: 120px; padding-top: 72px; }
 @media (max-width: 600px) {
   .organizer-editor-tabs {
     margin: -18px -14px 18px !important;
@@ -1181,11 +1185,6 @@ function renderOrganizerEditor() {
           Participants log in with ${escHtml(editMeta.slug.toUpperCase())} + 1–${editMeta.participantCount}.
           Faculty log in with ${escHtml(editMeta.slug.toUpperCase())} + 1000–${1000 + (editMeta.facultyCount || 0) - 1}.
         </div>
-
-        <div class="info-card" style="margin-top:18px;">
-          <strong>Organizer PIN</strong>
-          <div class="field-hint" style="margin-top:5px;">The PIN used to unlock this conference's organizer settings is required when saving changes and managing participant data.</div>
-        </div>
       </div>
       ${saveButton}`;
   }
@@ -1327,8 +1326,6 @@ function renderQuizEditor() {
       </div>
     `).join("")}
     <button class="add-btn" onclick="addQuizQuestion()">+ Add question</button>
-    <button class="save-btn" onclick="saveQuizQuestions()">Save quiz questions</button>
-    <div class="save-status ${quizSaveStatusIsError ? 'error' : 'ok'}">${escHtml(quizSaveStatus)}</div>
   `;
 }
 
@@ -1605,6 +1602,19 @@ function onEditConferenceLogo(file){
 
 function saveOrganizerChanges() {
   if(editMeta.modules && editMeta.modules.handsOn && !validHandsOnConfig(editModuleContent.handsOn)){alert('Hands on is not valid. Add a date and make sure the total time fits every rotation (stations × minutes per rotation).');return;}
+  if (editMeta.modules && editMeta.modules.quiz && editQuizQuestions !== null) {
+    const validQuiz = editQuizQuestions.every(q => {
+      if (!q.text || !q.text.trim()) return false;
+      const options = (q.options || []).filter(Boolean);
+      return q.mode === 'survey'
+        ? (options.length >= 1 || q.textResponse)
+        : (options.length === 4 && Number.isInteger(q.correctIndex) && !!options[q.correctIndex]);
+    });
+    if (!validQuiz) {
+      alert("Each quiz question needs a valid setup. Graded questions need 4 options and a correct answer; survey questions need at least one option or a text field.");
+      return;
+    }
+  }
   saveStatus = "Saving…"; saveStatusIsError = false;
   rerenderOrganizerScroll();
 
@@ -1620,6 +1630,10 @@ function saveOrganizerChanges() {
     modules: editMeta.modules,
     moduleContent: editModuleContent,
     sessions: editSessions.filter(s => s.title && s.title.trim()),
+    ...(editMeta.modules && editMeta.modules.quiz && editQuizQuestions !== null ? {
+      quizQuestions: editQuizQuestions,
+      quizConfig: { passThreshold: Math.min(1, Math.max(0.01, editQuizPassPct / 100)) }
+    } : {}),
   };
 
   if (!PLATFORM_WORKER_URL) {

@@ -397,6 +397,7 @@ const THEME_COLORS = [
   { name: "Slate",  hex: "#3A4552" },
 ];
 
+let quizQuestions = [];
 let form = {
   name: "",
   slug: "",
@@ -413,7 +414,7 @@ let form = {
     handsOn: { title: "Hands on", intro: "", sessions: [newHandsOnSession()] },
     map: { title: "Venue map", intro: "", address: "", image: "" },
     industry: { title: "Industry", intro: "", booths: [newIndustryBooth()] },
-    quiz: { title: "Final test", intro: "Answer all questions. The test can only be taken once." },
+    quiz: { title: "Quiz", intro: "Answer all questions. The test can only be taken once." },
     evaluations: { title: "Faculty evaluation", intro: "Evaluate each participant at your assigned post.", posts: [] },
     conferenceFeedback: { title: "Conference evaluation", intro: "We would value your feedback.", prompt: "How would you evaluate the conference?" },
     contact: { title: "Contact", intro: "", coordinatorName: "", coordinatorPhone: "", coordinatorEmail: "", supportName: "", supportPhone: "", supportEmail: "", image: "" },
@@ -718,6 +719,13 @@ function onIndustryBoothImage(i,file){if(!file)return;if(file.size>1024*1024){al
 function addEvaluationPost(){form.moduleContent.evaluations.posts.push({id:`P${form.moduleContent.evaluations.posts.length+1}`,name:''});render();}
 function removeEvaluationPost(i){form.moduleContent.evaluations.posts.splice(i,1);render();}
 function onEvaluationPost(i,val){form.moduleContent.evaluations.posts[i].name=val;}
+function addCreateQuizQuestion(){
+  quizQuestions.push({text:"",options:["","","",""],correctIndex:0,mode:"graded",textResponse:false});
+  render();
+}
+function removeCreateQuizQuestion(i){ quizQuestions.splice(i,1); render(); }
+function onCreateQuizQuestion(i,key,value){ quizQuestions[i][key]=value; render(); }
+function onCreateQuizOption(i,j,value){ quizQuestions[i].options[j]=value; render(); }
 function renderModuleEditor(module) {
   const c = form.moduleContent[module];
   const common = `
@@ -727,6 +735,28 @@ function renderModuleEditor(module) {
   if (module === 'handsOn') { normalizeHandsOn(c); fields = `${c.sessions.map((hs,si)=>`<div class="session-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-indigo);margin-bottom:12px">Hands-on session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onHandsOnStationCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes/rotation</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-row"><span class="mini-label">Station ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(s.name)}" oninput="onHandsOnStation(${si},${i},'name',this.value)"></div><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}</div>`).join('')}<button type="button" class="add-session-btn" onclick="addHandsOnSession()">+ Add another Hands-on session</button><div id="handsOnValidation" class="field-hint ${validateHandsOn(c)?'':'error'}">Each session must fit stations × minutes per rotation.</div>`; }
   if (module === 'map') fields = `<div class="field-group"><label>Venue address</label><input type="text" value="${escHtml(c.address)}" oninput="onModuleContent('map','address',this.value)"></div>${renderImageField('map')}`;
   if (module === 'industry') { normalizeIndustry(c); fields = `${c.booths.map((b,i)=>`<div class="session-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input type="url" value="${escHtml(b.website)}" placeholder="https://..." oninput="onIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Booth image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onIndustryBoothImage(${i},this.files[0])">${b.image?`<img class="image-preview" src="${b.image}" alt="Preview"><button type="button" class="remove-image-btn" onclick="form.moduleContent.industry.booths[${i}].image='';render()">Remove image</button>`:''}</div></div>`).join('')}<button type="button" class="add-session-btn" onclick="addIndustryBooth()">+ Add industry booth</button>`; }
+  if (module === 'quiz') {
+    const qList = quizQuestions.map((q,i)=>`
+      <div class="session-row">
+        ${quizQuestions.length>1?`<button type="button" class="remove-btn" onclick="removeCreateQuizQuestion(${i})">✕</button>`:''}
+        <span class="mini-label">Question ${i+1}</span>
+        <div class="field-group"><label>Question</label><input value="${escHtml(q.text||'')}" oninput="onCreateQuizQuestion(${i},'text',this.value)"></div>
+        ${(q.options||["","","",""]).map((o,j)=>`
+          <div class="field-row" style="align-items:center;">
+            <input type="radio" name="createQuizCorrect${i}" ${q.correctIndex===j?'checked':''} onchange="onCreateQuizQuestion(${i},'correctIndex',${j})">
+            <input value="${escHtml(o)}" placeholder="Answer ${j+1}" oninput="onCreateQuizOption(${i},${j},this.value)">
+          </div>`).join("")}
+        <label style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+          <input type="checkbox" ${q.textResponse?'checked':''} onchange="onCreateQuizQuestion(${i},'textResponse',this.checked)">
+          Add a text response field
+        </label>
+        <select onchange="onCreateQuizQuestion(${i},'mode',this.value)" style="margin-top:8px;">
+          <option value="graded" ${q.mode==='graded'?'selected':''}>Graded</option>
+          <option value="survey" ${q.mode==='survey'?'selected':''}>Survey</option>
+        </select>
+      </div>`).join("");
+    fields = `${qList}<button type="button" class="add-session-btn" onclick="addCreateQuizQuestion()">+ Add quiz question</button>`;
+  }
   if (module === 'conferenceFeedback') fields = `<div class="field-group"><label>Question / prompt shown to participants</label><textarea placeholder="How would you evaluate the conference?" oninput="onModuleContent('conferenceFeedback','prompt',this.value)">${escHtml(c.prompt||'How would you evaluate the conference?')}</textarea></div><div class="field-hint">Participants get one open text field. Responses are stored in a separate organizer tab.</div>`;
   if (module === 'evaluations') { const posts=Array.isArray(c.posts)?c.posts:[]; fields = `${posts.map((p,i)=>`<div class="session-row">${posts.length>1?`<button class="remove-btn" onclick="removeEvaluationPost(${i})">✕</button>`:''}<span class="mini-label">Post ${i+1}</span><input value="${escHtml(p.name||'')}" placeholder="e.g. Airway" oninput="onEvaluationPost(${i},this.value)"></div>`).join('')}<button type="button" class="add-session-btn" onclick="addEvaluationPost()">+ Add post</button>`; }
   if (module === 'contact') fields = `
@@ -734,7 +764,7 @@ function renderModuleEditor(module) {
     <div class="field-group"><label>Coordinator email</label><input type="email" value="${escHtml(c.coordinatorEmail)}" oninput="onModuleContent('contact','coordinatorEmail',this.value)"></div>
     <div class="field-row"><div class="field-group"><label>Technical support</label><input type="text" value="${escHtml(c.supportName)}" oninput="onModuleContent('contact','supportName',this.value)"></div><div class="field-group"><label>Support phone</label><input type="text" value="${escHtml(c.supportPhone)}" oninput="onModuleContent('contact','supportPhone',this.value)"></div></div>
     <div class="field-group"><label>Support email</label><input type="email" value="${escHtml(c.supportEmail)}" oninput="onModuleContent('contact','supportEmail',this.value)"></div>${renderImageField('contact')}`;
-  return `<details class="module-editor" ${openModule===module?'open':''} ontoggle="if(this.open)openModule='${module}';else if(openModule==='${module}')openModule='' "><summary>Edit ${escHtml(c.title || module)}</summary><div class="module-editor-body">${common}${fields}</div></details>`;
+  return `<details class="module-editor" ${openModule===module?'open':''} ontoggle="if(this.open)openModule='${module}';else if(openModule==='${module}')openModule='' "><summary>${module==='quiz'?'Edit quiz questions':`Edit ${escHtml(c.title || module)}`}</summary><div class="module-editor-body">${common}${fields}</div></details>`;
 }
 
 function renderImageField(module) {
@@ -803,6 +833,8 @@ function submitConference() {
     facultyCount: form.facultyCount,
     modules: form.modules,
     moduleContent: form.moduleContent,
+    quizQuestions: form.modules.quiz ? quizQuestions : [],
+    quizConfig: form.modules.quiz ? { passThreshold: 0.8 } : null,
     branding: form.branding,
     sessions: sessions.filter(s => s.title.trim().length > 0),
   };
