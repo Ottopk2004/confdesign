@@ -270,54 +270,26 @@
   .login-body { padding:24px 16px; }
   .save-btn, .add-btn, .login-btn, .pin-btn { min-height:48px; }
 }
-</style>
-<style>
-/* Organizer editor navigation: stays pinned to the top of its scroll area. */
-.organizer-editor-tabs {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
-  z-index: 20 !important;
-  margin: -28px -32px 22px !important;
-  box-shadow: 0 1px 0 var(--pf-border);
+</style><style id="organizer-tabs-correct-fix">
+/* Organizer tabs sit directly below the logout toolbar and remain there while the panel scrolls. */
+.organizer-editor-tabs{
+  position:sticky!important;
+  top:0!important;
+  left:auto!important;
+  right:auto!important;
+  width:auto!important;
+  max-width:none!important;
+  margin:-28px -32px 22px!important;
+  z-index:50!important;
+  box-sizing:border-box!important;
+  box-shadow:0 1px 0 var(--pf-border)!important;
 }
-.editor-tab-content { min-height: 120px; padding-top: 72px; }
-@media (max-width: 600px) {
-  .organizer-editor-tabs {
-    margin: -18px -14px 18px !important;
+.editor-tab-content{padding-top:0!important}
+@media (max-width:600px){
+  .organizer-editor-tabs{
+    margin:-18px -14px 18px!important;
   }
 }
-</style>
-<style id="organizer-tabs-rebuild-fix">
-.editor-tabs{
-  position:fixed!important;
-  top:0!important;
-  left:0!important;
-  right:0!important;
-  width:100%!important;
-  max-width:none!important;
-  transform:none!important;
-  z-index:1000!important;
-  box-sizing:border-box!important;
-  overflow-x:auto!important;
-}
-.editor-tabs button{
-  flex:0 1 auto!important;
-  min-width:0!important;
-  white-space:nowrap!important;
-}
-.editor-tabs-inner,.editor-tabs .tabs-inner{
-  width:min(calc(100% - 32px),1100px)!important;
-  max-width:1100px!important;
-  margin:0 auto!important;
-}
-.editor-tab-content{padding-top:76px!important}
-</style><style id="organizer-tabs-width-fallback">
-.editor-tabs{padding-left:max(16px,calc((100vw - 1100px)/2));padding-right:max(16px,calc((100vw - 1100px)/2))}
-.editor-tabs button{flex:1 1 0!important}
 </style></head>
 <body>
 
