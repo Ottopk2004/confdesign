@@ -532,6 +532,14 @@ function render() {
         <div class="slug-preview">${form.slug ? "Direct link: " + location.origin + location.pathname.replace('create.html','') + "index.html?conf=" + form.slug : ""}</div>
       </div>
 
+      <div class="field-group">
+        <label for="fPin">Your admin PIN (4–6 digits)</label>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="pin-input" id="fPin" placeholder="••••" maxlength="6" value="${escHtml(form.adminPin)}" oninput="onPin(this.value)">
+        <div class="field-hint ${form.adminPin && !pinValid ? "error" : ""}">
+          ${form.adminPin && !pinValid ? "Must be 4–6 digits." : "You'll need this to edit the conference or reset participant tests later."}
+        </div>
+      </div>
+
       <div class="field-row">
         <div class="field-group">
           <label for="fStart">Start date</label>
@@ -582,14 +590,6 @@ function render() {
           <label for="fFacultyCount">Faculty numbers</label>
           <input type="number" id="fFacultyCount" min="0" max="999" value="${form.facultyCount}" oninput="onField('facultyCount', parseInt(this.value)||0)">
           <div class="field-hint">Log in with 1000–${1000 + (form.facultyCount||0) - 1}.</div>
-        </div>
-      </div>
-
-      <div class="field-group">
-        <label for="fPin">Your admin PIN (4–6 digits)</label>
-        <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" class="pin-input" id="fPin" placeholder="••••" maxlength="6" value="${escHtml(form.adminPin)}" oninput="onPin(this.value)">
-        <div class="field-hint ${form.adminPin && !pinValid ? "error" : ""}">
-          ${form.adminPin && !pinValid ? "Must be 4–6 digits." : "You'll need this to edit the conference or reset participant tests later."}
         </div>
       </div>
       </div></details>

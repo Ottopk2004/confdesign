@@ -136,6 +136,11 @@
   .organizer-module { border:2px solid #cfdae3; border-radius:12px; margin-bottom:12px; overflow:hidden; }
   .organizer-module summary { cursor:pointer; padding:14px 16px; background:var(--pf-theme-light); color:var(--pf-theme); font-weight:bold; }
   .organizer-module-body { padding:16px; }
+  .group-overview { border:2px solid #cfdae3; border-radius:10px; overflow:hidden; margin-bottom:16px; }
+  .group-overview-row { display:flex; justify-content:space-between; gap:10px; padding:9px 12px; font-size:12.5px; border-bottom:1px solid #e1e6eb; background:#fff; }
+  .group-overview-row:last-child { border-bottom:none; }
+  .group-overview-station { font-weight:bold; color:var(--pf-theme); flex-shrink:0; }
+  .group-overview-range { color:var(--pf-muted); text-align:right; }
   .next-up-card { color:#fff; border-radius:18px; padding:26px 28px; margin-bottom:22px; background:#c4145a; }
   .next-up-card .next-label { font-size:12px; font-weight:bold; letter-spacing:.14em; margin-bottom:12px; opacity:.9; }
   .next-up-card h2 { font-size:26px; line-height:1.15; margin-bottom:8px; color:#fff; }
@@ -269,26 +274,6 @@
   .session-card { padding:13px 12px; }
   .login-body { padding:24px 16px; }
   .save-btn, .add-btn, .login-btn, .pin-btn { min-height:48px; }
-}
-</style><style id="organizer-tabs-correct-fix">
-/* Organizer tabs sit directly below the logout toolbar and remain there while the panel scrolls. */
-.organizer-editor-tabs{
-  position:sticky!important;
-  top:0!important;
-  left:auto!important;
-  right:auto!important;
-  width:auto!important;
-  max-width:none!important;
-  margin:-28px -32px 22px!important;
-  z-index:50!important;
-  box-sizing:border-box!important;
-  box-shadow:0 1px 0 var(--pf-border)!important;
-}
-.editor-tab-content{padding-top:0!important}
-@media (max-width:600px){
-  .organizer-editor-tabs{
-    margin:-18px -14px 18px!important;
-  }
 }
 </style></head>
 <body>
@@ -668,6 +653,12 @@ function render() {
         <div class="who">Unlocked with admin PIN</div>
         <a href="login.html" style="text-decoration:none;"><button>Log out</button></a>
       </div>
+      <div class="tab-bar organizer-editor-tabs">
+        <div class="tab-btn ${organizerTab==='general'?'active':''}" data-organizer-tab="general" onclick="setOrganizerTab('general')">General</div>
+        <div class="tab-btn ${organizerTab==='schedule'?'active':''}" data-organizer-tab="schedule" onclick="setOrganizerTab('schedule')">Schedule</div>
+        <div class="tab-btn ${organizerTab==='addons'?'active':''}" data-organizer-tab="addons" onclick="setOrganizerTab('addons')">Add-ons</div>
+        <div class="tab-btn ${organizerTab==='administration'?'active':''}" data-organizer-tab="administration" onclick="setOrganizerTab('administration')">Administration</div>
+      </div>
       <div class="panel-scroll" id="organizerScroll">${renderOrganizerEditor()}</div>
     `);
     return;
@@ -891,7 +882,13 @@ function loadQuizForEdit() {
 function blankQuizQuestion() {
   return { text: "", options: ["", "", "", ""], mode: "graded", correctIndex: 0, textResponse: false };
 }
-function setOrganizerTab(tab) { organizerTab = tab; rerenderOrganizerScroll(); }
+function setOrganizerTab(tab) {
+  organizerTab = tab;
+  document.querySelectorAll('.tab-btn[data-organizer-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.organizerTab === organizerTab);
+  });
+  rerenderOrganizerScroll();
+}
 
 // ── Read-only schedule (participant view) ────────────────────────────
 function renderScheduleReadOnly(schedule) {
@@ -1122,14 +1119,6 @@ function renderOrganizerEditor() {
   const hasFeedback = !!(editMeta.modules && editMeta.modules.conferenceFeedback);
   const hasEvaluations = !!(editMeta.modules && editMeta.modules.evaluations);
 
-  const organizerTabs = `
-    <div class="tab-bar organizer-editor-tabs">
-      <div class="tab-btn ${organizerTab==='general'?'active':''}" onclick="setOrganizerTab('general')">General</div>
-      <div class="tab-btn ${organizerTab==='schedule'?'active':''}" onclick="setOrganizerTab('schedule')">Schedule</div>
-      <div class="tab-btn ${organizerTab==='addons'?'active':''}" onclick="setOrganizerTab('addons')">Add-ons</div>
-      <div class="tab-btn ${organizerTab==='administration'?'active':''}" onclick="setOrganizerTab('administration')">Administration</div>
-    </div>`;
-
   const saveButton = `
     <div style="margin-top:24px;">
       <button class="save-btn" onclick="saveOrganizerChanges()">Save changes</button>
@@ -1137,7 +1126,7 @@ function renderOrganizerEditor() {
     </div>`;
 
   if (organizerTab === 'general') {
-    return organizerTabs + `
+    return `
       <div class="editor-tab-content">
         <div class="mini-label" style="margin:0 0 12px;font-size:12px;">Conference details</div>
 
@@ -1189,7 +1178,7 @@ function renderOrganizerEditor() {
   }
 
   if (organizerTab === 'schedule') {
-    return organizerTabs + `
+    return `
       <div class="editor-tab-content">
         <div class="mini-label" style="margin:0 0 12px;font-size:12px;">Schedule</div>
         <div class="field-hint" style="margin:0 0 14px;">Add or edit the sessions participants will see. Schedule can be changed at any time after the conference has been created.</div>
@@ -1222,7 +1211,7 @@ function renderOrganizerEditor() {
   }
 
   if (organizerTab === 'addons') {
-    return organizerTabs + `
+    return `
       <div class="editor-tab-content">
         <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Modules and add-ons</div>
         <div class="field-hint" style="margin:0 0 12px;">You can add or remove modules at any time, even after the conference has been created. Turn a module on, edit its content, then save changes.</div>
@@ -1249,7 +1238,7 @@ function renderOrganizerEditor() {
   }
 
   // Administration
-  return organizerTabs + `
+  return `
     <div class="editor-tab-content">
       <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Participant administration</div>
       ${hasQuiz ? renderQuizResetTool() : `
@@ -1431,10 +1420,41 @@ function addEditIndustryBooth(){if(editModuleContent.industry.booths.length>=12)
 function removeEditIndustryBooth(i){if(editModuleContent.industry.booths.length>1)editModuleContent.industry.booths.splice(i,1);rerenderOrganizerScroll();}
 function onEditIndustryBooth(i,key,value){editModuleContent.industry.booths[i][key]=value;}
 function onEditIndustryImage(i,file){if(!file)return;if(file.size>1024*1024){alert('The image must be smaller than 1 MB.');return;}const reader=new FileReader();reader.onload=()=>{editModuleContent.industry.booths[i].image=reader.result;rerenderOrganizerScroll();};reader.readAsDataURL(file);}
+// Shows the organizer exactly which participant (and faculty, if any are
+// open) numbers land in each station group for a given hands-on session,
+// using the same balanced-split math the participant/faculty views use
+// to work out their own rotation — so the grouping shown here always
+// matches what attendees will actually see.
+function renderHandsOnGroupOverview(stationCount, stations) {
+  const n = Number(stationCount) || 0;
+  if (n < 1) return '';
+  const pTotal = Number(editMeta.participantCount) || 0;
+  const fTotal = Number(editMeta.facultyCount) || 0;
+  const rangeLabel = (bucket, total, buckets, offset) => {
+    const members = bucketMembers(bucket, total, buckets, offset);
+    if (members.length === 0) return '—';
+    if (members.length === 1) return '#' + members[0];
+    return '#' + members[0] + '–#' + members[members.length - 1];
+  };
+  const rows = [];
+  for (let b = 0; b < n; b++) {
+    const stationName = (stations && stations[b] && stations[b].name) ? stations[b].name : `Station ${b + 1}`;
+    rows.push(`
+      <div class="group-overview-row">
+        <span class="group-overview-station">${escHtml(stationName)}</span>
+        <span class="group-overview-range">Participants ${rangeLabel(b, pTotal, n, 0)}${fTotal > 0 ? ' · Faculty ' + rangeLabel(b, fTotal, n, 999) : ''}</span>
+      </div>`);
+  }
+  return `
+    <div class="mini-label" style="margin:14px 0 6px;font-size:11px;">Who's in which group</div>
+    <div class="field-hint" style="margin:0 0 8px;">Based on the current participant/faculty counts and station count. Updates automatically as you change them above.</div>
+    <div class="group-overview">${rows.join('')}</div>`;
+}
+
 function renderOrganizerModuleContent(module) {
   const c=editModuleContent[module];
   let specific='';
-  if(module==='handsOn'){normalizeEditHandsOn(c);specific=`${c.sessions.map((hs,si)=>`<div class="session-edit-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeEditHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-theme);margin-bottom:10px">Session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onEditHandsOnCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onEditHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-edit-row"><span class="mini-label">Station ${i+1}</span><input value="${escHtml(s.name)}" oninput="onEditHandsOnStation(${si},${i},'name',this.value)"><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onEditHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onEditHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}</div>`).join('')}<button class="add-btn" onclick="addEditHandsOnSession()">+ Add another session</button>`;}
+  if(module==='handsOn'){normalizeEditHandsOn(c);specific=`${c.sessions.map((hs,si)=>`<div class="session-edit-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeEditHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-theme);margin-bottom:10px">Session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onEditHandsOnCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onEditHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-edit-row"><span class="mini-label">Station ${i+1}</span><input value="${escHtml(s.name)}" oninput="onEditHandsOnStation(${si},${i},'name',this.value)"><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onEditHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onEditHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}${renderHandsOnGroupOverview(hs.stationCount,hs.stations)}</div>`).join('')}<button class="add-btn" onclick="addEditHandsOnSession()">+ Add another session</button>`;}
   if(module==='map') specific=`<div class="field-group"><label>Address</label><input value="${escHtml(c.address)}" oninput="onEditModuleContent('map','address',this.value)"></div>${renderOrganizerImage('map')}`;
   if(module==='conferenceFeedback') specific=`<div class="field-group"><label>Question / prompt shown to participants</label><textarea oninput="onEditModuleContent('conferenceFeedback','prompt',this.value)">${escHtml(c.prompt||'How would you evaluate the conference?')}</textarea></div><div class="field-hint">Participants get one open text field. Responses appear under the organizer Text responses tab.</div>`;
     if(module==='industry'){normalizeEditIndustry(c);specific=`${c.booths.map((b,i)=>`<div class="session-edit-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeEditIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onEditIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onEditIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input value="${escHtml(b.website)}" placeholder="https://..." oninput="onEditIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditIndustryImage(${i},this.files[0])">${b.image?`<img class="content-image" src="${b.image}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent.industry.booths[${i}].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div></div>`).join('')}<button class="add-btn" onclick="addEditIndustryBooth()">+ Add industry booth</button>`;}
