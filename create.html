@@ -129,6 +129,11 @@
   }
   .color-swatch.selected { border-color: var(--pf-ink); }
 
+  .segmented { display:flex; border:2px solid var(--pf-border); border-radius:8px; overflow:hidden; }
+  .segmented-btn { flex:1; text-align:center; padding:8px 6px; font-size:12px; font-weight:bold; color:var(--pf-muted); cursor:pointer; }
+  .segmented-btn + .segmented-btn { border-left:2px solid var(--pf-border); }
+  .segmented-btn.selected { background:var(--pf-indigo); color:#fff; }
+
   .pin-input {
     letter-spacing: 0.3em;
     font-size: 20px !important;
@@ -424,7 +429,7 @@ let form = {
   name: "",
   slug: "",
   themeColor: THEME_COLORS[0].hex,
-  branding: { logo: "" },
+  branding: { logo: "", size: "medium", position: "left" },
   startDate: "",
   endDate: "",
   contactEmail: "",
@@ -573,6 +578,21 @@ function render() {
         <div class="field-hint">Shown to participants at the top of the conference and used as the shortcut icon on smartphones. Maximum 1 MB.</div>
         <input type="file" accept="image/*" onchange="onConferenceLogo(this.files[0])">
         ${form.branding.logo ? `<img class="image-preview" src="${form.branding.logo}" alt="Logo preview"><button type="button" class="remove-image-btn" onclick="removeConferenceLogo()">Remove logo</button>` : ""}
+        ${form.branding.logo ? `
+          <div class="field-row" style="margin-top:12px;">
+            <div class="field-group" style="margin-bottom:0;">
+              <label>Logo size</label>
+              <div class="segmented">
+                ${["small","medium","large"].map(s => `<div class="segmented-btn ${(form.branding.size||'medium')===s?'selected':''}" onclick="onBranding('size','${s}')">${s.charAt(0).toUpperCase()+s.slice(1)}</div>`).join("")}
+              </div>
+            </div>
+            <div class="field-group" style="margin-bottom:0;">
+              <label>Logo position</label>
+              <div class="segmented">
+                ${["left","center","right"].map(p => `<div class="segmented-btn ${(form.branding.position||'left')===p?'selected':''}" onclick="onBranding('position','${p}')">${p.charAt(0).toUpperCase()+p.slice(1)}</div>`).join("")}
+              </div>
+            </div>
+          </div>` : ""}
       </div>
       </div></details>
 
@@ -703,6 +723,7 @@ function onConferenceLogo(file){
   reader.readAsDataURL(file);
 }
 function removeConferenceLogo(){form.branding.logo="";render();}
+function onBranding(key,val){form.branding[key]=val;render();}
 
 function onField(key, val) {
   form[key] = val;
