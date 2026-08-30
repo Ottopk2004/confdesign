@@ -443,8 +443,8 @@ let form = {
   },
 };
 
-let sessions = [
-  { date: "", time: "", title: "", speaker: "" },
+let scheduleDays = [
+  { date: "", items: [{ startTime: "", endTime: "", title: "", speaker: "" }] },
 ];
 
 let created = false;
@@ -509,7 +509,7 @@ function render() {
   const pinValid = /^\d{4,6}$/.test(form.adminPin);
   const nameValid = form.name.trim().length >= 3;
   const datesValid = form.startDate && form.endDate && form.startDate <= form.endDate;
-  const sessionsValid = sessions.some(s => s.title.trim().length > 0);
+  const sessionsValid = scheduleDays.some(d => d.items.some(it => it.title.trim().length > 0));
   const handsOnValid = !form.modules.handsOn || validateHandsOn(form.moduleContent.handsOn);
   const ready = slugValid && pinValid && nameValid && datesValid && sessionsValid && handsOnValid && !creating;
 
@@ -635,35 +635,40 @@ function render() {
       <summary>4. Schedule</summary><div class="create-section-body">
       <div class="card-sub">Add the sessions attendees will see. You can edit this anytime after creating the conference.</div>
 
-      ${sessions.map((s, i) => `
+      ${scheduleDays.map((day, di) => `
         <div class="session-row">
-          ${sessions.length > 1 ? `<button class="remove-btn" onclick="removeSession(${i})">✕</button>` : ""}
-          <div class="field-row">
-            <div>
-              <span class="mini-label">Date</span>
-              <input type="date" value="${escHtml(s.date)}" oninput="onSessionField(${i},'date',this.value)">
+          ${scheduleDays.length > 1 ? `<button class="remove-btn" onclick="removeScheduleDay(${di})">✕</button>` : ""}
+          <span class="mini-label">Day ${di + 1}</span>
+          <input type="date" value="${escHtml(day.date)}" oninput="onScheduleDayDate(${di},this.value)">
+
+          ${day.items.map((item, ii) => `
+            <div class="session-row" style="margin-top:10px;background:#f5f7fa;">
+              ${day.items.length > 1 ? `<button class="remove-btn" onclick="removeScheduleItem(${di},${ii})">✕</button>` : ""}
+              <div class="field-row">
+                <div>
+                  <span class="mini-label">Start</span>
+                  <input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" value="${escHtml(item.startTime)}" oninput="onScheduleTimeInput(this,${di},${ii},'startTime')">
+                </div>
+                <div>
+                  <span class="mini-label">End</span>
+                  <input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" value="${escHtml(item.endTime)}" oninput="onScheduleTimeInput(this,${di},${ii},'endTime')">
+                </div>
+              </div>
+              <div>
+                <span class="mini-label">Activity title</span>
+                <input type="text" placeholder="e.g. Opening keynote" value="${escHtml(item.title)}" oninput="onScheduleItemField(${di},${ii},'title',this.value)">
+              </div>
+              <div>
+                <span class="mini-label">Speaker / location (optional)</span>
+                <input type="text" placeholder="e.g. Dr. Jane Smith, Main Hall" value="${escHtml(item.speaker)}" oninput="onScheduleItemField(${di},${ii},'speaker',this.value)">
+              </div>
             </div>
-            <div>
-              <span class="mini-label">Time</span>
-              <input type="text" inputmode="numeric" maxlength="5" placeholder="HH:MM" value="${escHtml(s.time)}" oninput="onTimeInput(this,${i})">
-            </div>
-          </div>
-          <div class="field-row">
-            <div>
-              <span class="mini-label">Session title</span>
-              <input type="text" placeholder="e.g. Opening keynote" value="${escHtml(s.title)}" oninput="onSessionField(${i},'title',this.value)">
-            </div>
-          </div>
-          <div class="field-row">
-            <div>
-              <span class="mini-label">Speaker / location (optional)</span>
-              <input type="text" placeholder="e.g. Dr. Jane Smith, Main Hall" value="${escHtml(s.speaker)}" oninput="onSessionField(${i},'speaker',this.value)">
-            </div>
-          </div>
+          `).join("")}
+          <button class="add-session-btn" onclick="addScheduleItem(${di})" style="margin-top:10px;">+ Add activity to this day</button>
         </div>
       `).join("")}
 
-      <button class="add-session-btn" onclick="addSession()">+ Add session</button>
+      <button class="add-session-btn" onclick="addScheduleDay()">+ Add day</button>
       </div></details>
 
     <button id="createConferenceBtn" class="submit-btn ${ready ? "ready" : ""}" ${ready ? "" : "disabled"} onclick="submitConference()">
@@ -803,18 +808,34 @@ function onModuleImage(module, file) {
 }
 function removeModuleImage(module) { form.moduleContent[module].image = ''; render(); }
 
-function addSession() {
-  sessions.push({ date: "", time: "", title: "", speaker: "" });
+function newScheduleItem() { return { startTime: "", endTime: "", title: "", speaker: "" }; }
+
+function addScheduleDay() {
+  scheduleDays.push({ date: "", items: [newScheduleItem()] });
   render();
 }
 
-function removeSession(i) {
-  sessions.splice(i, 1);
+function removeScheduleDay(di) {
+  scheduleDays.splice(di, 1);
   render();
 }
 
-function onSessionField(i, key, val) {
-  sessions[i][key] = val;
+function onScheduleDayDate(di, val) {
+  scheduleDays[di].date = val;
+}
+
+function addScheduleItem(di) {
+  scheduleDays[di].items.push(newScheduleItem());
+  render();
+}
+
+function removeScheduleItem(di, ii) {
+  scheduleDays[di].items.splice(ii, 1);
+  render();
+}
+
+function onScheduleItemField(di, ii, key, val) {
+  scheduleDays[di].items[ii][key] = val;
   // Avoid full re-render on every keystroke in text fields so focus isn't
   // lost — only re-render when it could affect validity (title determines
   // whether the form is submittable).
@@ -823,7 +844,7 @@ function onSessionField(i, key, val) {
 
 function updateCreateReadiness(){
   const datesValid=!!form.startDate&&!!form.endDate&&form.startDate<=form.endDate;
-  const sessionsValid=sessions.some(s=>s.title.trim().length>0);
+  const sessionsValid=scheduleDays.some(d=>d.items.some(it=>it.title.trim().length>0));
   const handsOnValid=!form.modules.handsOn||validateHandsOn(form.moduleContent.handsOn);
   const ready=/^[a-z]{2,12}$/.test(form.slug)&&/^\d{4,6}$/.test(form.adminPin)&&form.name.trim().length>=3&&datesValid&&sessionsValid&&handsOnValid&&!creating;
   const btn=document.getElementById('createConferenceBtn');if(btn){btn.disabled=!ready;btn.classList.toggle('ready',ready);}
@@ -831,12 +852,31 @@ function updateCreateReadiness(){
   const handsMsg=document.getElementById('handsOnValidation');if(handsMsg){handsMsg.classList.toggle('error',!handsOnValid);handsMsg.textContent=handsOnValid?'Each session is long enough for all rotations.':'Each session must fit stations × minutes per rotation.';}
 }
 
-function onTimeInput(input, i) {
+function onScheduleTimeInput(input, di, ii, key) {
   const digits = input.value.replace(/\D/g, "").slice(0, 4);
   let value = digits.slice(0, 2);
   if (digits.length >= 2) value += ":" + digits.slice(2);
   input.value = value;
-  sessions[i].time = value;
+  scheduleDays[di].items[ii][key] = value;
+}
+
+// Turns the day-grouped editor state into the flat sessions array the
+// backend and participant-facing schedule expect.
+function flattenScheduleDays(days) {
+  const out = [];
+  (days || []).forEach(day => {
+    (day.items || []).forEach(item => {
+      if (!item.title || !item.title.trim()) return;
+      out.push({
+        date: day.date || "",
+        startTime: item.startTime || "",
+        endTime: item.endTime || "",
+        title: item.title.trim(),
+        speaker: (item.speaker || "").trim(),
+      });
+    });
+  });
+  return out;
 }
 
 function submitConference() {
@@ -858,7 +898,7 @@ function submitConference() {
     quizQuestions: form.modules.quiz ? quizQuestions : [],
     quizConfig: form.modules.quiz ? { passThreshold: 0.8 } : null,
     branding: form.branding,
-    sessions: sessions.filter(s => s.title.trim().length > 0),
+    sessions: flattenScheduleDays(scheduleDays),
   };
 
   if (!PLATFORM_WORKER_URL) {
