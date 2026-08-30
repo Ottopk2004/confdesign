@@ -1229,9 +1229,10 @@ function renderOrganizerEditor() {
         ${hasEvaluations ? `<details class="organizer-module" ${editOpenModule==='evaluations'?'open':''} ontoggle="if(this.open)editOpenModule='evaluations';else if(editOpenModule==='evaluations')editOpenModule='' "><summary>Edit ${escHtml((editModuleContent.evaluations&&editModuleContent.evaluations.title)||'Faculty evaluation')}</summary><div class="organizer-module-body">${renderEvaluationEditor()}</div></details>` : ''}
 
         ${hasQuiz ? `
-          <div style="margin-top:26px;border-top:2px solid var(--pf-border);padding-top:8px;">
-            ${renderQuizEditor()}
-          </div>` : `
+          <details class="organizer-module" ${editOpenModule==='quiz'?'open':''} ontoggle="if(this.open)editOpenModule='quiz';else if(editOpenModule==='quiz')editOpenModule='' " style="margin-top:26px;">
+            <summary>Edit quiz questions</summary>
+            <div class="organizer-module-body">${renderQuizEditor()}</div>
+          </details>` : `
           <div class="info-card" style="margin-top:18px;">
             <strong>Quiz questions</strong>
             <div class="field-hint" style="margin-top:5px;">Enable the Quiz module above to add and edit quiz questions.</div>
@@ -1275,11 +1276,9 @@ async function downloadQuizTextResponses(){try{const r=await fetch(`${PLATFORM_W
 
 function renderQuizEditor() {
   if (editQuizQuestions === null) {
-    return `<div class="mini-label" style="margin:20px 0 8px;font-size:12px;">Quiz questions</div><div class="empty-note">Loading…</div>`;
+    return `<div class="empty-note">Loading…</div>`;
   }
   return `
-    <div class="mini-label" style="margin:20px 0 8px;font-size:12px;">Quiz questions</div>
-
     <div class="field-group">
       <label>Pass mark (%)</label>
       <input type="number" min="1" max="100" value="${editQuizPassPct}" oninput="onEditQuizPassPct(this.value)" style="max-width:120px;">
