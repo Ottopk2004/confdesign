@@ -434,14 +434,12 @@ let registrationLoading = false;
 let registrationError = "";
 let evaluationConfig = null;
 let evaluationLoading = false;
-let evaluationState = { participantNr:"", postId:"", response:"", comment:"", submitting:false, message:"", error:false };
+let evaluationState = { participantNr:"", postId:"", response:"", comment:"", answers:{}, submitting:false, message:"", error:false };
 let evaluationResults = null;
 let evaluationResultsError = "";
 let conferenceFeedbackConfig = null;
 let conferenceFeedbackLoading = false;
-let conferenceFeedbackResponse = "";
-let conferenceFeedbackScore = 0;
-let conferenceFeedbackMcChoices = [];
+let conferenceFeedbackAnswers = {};
 let conferenceFeedbackSubmitting = false;
 let conferenceFeedbackMessage = "";
 let conferenceFeedbackError = false;
@@ -722,7 +720,7 @@ function resetQuizParticipantState() {
 }
 
 function resetRegistrationState(){registrationChecked=false;registrationRegistered=false;registrationEmailInput="";registrationLoading=false;registrationError="";participantEmail="";}
-function resetEvaluationState(){evaluationConfig=null;evaluationLoading=false;evaluationState={participantNr:"",postId:"",response:"",comment:"",submitting:false,message:"",error:false};}
+function resetEvaluationState(){evaluationConfig=null;evaluationLoading=false;evaluationState={participantNr:"",postId:"",response:"",comment:"",answers:{},submitting:false,message:"",error:false};}
 function loadRegistrationStatus(){
   registrationLoading = true;
   registrationError = "";
@@ -769,38 +767,82 @@ function loadRegistrationStatus(){
 function isValidEmail(value){const email=String(value||"").trim();if(!email||email.length>254||/\s/.test(email))return false;const at=email.indexOf("@");if(at<=0||at!==email.lastIndexOf("@")||at===email.length-1)return false;const local=email.slice(0,at),domain=email.slice(at+1);if(!local||local.length>64||local.startsWith(".")||local.endsWith(".")||local.includes(".."))return false;if(!/^[^@]+$/.test(local))return false;if(!/^[A-Za-z0-9.-]+$/.test(domain)||domain.startsWith(".")||domain.endsWith(".")||domain.includes(".."))return false;const labels=domain.split(".");return labels.length>=2&&labels.every(label=>label.length>0&&!label.startsWith("-")&&!label.endsWith("-"));}
 function submitRegistration(){const email=registrationEmailInput.trim();if(!isValidEmail(email)){registrationError="Enter a valid email address, e.g. name@example.com.";rerenderParticipantScroll();return;}registrationLoading=true;registrationError="";rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){registrationChecked=true;registrationRegistered=true;participantEmail=email;registrationLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/registration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nr:loginNr,email})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't register.");registrationChecked=true;registrationRegistered=true;participantEmail=email;registrationLoading=false;rerenderParticipantScroll();}).catch(e=>{registrationLoading=false;registrationError=e.message;rerenderParticipantScroll();});}
 function renderRegistrationGate(){if(registrationLoading)return `<div class="empty-note">Checking registration…</div>`;return `<div class="info-card" style="max-width:620px;margin:auto"><h2 style="color:var(--pf-theme)">Welcome, participant #${escHtml(loginNr)}</h2><p style="margin:8px 0 18px;line-height:1.5;color:var(--pf-muted)">Please enter your email address once. We use this registered email for your test result and any faculty evaluations.</p><div class="field-group"><label>Email address</label><input type="email" value="${escHtml(registrationEmailInput)}" placeholder="you@example.com" autocomplete="email" oninput="registrationEmailInput=this.value"></div><div class="save-status error">${escHtml(registrationError)}</div><button class="save-btn" onclick="submitRegistration()">Register email</button></div>`;}
-function loadEvaluationConfig(){evaluationLoading=true;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){evaluationConfig={title:"Faculty evaluation",intro:"Evaluate the participant.",posts:[{id:"P1",name:"Post 1"}]};evaluationLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't load evaluation posts.");evaluationConfig=d;evaluationLoading=false;rerenderParticipantScroll();}).catch(e=>{evaluationLoading=false;evaluationConfig=null;evaluationState.error=true;evaluationState.message=e.message;rerenderParticipantScroll();});}
-function renderEvaluationTab(){if(evaluationLoading)return `<div class="empty-note">Loading evaluation posts…</div>`;if(!evaluationConfig)return `<div class="save-status error">${escHtml(evaluationState.message||"Faculty evaluations are not available.")}</div>`;const posts=evaluationConfig.posts||[];const responses=evaluationConfig.responses||[];return `<div class="evaluation-form"><h2 style="color:var(--pf-theme)">${escHtml(evaluationConfig.title||"Faculty evaluation")}</h2>${evaluationConfig.intro?`<p class="content-intro">${escHtml(evaluationConfig.intro)}</p>`:""}<div class="field-group"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(evaluationState.participantNr)}" placeholder="e.g. 42" oninput="evaluationState.participantNr=this.value.replace(/\D/g,'')"></div><div class="field-group"><label>Post</label><select onchange="evaluationState.postId=this.value;rerenderParticipantScroll()" style="width:100%;padding:12px;border:2px solid var(--pf-border);border-radius:8px;font-size:14px"><option value="">Select a post…</option>${posts.map(p=>`<option value="${escHtml(p.id)}" ${evaluationState.postId===p.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}</select></div><div class="field-group"><label>Result</label><select onchange="evaluationState.response=this.value;rerenderParticipantScroll()" style="width:100%;padding:12px;border:2px solid var(--pf-border);border-radius:8px;font-size:14px"><option value="">Select a response…</option>${responses.map(r=>`<option value="${escHtml(r.id)}" ${evaluationState.response===r.id?'selected':''}>${escHtml(r.label)}</option>`).join('')}</select></div><div class="field-group"><label>Comment</label><textarea maxlength="5000" placeholder="Feedback for the participant…" oninput="evaluationState.comment=this.value">${escHtml(evaluationState.comment)}</textarea></div><button class="save-btn" onclick="submitEvaluation()" ${evaluationState.submitting?'disabled':''}>${evaluationState.submitting?'Sending…':'Submit evaluation'}</button>${evaluationState.message?`<div class="save-status ${evaluationState.error?'error':'ok'} evaluation-status">${escHtml(evaluationState.message)}</div>`:""}</div>`;}
-function submitEvaluation(){const e=evaluationState;if(!/^\d+$/.test(e.participantNr)||Number(e.participantNr)<1||Number(e.participantNr)>Number(confData.meta.participantCount||0)){e.error=true;e.message="Enter a valid participant number.";rerenderParticipantScroll();return;}if(!e.postId||!e.response){e.error=true;e.message="Select a post and a response.";rerenderParticipantScroll();return;}e.submitting=true;e.message="";e.error=false;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){setTimeout(()=>{e.submitting=false;e.message="Evaluation saved and sent by email.";rerenderParticipantScroll();},300);return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({facultyNr:loginNr,participantNr:e.participantNr,postId:e.postId,response:e.response,comment:e.comment})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok&&r.status!==202)throw new Error(d.error||"Couldn't submit evaluation.");e.submitting=false;e.message=d.emailSent===false?"Evaluation saved, but the email could not be sent.":"Evaluation saved and sent by email.";e.error=d.emailSent===false;}).catch(err=>{e.submitting=false;e.error=true;e.message=err.message;}).finally(()=>rerenderParticipantScroll());}
+function loadEvaluationConfig(){evaluationLoading=true;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){evaluationConfig={title:"Faculty evaluation",intro:"Evaluate the participant.",posts:[{id:"P1",name:"Post 1"}],items:[]};evaluationLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't load evaluation posts.");evaluationConfig=d;evaluationLoading=false;rerenderParticipantScroll();}).catch(e=>{evaluationLoading=false;evaluationConfig=null;evaluationState.error=true;evaluationState.message=e.message;rerenderParticipantScroll();});}
+function setEvaluationItemAnswer(id,a,b){
+  const it=((evaluationConfig&&evaluationConfig.items)||[]).find(x=>x.id===id);
+  if(!it) return;
+  if(!evaluationState.answers) evaluationState.answers={};
+  if(it.type==='mc'){
+    const cur=Array.isArray(evaluationState.answers[id])?evaluationState.answers[id]:[];
+    if(b){ if(!cur.includes(a)) cur.push(a); } else { const idx=cur.indexOf(a); if(idx>-1) cur.splice(idx,1); }
+    evaluationState.answers[id]=cur;
+  } else {
+    evaluationState.answers[id]=a;
+  }
+  rerenderParticipantScroll();
+}
+function renderEvaluationTab(){if(evaluationLoading)return `<div class="empty-note">Loading evaluation posts…</div>`;if(!evaluationConfig)return `<div class="save-status error">${escHtml(evaluationState.message||"Faculty evaluations are not available.")}</div>`;const posts=evaluationConfig.posts||[];const responses=evaluationConfig.responses||[];const extraItems=Array.isArray(evaluationConfig.items)?evaluationConfig.items:[];const extraFields=renderFeedbackAnswerFields(extraItems,evaluationState.answers||{},'setEvaluationItemAnswer');return `<div class="evaluation-form"><h2 style="color:var(--pf-theme)">${escHtml(evaluationConfig.title||"Faculty evaluation")}</h2>${evaluationConfig.intro?`<p class="content-intro">${escHtml(evaluationConfig.intro)}</p>`:""}<div class="field-group"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(evaluationState.participantNr)}" placeholder="e.g. 42" oninput="evaluationState.participantNr=this.value.replace(/\D/g,'')"></div><div class="field-group"><label>Post</label><select onchange="evaluationState.postId=this.value;rerenderParticipantScroll()" style="width:100%;padding:12px;border:2px solid var(--pf-border);border-radius:8px;font-size:14px"><option value="">Select a post…</option>${posts.map(p=>`<option value="${escHtml(p.id)}" ${evaluationState.postId===p.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}</select></div><div class="field-group"><label>Result</label><select onchange="evaluationState.response=this.value;rerenderParticipantScroll()" style="width:100%;padding:12px;border:2px solid var(--pf-border);border-radius:8px;font-size:14px"><option value="">Select a response…</option>${responses.map(r=>`<option value="${escHtml(r.id)}" ${evaluationState.response===r.id?'selected':''}>${escHtml(r.label)}</option>`).join('')}</select></div><div class="field-group"><label>Comment</label><textarea maxlength="5000" placeholder="Feedback for the participant…" oninput="evaluationState.comment=this.value">${escHtml(evaluationState.comment)}</textarea></div>${extraFields}<button class="save-btn" onclick="submitEvaluation()" ${evaluationState.submitting?'disabled':''}>${evaluationState.submitting?'Sending…':'Submit evaluation'}</button>${evaluationState.message?`<div class="save-status ${evaluationState.error?'error':'ok'} evaluation-status">${escHtml(evaluationState.message)}</div>`:""}</div>`;}
+function submitEvaluation(){const e=evaluationState;if(!/^\d+$/.test(e.participantNr)||Number(e.participantNr)<1||Number(e.participantNr)>Number(confData.meta.participantCount||0)){e.error=true;e.message="Enter a valid participant number.";rerenderParticipantScroll();return;}if(!e.postId||!e.response){e.error=true;e.message="Select a post and a response.";rerenderParticipantScroll();return;}
+  const extraItems=Array.isArray(evaluationConfig&&evaluationConfig.items)?evaluationConfig.items:[];
+  const answers={};
+  for(const it of extraItems){
+    const val=(e.answers||{})[it.id];
+    if(it.type==='comment'){ const t=String(val||'').trim(); if(t) answers[it.id]=t; }
+    else if(it.type==='score'){ if(val) answers[it.id]=val; }
+    else if(it.type==='mc'){ if(Array.isArray(val)&&val.length) answers[it.id]=val.slice().sort((a,b)=>a-b); }
+  }
+  e.submitting=true;e.message="";e.error=false;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){setTimeout(()=>{e.submitting=false;e.message="Evaluation saved and sent by email.";rerenderParticipantScroll();},300);return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({facultyNr:loginNr,participantNr:e.participantNr,postId:e.postId,response:e.response,comment:e.comment,answers})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok&&r.status!==202)throw new Error(d.error||"Couldn't submit evaluation.");e.submitting=false;e.message=d.emailSent===false?"Evaluation saved, but the email could not be sent.":"Evaluation saved and sent by email.";e.error=d.emailSent===false;if(!e.error){e.answers={};}}).catch(err=>{e.submitting=false;e.error=true;e.message=err.message;}).finally(()=>rerenderParticipantScroll());}
 
-function loadConferenceFeedbackConfig(){conferenceFeedbackLoading=true;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){conferenceFeedbackConfig={title:"Conference evaluation",intro:"We would value your feedback.",prompt:"How would you evaluate the conference?",commentEnabled:true,scoreEnabled:false,scoreQuestion:"How would you rate the conference overall?",scoreLowLabel:"Poor",scoreHighLabel:"Excellent",mcEnabled:false,mcQuestion:"",mcOptions:[]};conferenceFeedbackLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't load conference evaluation.");conferenceFeedbackConfig=d;conferenceFeedbackLoading=false;rerenderParticipantScroll();}).catch(e=>{conferenceFeedbackLoading=false;conferenceFeedbackError=true;conferenceFeedbackMessage=e.message;rerenderParticipantScroll();});}
+function loadConferenceFeedbackConfig(){conferenceFeedbackLoading=true;rerenderParticipantScroll();if(!PLATFORM_WORKER_URL){conferenceFeedbackConfig={title:"Conference evaluation",intro:"We would value your feedback.",items:[{id:"fb1",type:"comment",question:"How would you evaluate the conference?"}]};conferenceFeedbackLoading=false;rerenderParticipantScroll();return;}fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't load conference evaluation.");conferenceFeedbackConfig=d;conferenceFeedbackLoading=false;rerenderParticipantScroll();}).catch(e=>{conferenceFeedbackLoading=false;conferenceFeedbackError=true;conferenceFeedbackMessage=e.message;rerenderParticipantScroll();});}
+function renderFeedbackAnswerFields(items, answers, setterName){
+  return (items||[]).map(it=>{
+    const val=answers[it.id];
+    if(it.type==='score'){
+      return `<div class="field-group"><label>${escHtml(it.question||'')}</label><div class="segmented" style="margin-top:6px;">${[1,2,3,4,5].map(n=>`<div class="segmented-btn ${val===n?'selected':''}" onclick="${setterName}('${it.id}',${n})">${n}</div>`).join('')}</div><div class="field-hint" style="display:flex;justify-content:space-between;margin-top:6px;"><span>${escHtml(it.lowLabel||'Poor')}</span><span>${escHtml(it.highLabel||'Excellent')}</span></div></div>`;
+    }
+    if(it.type==='mc'){
+      const chosen=Array.isArray(val)?val:[];
+      return `<div class="field-group"><label>${escHtml(it.question||'')}</label>${(it.options||[]).map((o,oi)=>o?`<label style="display:flex;gap:8px;align-items:center;margin-top:8px;"><input type="checkbox" ${chosen.includes(oi)?'checked':''} onchange="${setterName}('${it.id}',${oi},this.checked)">${escHtml(o)}</label>`:'').join('')}</div>`;
+    }
+    return `<div class="field-group"><label>${escHtml(it.question||'')}</label><textarea maxlength="10000" placeholder="Write your feedback…" oninput="${setterName}('${it.id}',this.value)">${escHtml(val||'')}</textarea></div>`;
+  }).join('');
+}
+function setConferenceFeedbackAnswer(id,a,b){
+  const it=((conferenceFeedbackConfig&&conferenceFeedbackConfig.items)||[]).find(x=>x.id===id);
+  if(!it) return;
+  if(it.type==='mc'){
+    const cur=Array.isArray(conferenceFeedbackAnswers[id])?conferenceFeedbackAnswers[id]:[];
+    if(b){ if(!cur.includes(a)) cur.push(a); } else { const idx=cur.indexOf(a); if(idx>-1) cur.splice(idx,1); }
+    conferenceFeedbackAnswers[id]=cur;
+  } else {
+    conferenceFeedbackAnswers[id]=a;
+  }
+  rerenderParticipantScroll();
+}
 function renderConferenceFeedbackTab(){
   if(conferenceFeedbackLoading)return `<div class="empty-note">Loading conference evaluation…</div>`;
   if(!conferenceFeedbackConfig)return `<div class="save-status error">${escHtml(conferenceFeedbackMessage||"Conference evaluation is not available.")}</div>`;
   const cfg=conferenceFeedbackConfig;
-  const commentOn=cfg.commentEnabled!==false;
-  const scoreOn=!!cfg.scoreEnabled;
-  const mcOn=!!cfg.mcEnabled&&Array.isArray(cfg.mcOptions)&&cfg.mcOptions.filter(Boolean).length>0;
-  const scoreRow=scoreOn?`<div class="field-group"><label>${escHtml(cfg.scoreQuestion||"How would you rate the conference overall?")}</label><div class="segmented" style="margin-top:6px;">${[1,2,3,4,5].map(n=>`<div class="segmented-btn ${conferenceFeedbackScore===n?'selected':''}" onclick="conferenceFeedbackScore=${n};rerenderParticipantScroll()">${n}</div>`).join('')}</div><div class="field-hint" style="display:flex;justify-content:space-between;margin-top:6px;"><span>${escHtml(cfg.scoreLowLabel||"Poor")}</span><span>${escHtml(cfg.scoreHighLabel||"Excellent")}</span></div></div>`:"";
-  const mcRow=mcOn?`<div class="field-group"><label>${escHtml(cfg.mcQuestion||"")}</label>${cfg.mcOptions.map((o,i)=>o?`<label style="display:flex;gap:8px;align-items:center;margin-top:8px;"><input type="checkbox" ${conferenceFeedbackMcChoices.includes(i)?'checked':''} onchange="toggleConferenceFeedbackMc(${i},this.checked)">${escHtml(o)}</label>`:'').join('')}</div>`:"";
-  const commentRow=commentOn?`<div class="field-group"><label>${escHtml(cfg.prompt||"How would you evaluate the conference?")}</label><textarea maxlength="10000" placeholder="Write your feedback…" oninput="conferenceFeedbackResponse=this.value">${escHtml(conferenceFeedbackResponse)}</textarea></div>`:"";
-  return `<div class="evaluation-form"><h2 style="color:var(--pf-theme)">${escHtml(cfg.title||"Conference evaluation")}</h2>${cfg.intro?`<p class="content-intro">${escHtml(cfg.intro)}</p>`:""}${commentRow}${scoreRow}${mcRow}<button class="save-btn" onclick="submitConferenceFeedback()" ${conferenceFeedbackSubmitting?'disabled':''}>${conferenceFeedbackSubmitting?'Sending…':'Submit feedback'}</button>${conferenceFeedbackMessage?`<div class="save-status ${conferenceFeedbackError?'error':'ok'}">${escHtml(conferenceFeedbackMessage)}</div>`:""}</div>`;
+  const items=Array.isArray(cfg.items)?cfg.items:[];
+  const fields=renderFeedbackAnswerFields(items,conferenceFeedbackAnswers,'setConferenceFeedbackAnswer');
+  return `<div class="evaluation-form"><h2 style="color:var(--pf-theme)">${escHtml(cfg.title||"Conference evaluation")}</h2>${cfg.intro?`<p class="content-intro">${escHtml(cfg.intro)}</p>`:""}${fields}<button class="save-btn" onclick="submitConferenceFeedback()" ${conferenceFeedbackSubmitting?'disabled':''}>${conferenceFeedbackSubmitting?'Sending…':'Submit feedback'}</button>${conferenceFeedbackMessage?`<div class="save-status ${conferenceFeedbackError?'error':'ok'}">${escHtml(conferenceFeedbackMessage)}</div>`:""}</div>`;
 }
-function toggleConferenceFeedbackMc(i,checked){if(checked){if(!conferenceFeedbackMcChoices.includes(i))conferenceFeedbackMcChoices.push(i);}else{conferenceFeedbackMcChoices=conferenceFeedbackMcChoices.filter(x=>x!==i);}rerenderParticipantScroll();}
 function submitConferenceFeedback(){
   const cfg=conferenceFeedbackConfig||{};
-  const commentOn=cfg.commentEnabled!==false;
-  const scoreOn=!!cfg.scoreEnabled;
-  const mcOn=!!cfg.mcEnabled&&Array.isArray(cfg.mcOptions)&&cfg.mcOptions.filter(Boolean).length>0;
-  const text=conferenceFeedbackResponse.trim();
-  if(!text && !conferenceFeedbackScore && !conferenceFeedbackMcChoices.length){conferenceFeedbackError=true;conferenceFeedbackMessage="Please provide a response before submitting.";rerenderParticipantScroll();return;}
+  const items=Array.isArray(cfg.items)?cfg.items:[];
+  const answers={};
+  let hasAnswer=false;
+  for(const it of items){
+    const val=conferenceFeedbackAnswers[it.id];
+    if(it.type==='comment'){ const t=String(val||'').trim(); if(t){answers[it.id]=t;hasAnswer=true;} }
+    else if(it.type==='score'){ if(val){answers[it.id]=val;hasAnswer=true;} }
+    else if(it.type==='mc'){ if(Array.isArray(val)&&val.length){answers[it.id]=val.slice().sort((a,b)=>a-b);hasAnswer=true;} }
+  }
+  if(!hasAnswer){conferenceFeedbackError=true;conferenceFeedbackMessage="Please provide a response before submitting.";rerenderParticipantScroll();return;}
   conferenceFeedbackSubmitting=true;conferenceFeedbackError=false;conferenceFeedbackMessage="";rerenderParticipantScroll();
-  const payload={nr:loginNr};
-  if(commentOn) payload.response=text;
-  if(scoreOn && conferenceFeedbackScore) payload.score=conferenceFeedbackScore;
-  if(mcOn && conferenceFeedbackMcChoices.length) payload.mcChoices=conferenceFeedbackMcChoices.slice().sort((a,b)=>a-b);
+  const payload={nr:loginNr,answers};
   if(!PLATFORM_WORKER_URL){setTimeout(()=>{conferenceFeedbackSubmitting=false;conferenceFeedbackMessage="Thank you — your feedback was submitted.";rerenderParticipantScroll();},300);return;}
-  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't submit feedback.");conferenceFeedbackSubmitting=false;conferenceFeedbackMessage="Thank you — your feedback was submitted.";conferenceFeedbackResponse="";conferenceFeedbackScore=0;conferenceFeedbackMcChoices=[];}).catch(e=>{conferenceFeedbackSubmitting=false;conferenceFeedbackError=true;conferenceFeedbackMessage=e.message;}).finally(()=>rerenderParticipantScroll());
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't submit feedback.");conferenceFeedbackSubmitting=false;conferenceFeedbackMessage="Thank you — your feedback was submitted.";conferenceFeedbackAnswers={};}).catch(e=>{conferenceFeedbackSubmitting=false;conferenceFeedbackError=true;conferenceFeedbackMessage=e.message;}).finally(()=>rerenderParticipantScroll());
 }
 
 function getParticipantTabs(meta) {
@@ -1297,7 +1339,7 @@ function submitQuiz() {
 function addEvaluationPost(){if(!editModuleContent.evaluations)editModuleContent.evaluations={title:'Faculty evaluation',intro:'',posts:[]};editModuleContent.evaluations.posts.push({id:`P${editModuleContent.evaluations.posts.length+1}`,name:''});rerenderOrganizerScroll();}
 function removeEvaluationPost(i){editModuleContent.evaluations.posts.splice(i,1);rerenderOrganizerScroll();}
 function onEvaluationPost(i,val){editModuleContent.evaluations.posts[i].name=val;}
-function renderEvaluationEditor(){const c=editModuleContent.evaluations||{title:'Faculty evaluation',intro:'',posts:[],responses:[]};if(!Array.isArray(c.responses))c.responses=[];return `<div class="field-group"><label>Title</label><input value="${escHtml(c.title||'Faculty evaluation')}" oninput="onEditModuleContent('evaluations','title',this.value)"></div><div class="field-group"><label>Introduction</label><textarea oninput="onEditModuleContent('evaluations','intro',this.value)">${escHtml(c.intro||'')}</textarea></div><div class="mini-label" style="margin:18px 0 4px;font-size:11px;">Response options</div><div class="field-hint" style="margin:0 0 10px;">What faculty can choose from when evaluating a participant, shown as a dropdown. Add as many as you need — e.g. "Pass" / "Fail", or a scale like "Excellent" / "Satisfactory" / "Needs improvement".</div>${c.responses.map((r,i)=>`<div class="session-row">${c.responses.length>1?`<button class="remove-btn" onclick="removeEvaluationResponse(${i})">✕</button>`:''}<span class="mini-label">Option ${i+1}</span><input value="${escHtml(r.label||'')}" placeholder="e.g. Pass" oninput="onEvaluationResponse(${i},this.value)"></div>`).join('')}<button class="add-btn" onclick="addEvaluationResponse()">+ Add response option</button>`;}
+function renderEvaluationEditor(){const c=editModuleContent.evaluations||{title:'Faculty evaluation',intro:'',posts:[],responses:[]};if(!Array.isArray(c.responses))c.responses=[];return `<div class="field-group"><label>Title</label><input value="${escHtml(c.title||'Faculty evaluation')}" oninput="onEditModuleContent('evaluations','title',this.value)"></div><div class="field-group"><label>Introduction</label><textarea oninput="onEditModuleContent('evaluations','intro',this.value)">${escHtml(c.intro||'')}</textarea></div><div class="mini-label" style="margin:18px 0 4px;font-size:11px;">Response options</div><div class="field-hint" style="margin:0 0 10px;">What faculty can choose from when evaluating a participant, shown as a dropdown. Add as many as you need — e.g. "Pass" / "Fail", or a scale like "Excellent" / "Satisfactory" / "Needs improvement".</div>${c.responses.map((r,i)=>`<div class="session-row">${c.responses.length>1?`<button class="remove-btn" onclick="removeEvaluationResponse(${i})">✕</button>`:''}<span class="mini-label">Option ${i+1}</span><input value="${escHtml(r.label||'')}" placeholder="e.g. Pass" oninput="onEvaluationResponse(${i},this.value)"></div>`).join('')}<button class="add-btn" onclick="addEvaluationResponse()">+ Add response option</button>${renderFeedbackItemsEditor('evaluations')}`;}
 function addEvaluationResponse(){if(!editModuleContent.evaluations)editModuleContent.evaluations={title:'Faculty evaluation',intro:'',posts:[],responses:[]};if(!Array.isArray(editModuleContent.evaluations.responses))editModuleContent.evaluations.responses=[];editModuleContent.evaluations.responses.push({id:`R${editModuleContent.evaluations.responses.length+1}`,label:''});rerenderOrganizerScroll();}
 function removeEvaluationResponse(i){editModuleContent.evaluations.responses.splice(i,1);rerenderOrganizerScroll();}
 function onEvaluationResponse(i,value){editModuleContent.evaluations.responses[i].label=value;}
@@ -1305,7 +1347,19 @@ function renderRegistrationResetTool(){return `<div class="mini-label" style="ma
 function doRegistrationReset(){if(!registrationResetNr)return;if(!confirm(`Reset registration for participant ${registrationResetNr}?`))return;fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/registration/reset`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nr:registrationResetNr,adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not reset registration.');registrationResetResult={message:`Registration for participant ${registrationResetNr} was reset.`};rerenderOrganizerScroll();}).catch(e=>{registrationResetResult={error:true,message:e.message};rerenderOrganizerScroll();});}
 function loadEvaluationResults(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations/results`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load evaluations.');evaluationResults=d;evaluationResultsError='';rerenderOrganizerScroll();}).catch(e=>{evaluationResultsError=e.message;rerenderOrganizerScroll();});}
 async function downloadEvaluationExport(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-faculty-evaluations.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
-function renderEvaluationAnalytics(){if(!evaluationResults)return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">See evaluation totals and download the evaluation data.</p><button class="save-btn" onclick="loadEvaluationResults()">Load faculty evaluations</button>${evaluationResultsError?`<div class="save-status error">${escHtml(evaluationResultsError)}</div>`:''}`;const s=evaluationResults.summary||{};const responseStats=evaluationResults.responseStats||[];return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><div class="info-grid"><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">EVALUATIONS</span><strong>${s.evaluations||0}</strong></div></div><div class="info-card"><h3>By response</h3>${responseStats.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(r.label)}</strong><div style="font-size:11px;color:var(--pf-muted)">${r.count} · ${r.pct}%</div></div>`).join('')||'<div class="empty-note">No evaluations yet.</div>'}</div><button class="save-btn" onclick="downloadEvaluationExport()">Download evaluations (.csv)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="evaluationResults=null;evaluationResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
+function renderItemStatsSummary(itemStats){
+  const stats=(itemStats||[]).filter(s=>s.responses>0);
+  if(!stats.length) return '';
+  return `<div class="info-card" style="margin-bottom:10px;"><h3>Add-on summary</h3>${stats.map(s=>{
+    if(s.type==='score') return `<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(s.question||'Score')}</strong><div style="font-size:11px;color:var(--pf-muted)">Average ${s.average}/5 · ${s.responses} response${s.responses===1?'':'s'}</div></div>`;
+    if(s.type==='mc') return `<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(s.question||'Multiple choice')}</strong>${(s.options||[]).map(o=>`<div style="font-size:11px;color:var(--pf-muted)">${escHtml(o.label)}: ${o.count}</div>`).join('')}</div>`;
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(s.question||'Comment')}</strong><div style="font-size:11px;color:var(--pf-muted)">${s.responses} response${s.responses===1?'':'s'}</div></div>`;
+  }).join('')}</div>`;
+}
+function renderRecordAnswers(answers){
+  return (answers||[]).map(a=>`<div style="margin-top:8px;font-size:12px;"><strong>${escHtml(a.question||a.id)}:</strong> ${a.type==='comment'?`<div style="white-space:pre-wrap;line-height:1.5;margin-top:2px;">${escHtml(a.valueLabel)}</div>`:escHtml(a.valueLabel)}</div>`).join('');
+}
+function renderEvaluationAnalytics(){if(!evaluationResults)return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">See evaluation totals and download the evaluation data.</p><button class="save-btn" onclick="loadEvaluationResults()">Load faculty evaluations</button>${evaluationResultsError?`<div class="save-status error">${escHtml(evaluationResultsError)}</div>`:''}`;const s=evaluationResults.summary||{};const responseStats=evaluationResults.responseStats||[];return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><div class="info-grid"><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">EVALUATIONS</span><strong>${s.evaluations||0}</strong></div></div><div class="info-card"><h3>By response</h3>${responseStats.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(r.label)}</strong><div style="font-size:11px;color:var(--pf-muted)">${r.count} · ${r.pct}%</div></div>`).join('')||'<div class="empty-note">No evaluations yet.</div>'}</div>${renderItemStatsSummary(evaluationResults.itemStats)}<button class="save-btn" onclick="downloadEvaluationExport()">Download evaluations (.csv)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="evaluationResults=null;evaluationResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
 
 function renderOrganizerEditor() {
   const hasQuiz = !!(editMeta.modules && editMeta.modules.quiz);
@@ -1479,7 +1533,7 @@ function renderOrganizerEditor() {
 }
 
 function renderOrganizerTextResponsesTab(hasQuiz,hasFeedback){return `${hasFeedback?renderConferenceFeedbackResponses():''}${hasQuiz?renderQuizTextResponsesTab():''}`;}
-function renderConferenceFeedbackResponses(){if(!conferenceFeedbackResults)return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Conference evaluation responses</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">Comments, scores and multiple-choice answers submitted by participants and faculty.</p><button class="save-btn" onclick="loadConferenceFeedbackResults()">Load conference feedback</button>${conferenceFeedbackResultsError?`<div class="save-status error">${escHtml(conferenceFeedbackResultsError)}</div>`:''}`;const rows=conferenceFeedbackResults.records||[];const avg=conferenceFeedbackResults.summary&&conferenceFeedbackResults.summary.averageScore;return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Conference evaluation responses (${rows.length})</div>${avg!=null?`<p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">Average score: <strong>${avg} / 5</strong></p>`:''}${rows.map(r=>`<div class="info-card" style="margin-bottom:10px;"><div style="font-size:10px;color:var(--pf-muted);font-weight:bold;">${escHtml(r.role||'Participant').toUpperCase()} ${escHtml(r.nr)}${r.email?' · '+escHtml(r.email):''}</div>${Number.isInteger(r.score)?`<div style="margin-top:8px;font-size:12px;"><strong>Score:</strong> ${r.score} / 5</div>`:''}${(r.mcOptionLabels&&r.mcOptionLabels.length)?`<div style="margin-top:8px;font-size:12px;"><strong>Selected:</strong> ${r.mcOptionLabels.map(escHtml).join(', ')}</div>`:''}${r.response?`<div style="margin-top:8px;white-space:pre-wrap;line-height:1.5;">${escHtml(r.response)}</div>`:''}<div style="font-size:10px;color:var(--pf-muted);margin-top:8px;">${escHtml(new Date(r.submittedAt).toLocaleString('en-GB'))}</div></div>`).join('')||'<div class="empty-note">No conference feedback yet.</div>'}<button class="save-btn" onclick="downloadConferenceFeedback()">Download conference feedback (.csv)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="conferenceFeedbackResults=null;conferenceFeedbackResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
+function renderConferenceFeedbackResponses(){if(!conferenceFeedbackResults)return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Conference evaluation responses</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">Comments, scores and multiple-choice answers submitted by participants and faculty.</p><button class="save-btn" onclick="loadConferenceFeedbackResults()">Load conference feedback</button>${conferenceFeedbackResultsError?`<div class="save-status error">${escHtml(conferenceFeedbackResultsError)}</div>`:''}`;const rows=conferenceFeedbackResults.records||[];return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Conference evaluation responses (${rows.length})</div>${renderItemStatsSummary(conferenceFeedbackResults.itemStats)}${rows.map(r=>`<div class="info-card" style="margin-bottom:10px;"><div style="font-size:10px;color:var(--pf-muted);font-weight:bold;">${escHtml(r.role||'Participant').toUpperCase()} ${escHtml(r.nr)}${r.email?' · '+escHtml(r.email):''}</div>${renderRecordAnswers(r.answers)}<div style="font-size:10px;color:var(--pf-muted);margin-top:8px;">${escHtml(new Date(r.submittedAt).toLocaleString('en-GB'))}</div></div>`).join('')||'<div class="empty-note">No conference feedback yet.</div>'}<button class="save-btn" onclick="downloadConferenceFeedback()">Download conference feedback (.csv)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="conferenceFeedbackResults=null;conferenceFeedbackResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
 function loadConferenceFeedbackResults(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/results`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load conference feedback.');conferenceFeedbackResults=d;conferenceFeedbackResultsError='';rerenderOrganizerScroll();}).catch(e=>{conferenceFeedbackResultsError=e.message;rerenderOrganizerScroll();});}
 async function downloadConferenceFeedback(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-conference-feedback.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
 
@@ -1616,7 +1670,7 @@ function onToggleModule(key, checked) {
 function ensureModuleContentDefaults() {
   const defaults = {
     handsOn:{title:'Breakout sessions',intro:'',mode:'rotation',sessions:[newEditHandsOnSession()]}, map:{title:'Venue map',intro:'',address:'',image:''},
-    industry:{title:'Industry',intro:'',booths:[newEditIndustryBooth()]}, quiz:{title:'Final test',intro:'Answer all questions. The test can only be taken once.'}, evaluations:{title:'Faculty evaluation',intro:'Evaluate each participant at your assigned post.',posts:[]}, conferenceFeedback:{title:'Conference evaluation',intro:'We would value your feedback.',prompt:'How would you evaluate the conference?',commentEnabled:true,scoreEnabled:false,scoreQuestion:'How would you rate the conference overall?',scoreLowLabel:'Poor',scoreHighLabel:'Excellent',mcEnabled:false,mcQuestion:'',mcOptions:['','','']}, contact:{title:'Contact',intro:'',coordinatorName:'',coordinatorPhone:'',coordinatorEmail:'',supportName:'',supportPhone:'',supportEmail:'',image:''}
+    industry:{title:'Industry',intro:'',booths:[newEditIndustryBooth()]}, quiz:{title:'Final test',intro:'Answer all questions. The test can only be taken once.'}, evaluations:{title:'Faculty evaluation',intro:'Evaluate each participant at your assigned post.',posts:[],items:[]}, conferenceFeedback:{title:'Conference evaluation',intro:'We would value your feedback.',items:[{id:'fb1',type:'comment',question:'How would you evaluate the conference?'}]}, contact:{title:'Contact',intro:'',coordinatorName:'',coordinatorPhone:'',coordinatorEmail:'',supportName:'',supportPhone:'',supportEmail:'',image:''}
   };
   for (const key of Object.keys(defaults)) {
     const existing=editModuleContent[key]||{};
@@ -1626,10 +1680,61 @@ function ensureModuleContentDefaults() {
   }
 }
 function onEditModuleContent(module,key,value) { editModuleContent[module][key] = value; }
-function onEditFeedbackToggle(key,checked){editModuleContent.conferenceFeedback[key]=checked;rerenderOrganizerScroll();}
-function addEditFeedbackOption(){const c=editModuleContent.conferenceFeedback;if(!Array.isArray(c.mcOptions))c.mcOptions=[];if(c.mcOptions.length>=10){alert('A maximum of 10 answer options is supported.');return;}c.mcOptions.push('');rerenderOrganizerScroll();}
-function removeEditFeedbackOption(i){const c=editModuleContent.conferenceFeedback;if(c.mcOptions.length>1)c.mcOptions.splice(i,1);rerenderOrganizerScroll();}
-function onEditFeedbackOption(i,value){editModuleContent.conferenceFeedback.mcOptions[i]=value;}
+function newEditFeedbackItem(type){
+  const id='it'+Math.random().toString(36).slice(2,10);
+  if(type==='score') return {id,type:'score',question:'How would you rate the conference overall?',lowLabel:'Poor',highLabel:'Excellent'};
+  if(type==='mc') return {id,type:'mc',question:'',options:['','','']};
+  return {id,type:'comment',question:'How would you evaluate the conference?'};
+}
+function normalizeEditFeedbackItems(c){
+  if(!Array.isArray(c.items)){
+    c.items=[];
+    if(c.commentEnabled!==false) c.items.push(Object.assign(newEditFeedbackItem('comment'),{question:c.prompt||'How would you evaluate the conference?'}));
+    if(c.scoreEnabled) c.items.push(Object.assign(newEditFeedbackItem('score'),{question:c.scoreQuestion||'How would you rate the conference overall?',lowLabel:c.scoreLowLabel||'Poor',highLabel:c.scoreHighLabel||'Excellent'}));
+    if(c.mcEnabled && Array.isArray(c.mcOptions) && c.mcOptions.some(Boolean)) c.items.push(Object.assign(newEditFeedbackItem('mc'),{question:c.mcQuestion||'',options:c.mcOptions.filter(Boolean)}));
+  }
+  return c;
+}
+function addEditFeedbackItem(module,type){const c=editModuleContent[module];if(!Array.isArray(c.items))c.items=[];if(c.items.length>=20){alert('A maximum of 20 add-ons is supported.');return;}c.items.push(newEditFeedbackItem(type));rerenderOrganizerScroll();}
+function removeEditFeedbackItem(module,i){editModuleContent[module].items.splice(i,1);rerenderOrganizerScroll();}
+function onEditFeedbackItemField(module,i,key,value){editModuleContent[module].items[i][key]=value;}
+function addEditFeedbackItemOption(module,i){const it=editModuleContent[module].items[i];if(!Array.isArray(it.options))it.options=[];if(it.options.length>=10){alert('A maximum of 10 answer options is supported.');return;}it.options.push('');rerenderOrganizerScroll();}
+function removeEditFeedbackItemOption(module,i,oi){const it=editModuleContent[module].items[i];if(it.options.length>1)it.options.splice(oi,1);rerenderOrganizerScroll();}
+function onEditFeedbackItemOption(module,i,oi,value){editModuleContent[module].items[i].options[oi]=value;}
+function renderFeedbackItemsEditor(module){
+  const c=editModuleContent[module];
+  normalizeEditFeedbackItems(c);
+  const items=c.items||[];
+  const labelFor={comment:'Comment field',score:'Score (1–5)',mc:'Multiple choice'};
+  return `
+    <div class="mini-label" style="margin:18px 0 4px;font-size:11px;">Add-ons</div>
+    <div class="field-hint" style="margin:0 0 10px;">Add as many comment fields, scores or multiple-choice questions as you need.</div>
+    ${items.map((it,i)=>`
+    <div class="session-edit-row">
+      <button class="remove-btn" onclick="removeEditFeedbackItem('${module}',${i})">✕</button>
+      <span class="mini-label">${labelFor[it.type]||it.type}</span>
+      ${it.type==='comment'?`<div class="field-group"><label>Question / prompt</label><textarea oninput="onEditFeedbackItemField('${module}',${i},'question',this.value)">${escHtml(it.question||'')}</textarea></div>`:''}
+      ${it.type==='score'?`
+        <div class="field-group"><label>Score question</label><input type="text" value="${escHtml(it.question||'')}" oninput="onEditFeedbackItemField('${module}',${i},'question',this.value)"></div>
+        <div class="field-row">
+          <div class="field-group"><label>Label for 1</label><input type="text" value="${escHtml(it.lowLabel||'Poor')}" placeholder="e.g. Poor" oninput="onEditFeedbackItemField('${module}',${i},'lowLabel',this.value)"></div>
+          <div class="field-group"><label>Label for 5</label><input type="text" value="${escHtml(it.highLabel||'Excellent')}" placeholder="e.g. Excellent" oninput="onEditFeedbackItemField('${module}',${i},'highLabel',this.value)"></div>
+        </div>`:''}
+      ${it.type==='mc'?`
+        <div class="field-group"><label>Question</label><input type="text" value="${escHtml(it.question||'')}" placeholder="e.g. Which parts did you enjoy?" oninput="onEditFeedbackItemField('${module}',${i},'question',this.value)"></div>
+        ${(it.options||[]).map((o,oi)=>`
+        <div class="field-row" style="align-items:center;">
+          ${it.options.length>1?`<button class="remove-btn" style="position:static;flex-shrink:0;" onclick="removeEditFeedbackItemOption('${module}',${i},${oi})">✕</button>`:''}
+          <input value="${escHtml(o)}" placeholder="Answer ${oi+1}" oninput="onEditFeedbackItemOption('${module}',${i},${oi},this.value)">
+        </div>`).join('')}
+        <button class="add-btn" onclick="addEditFeedbackItemOption('${module}',${i})">+ Add answer option</button>`:''}
+    </div>`).join('')}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="add-btn" onclick="addEditFeedbackItem('${module}','comment')">+ Add comment field</button>
+      <button class="add-btn" onclick="addEditFeedbackItem('${module}','score')">+ Add score (1–5)</button>
+      <button class="add-btn" onclick="addEditFeedbackItem('${module}','mc')">+ Add multiple choice</button>
+    </div>`;
+}
 function newEditHandsOnSession(){return {date:'',startTime:'09:00',endTime:'11:30',rotationMinutes:30,stationCount:5,stations:Array.from({length:5},(_,i)=>({name:`Station ${i+1}`,room:'',stand:`Stand ${i+1}`}))};}
 function newEditBreakoutSession(){return {date:'',startTime:'09:00',endTime:'11:30',groupCount:5,groupAssignment:'randomize',groupSeed:newBreakoutSeed()};}
 function normalizeEditHandsOn(c){
@@ -1748,44 +1853,7 @@ function renderOrganizerModuleContent(module) {
   }
   if(module==='map') specific=`<div class="field-group"><label>Address</label><input value="${escHtml(c.address)}" oninput="onEditModuleContent('map','address',this.value)"></div>${renderOrganizerImage('map')}`;
   if(module==='conferenceFeedback'){
-    if(!Array.isArray(c.mcOptions)||!c.mcOptions.length) c.mcOptions=["","",""];
-    specific=`
-      <div class="field-group" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;">
-        <label style="display:flex;gap:8px;align-items:center;font-weight:bold;">
-          <input type="checkbox" ${c.commentEnabled!==false?'checked':''} onchange="onEditFeedbackToggle('commentEnabled',this.checked)">
-          Comment field
-        </label>
-        <div class="field-hint" style="margin:6px 0 8px;">An open text field participants can write in freely.</div>
-        ${c.commentEnabled!==false?`<div class="field-group"><label>Question / prompt shown to participants</label><textarea oninput="onEditModuleContent('conferenceFeedback','prompt',this.value)">${escHtml(c.prompt||'How would you evaluate the conference?')}</textarea></div>`:''}
-      </div>
-      <div class="field-group" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;margin-top:10px;">
-        <label style="display:flex;gap:8px;align-items:center;font-weight:bold;">
-          <input type="checkbox" ${c.scoreEnabled?'checked':''} onchange="onEditFeedbackToggle('scoreEnabled',this.checked)">
-          Score (1–5)
-        </label>
-        <div class="field-hint" style="margin:6px 0 8px;">Participants pick a number from 1 to 5. You decide what the two ends of the scale mean.</div>
-        ${c.scoreEnabled?`
-          <div class="field-group"><label>Score question</label><input type="text" value="${escHtml(c.scoreQuestion||'How would you rate the conference overall?')}" oninput="onEditModuleContent('conferenceFeedback','scoreQuestion',this.value)"></div>
-          <div class="field-row">
-            <div class="field-group"><label>Label for 1</label><input type="text" value="${escHtml(c.scoreLowLabel||'Poor')}" placeholder="e.g. Poor" oninput="onEditModuleContent('conferenceFeedback','scoreLowLabel',this.value)"></div>
-            <div class="field-group"><label>Label for 5</label><input type="text" value="${escHtml(c.scoreHighLabel||'Excellent')}" placeholder="e.g. Excellent" oninput="onEditModuleContent('conferenceFeedback','scoreHighLabel',this.value)"></div>
-          </div>`:''}
-      </div>
-      <div class="field-group" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;margin-top:10px;">
-        <label style="display:flex;gap:8px;align-items:center;font-weight:bold;">
-          <input type="checkbox" ${c.mcEnabled?'checked':''} onchange="onEditFeedbackToggle('mcEnabled',this.checked)">
-          Multiple choice
-        </label>
-        <div class="field-hint" style="margin:6px 0 8px;">Participants can select one or more of the answers you list below.</div>
-        ${c.mcEnabled?`
-          <div class="field-group"><label>Question</label><input type="text" value="${escHtml(c.mcQuestion||'')}" placeholder="e.g. Which parts of the conference did you enjoy?" oninput="onEditModuleContent('conferenceFeedback','mcQuestion',this.value)"></div>
-          ${c.mcOptions.map((o,i)=>`
-          <div class="field-row" style="align-items:center;">
-            ${c.mcOptions.length>1?`<button class="remove-btn" onclick="removeEditFeedbackOption(${i})">✕</button>`:''}
-            <input value="${escHtml(o)}" placeholder="Answer ${i+1}" oninput="onEditFeedbackOption(${i},this.value)">
-          </div>`).join('')}
-          <button class="add-btn" onclick="addEditFeedbackOption()">+ Add answer option</button>`:''}
-      </div>`;
+    specific=renderFeedbackItemsEditor('conferenceFeedback');
   }
     if(module==='industry'){normalizeEditIndustry(c);specific=`${c.booths.map((b,i)=>`<div class="session-edit-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeEditIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onEditIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onEditIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input value="${escHtml(b.website)}" placeholder="https://..." oninput="onEditIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditIndustryImage(${i},this.files[0])">${b.image?`<img class="content-image" src="${b.image}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent.industry.booths[${i}].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div></div>`).join('')}<button class="add-btn" onclick="addEditIndustryBooth()">+ Add industry booth</button>`;}
   if(module==='contact') specific=`<div class="field-group"><label>Coordinator name</label><input value="${escHtml(c.coordinatorName)}" oninput="onEditModuleContent('contact','coordinatorName',this.value)"></div><div class="field-row"><div class="field-group"><label>Phone</label><input value="${escHtml(c.coordinatorPhone)}" oninput="onEditModuleContent('contact','coordinatorPhone',this.value)"></div><div class="field-group"><label>Email</label><input value="${escHtml(c.coordinatorEmail)}" oninput="onEditModuleContent('contact','coordinatorEmail',this.value)"></div></div><div class="field-group"><label>Technical support name</label><input value="${escHtml(c.supportName)}" oninput="onEditModuleContent('contact','supportName',this.value)"></div><div class="field-row"><div class="field-group"><label>Support phone</label><input value="${escHtml(c.supportPhone)}" oninput="onEditModuleContent('contact','supportPhone',this.value)"></div><div class="field-group"><label>Support email</label><input value="${escHtml(c.supportEmail)}" oninput="onEditModuleContent('contact','supportEmail',this.value)"></div></div>${renderOrganizerImage('contact')}`;
