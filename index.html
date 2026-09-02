@@ -802,7 +802,7 @@ function renderFeedbackAnswerFields(items, answers, setterName){
     }
     if(it.type==='mc'){
       const chosen=Array.isArray(val)?val:[];
-      return `<div class="field-group"><label>${escHtml(it.question||'')}</label>${(it.options||[]).map((o,oi)=>o?`<label style="display:flex;gap:8px;align-items:center;margin-top:8px;"><input type="checkbox" ${chosen.includes(oi)?'checked':''} onchange="${setterName}('${it.id}',${oi},this.checked)">${escHtml(o)}</label>`:'').join('')}</div>`;
+      return `<div class="field-group"><label>${escHtml(it.question||'')}</label>${(it.options||[]).map((o,oi)=>o?`<label style="display:flex;gap:8px;align-items:center;margin-top:8px;"><input type="checkbox" ${chosen.includes(oi)?'checked':''} onchange="${setterName}('${it.id}',${oi},this.checked)" style="width:18px;height:18px;min-height:0;padding:0;border:2px solid var(--pf-border);flex-shrink:0;accent-color:var(--pf-theme);">${escHtml(o)}</label>`:'').join('')}</div>`;
     }
     return `<div class="field-group"><label>${escHtml(it.question||'')}</label><textarea maxlength="10000" placeholder="Write your feedback…" oninput="${setterName}('${it.id}',this.value)">${escHtml(val||'')}</textarea></div>`;
   }).join('');
