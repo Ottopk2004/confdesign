@@ -324,7 +324,7 @@
 
 <div class="shell">
   <div class="top-brand">
-    <div class="mark">CD</div>
+    <a href="login.html" style="text-decoration:none;"><div class="mark">CD</div></a>
     <div>
       <h1>Conf Design</h1>
       <p>Set up a new conference in a few minutes</p>
@@ -438,12 +438,12 @@ let form = {
   facultyCount: 20,
   modules: { handsOn: false, map: false, industry: false, quiz: false, evaluations: false, conferenceFeedback: false, contact: false },
   moduleContent: {
-    handsOn: { title: "Hands on", intro: "", sessions: [newHandsOnSession()] },
+    handsOn: { title: "Breakout sessions", intro: "", sessions: [newHandsOnSession()] },
     map: { title: "Venue map", intro: "", address: "", image: "" },
     industry: { title: "Industry", intro: "", booths: [newIndustryBooth()] },
     quiz: { title: "Quiz", intro: "Answer all questions. The test can only be taken once." },
     evaluations: { title: "Faculty evaluation", intro: "Evaluate each participant at your assigned post.", posts: [] },
-    conferenceFeedback: { title: "Conference evaluation", intro: "We would value your feedback.", prompt: "How would you evaluate the conference?" },
+    conferenceFeedback: { title: "Conference evaluation", intro: "We would value your feedback.", prompt: "How would you evaluate the conference?", commentEnabled: true, scoreEnabled: false, scoreQuestion: "How would you rate the conference overall?", scoreLowLabel: "Poor", scoreHighLabel: "Excellent", mcEnabled: false, mcQuestion: "", mcOptions: ["", "", ""] },
     contact: { title: "Contact", intro: "", coordinatorName: "", coordinatorPhone: "", coordinatorEmail: "", supportName: "", supportPhone: "", supportEmail: "", image: "" },
   },
 };
@@ -626,7 +626,7 @@ function render() {
       </div>
 
       ${[
-        ['handsOn','▣','Hands on','Rotations, stations, rooms and practical course information.'],
+        ['handsOn','▣','Breakout sessions','Rotations, stations, rooms and practical course information.'],
         ['map','◇','Map','Venue map and directions for participants.'],
         ['industry','▱','Industry','Exhibitors, stands and industry partners.'],
         ['quiz','☑','Test','Multiple-choice questions with automatic grading.'],
@@ -743,7 +743,11 @@ function onModuleToggle(key, checked) {
 function onModuleContent(module, key, value) {
   form.moduleContent[module][key] = value;
   if(module==='handsOn' && ['date','startTime','endTime','rotationMinutes'].includes(key)) render();
+  if(module==='conferenceFeedback' && ['commentEnabled','scoreEnabled','mcEnabled'].includes(key)) render();
 }
+function addFeedbackOption(){const c=form.moduleContent.conferenceFeedback;if(!Array.isArray(c.mcOptions))c.mcOptions=[];if(c.mcOptions.length>=10){alert('A maximum of 10 answer options is supported.');return;}c.mcOptions.push('');render();}
+function removeFeedbackOption(i){const c=form.moduleContent.conferenceFeedback;if(c.mcOptions.length>1)c.mcOptions.splice(i,1);render();}
+function onFeedbackOption(i,value){form.moduleContent.conferenceFeedback.mcOptions[i]=value;}
 function newHandsOnSession(){return {date:'',startTime:'09:00',endTime:'11:30',rotationMinutes:30,stationCount:5,stations:Array.from({length:5},(_,i)=>({name:`Station ${i+1}`,room:'',stand:`Stand ${i+1}`}))};}
 function normalizeHandsOn(c){if(!Array.isArray(c.sessions))c.sessions=[{date:c.date||'',startTime:c.startTime||'09:00',endTime:c.endTime||'11:30',rotationMinutes:c.rotationMinutes||30,stationCount:c.stationCount||5,stations:c.stations||newHandsOnSession().stations}];return c;}
 function addHandsOnSession(){form.moduleContent.handsOn.sessions.push(newHandsOnSession());render();}
@@ -780,7 +784,7 @@ function renderModuleEditor(module) {
     <div class="field-group"><label>Tab heading</label><input type="text" value="${escHtml(c.title)}" oninput="onModuleContent('${module}','title',this.value)"></div>
     <div class="field-group"><label>Introduction</label><textarea placeholder="Information shown at the top of this section" oninput="onModuleContent('${module}','intro',this.value)">${escHtml(c.intro)}</textarea></div>`;
   let fields = '';
-  if (module === 'handsOn') { normalizeHandsOn(c); fields = `${c.sessions.map((hs,si)=>`<div class="session-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-indigo);margin-bottom:12px">Hands-on session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onHandsOnStationCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes/rotation</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-row"><span class="mini-label">Station ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(s.name)}" oninput="onHandsOnStation(${si},${i},'name',this.value)"></div><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}</div>`).join('')}<button type="button" class="add-session-btn" onclick="addHandsOnSession()">+ Add another Hands-on session</button><div id="handsOnValidation" class="field-hint ${validateHandsOn(c)?'':'error'}">Each session must fit stations × minutes per rotation.</div>`; }
+  if (module === 'handsOn') { normalizeHandsOn(c); fields = `${c.sessions.map((hs,si)=>`<div class="session-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-indigo);margin-bottom:12px">Breakout session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onHandsOnStationCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes/rotation</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-row"><span class="mini-label">Station ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(s.name)}" oninput="onHandsOnStation(${si},${i},'name',this.value)"></div><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}</div>`).join('')}<button type="button" class="add-session-btn" onclick="addHandsOnSession()">+ Add another breakout session</button><div id="handsOnValidation" class="field-hint ${validateHandsOn(c)?'':'error'}">Each session must fit stations × minutes per rotation.</div>`; }
   if (module === 'map') fields = `<div class="field-group"><label>Venue address</label><input type="text" value="${escHtml(c.address)}" oninput="onModuleContent('map','address',this.value)"></div>${renderImageField('map')}`;
   if (module === 'industry') { normalizeIndustry(c); fields = `${c.booths.map((b,i)=>`<div class="session-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input type="url" value="${escHtml(b.website)}" placeholder="https://..." oninput="onIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Booth image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onIndustryBoothImage(${i},this.files[0])">${b.image?`<img class="image-preview" src="${b.image}" alt="Preview"><button type="button" class="remove-image-btn" onclick="form.moduleContent.industry.booths[${i}].image='';render()">Remove image</button>`:''}</div></div>`).join('')}<button type="button" class="add-session-btn" onclick="addIndustryBooth()">+ Add industry booth</button>`; }
   if (module === 'quiz') {
@@ -805,7 +809,46 @@ function renderModuleEditor(module) {
       </div>`).join("");
     fields = `${qList}<button type="button" class="add-session-btn" onclick="addCreateQuizQuestion()">+ Add quiz question</button>`;
   }
-  if (module === 'conferenceFeedback') fields = `<div class="field-group"><label>Question / prompt shown to participants</label><textarea placeholder="How would you evaluate the conference?" oninput="onModuleContent('conferenceFeedback','prompt',this.value)">${escHtml(c.prompt||'How would you evaluate the conference?')}</textarea></div><div class="field-hint">Participants get one open text field. Responses are stored in a separate organizer tab.</div>`;
+  if (module === 'conferenceFeedback') {
+    if (!Array.isArray(c.mcOptions) || !c.mcOptions.length) c.mcOptions = ["", "", ""];
+    fields = `
+      <div class="field-group" style="border:2px solid #dadff0;border-radius:10px;padding:12px;">
+        <label style="display:flex;gap:8px;align-items:center;font-weight:bold;">
+          <input type="checkbox" ${c.commentEnabled !== false ? 'checked' : ''} onchange="onModuleContent('conferenceFeedback','commentEnabled',this.checked)">
+          Comment field
+        </label>
+        <div class="field-hint" style="margin:6px 0 8px;">An open text field participants can write in freely.</div>
+        ${c.commentEnabled !== false ? `<div class="field-group"><label>Question / prompt shown to participants</label><textarea placeholder="How would you evaluate the conference?" oninput="onModuleContent('conferenceFeedback','prompt',this.value)">${escHtml(c.prompt || 'How would you evaluate the conference?')}</textarea></div>` : ''}
+      </div>
+      <div class="field-group" style="border:2px solid #dadff0;border-radius:10px;padding:12px;margin-top:10px;">
+        <label style="display:flex;gap:8px;align-items:center;font-weight:bold;">
+          <input type="checkbox" ${c.scoreEnabled ? 'checked' : ''} onchange="onModuleContent('conferenceFeedback','scoreEnabled',this.checked)">
+          Score (1–5)
+        </label>
+        <div class="field-hint" style="margin:6px 0 8px;">Participants pick a number from 1 to 5. You decide what the two ends of the scale mean.</div>
+        ${c.scoreEnabled ? `
+          <div class="field-group"><label>Score question</label><input type="text" value="${escHtml(c.scoreQuestion || 'How would you rate the conference overall?')}" oninput="onModuleContent('conferenceFeedback','scoreQuestion',this.value)"></div>
+          <div class="field-row">
+            <div class="field-group"><label>Label for 1</label><input type="text" value="${escHtml(c.scoreLowLabel || 'Poor')}" placeholder="e.g. Poor" oninput="onModuleContent('conferenceFeedback','scoreLowLabel',this.value)"></div>
+            <div class="field-group"><label>Label for 5</label><input type="text" value="${escHtml(c.scoreHighLabel || 'Excellent')}" placeholder="e.g. Excellent" oninput="onModuleContent('conferenceFeedback','scoreHighLabel',this.value)"></div>
+          </div>` : ''}
+      </div>
+      <div class="field-group" style="border:2px solid #dadff0;border-radius:10px;padding:12px;margin-top:10px;">
+        <label style="display:flex;gap:8px;align-items:center;font-weight:bold;">
+          <input type="checkbox" ${c.mcEnabled ? 'checked' : ''} onchange="onModuleContent('conferenceFeedback','mcEnabled',this.checked)">
+          Multiple choice
+        </label>
+        <div class="field-hint" style="margin:6px 0 8px;">Participants can select one or more of the answers you list below.</div>
+        ${c.mcEnabled ? `
+          <div class="field-group"><label>Question</label><input type="text" value="${escHtml(c.mcQuestion || '')}" placeholder="e.g. Which parts of the conference did you enjoy?" oninput="onModuleContent('conferenceFeedback','mcQuestion',this.value)"></div>
+          ${c.mcOptions.map((o, i) => `
+          <div class="field-row" style="align-items:center;">
+            ${c.mcOptions.length > 1 ? `<button type="button" class="remove-btn" onclick="removeFeedbackOption(${i})">✕</button>` : ''}
+            <input value="${escHtml(o)}" placeholder="Answer ${i + 1}" oninput="onFeedbackOption(${i},this.value)">
+          </div>`).join('')}
+          <button type="button" class="add-session-btn" onclick="addFeedbackOption()">+ Add answer option</button>` : ''}
+      </div>`;
+  }
   if (module === 'evaluations') { const posts=Array.isArray(c.posts)?c.posts:[]; fields = `${posts.map((p,i)=>`<div class="session-row">${posts.length>1?`<button class="remove-btn" onclick="removeEvaluationPost(${i})">✕</button>`:''}<span class="mini-label">Post ${i+1}</span><input value="${escHtml(p.name||'')}" placeholder="e.g. Airway" oninput="onEvaluationPost(${i},this.value)"></div>`).join('')}<button type="button" class="add-session-btn" onclick="addEvaluationPost()">+ Add post</button>`; }
   if (module === 'contact') fields = `
     <div class="field-row"><div class="field-group"><label>Coordinator name</label><input type="text" value="${escHtml(c.coordinatorName)}" oninput="onModuleContent('contact','coordinatorName',this.value)"></div><div class="field-group"><label>Phone</label><input type="text" value="${escHtml(c.coordinatorPhone)}" oninput="onModuleContent('contact','coordinatorPhone',this.value)"></div></div>
