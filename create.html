@@ -840,16 +840,16 @@ function renderModuleEditor(module) {
   if (module === 'industry') { normalizeIndustry(c); fields = `${c.booths.map((b,i)=>`<div class="session-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input type="url" value="${escHtml(b.website)}" placeholder="https://..." oninput="onIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Booth image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onIndustryBoothImage(${i},this.files[0])">${b.image?`<img class="image-preview" src="${b.image}" alt="Preview"><button type="button" class="remove-image-btn" onclick="form.moduleContent.industry.booths[${i}].image='';render()">Remove image</button>`:''}</div></div>`).join('')}<button type="button" class="add-session-btn" onclick="addIndustryBooth()">+ Add industry booth</button>`; }
   if (module === 'quiz') {
     const qList = quizQuestions.map((q,i)=>`
-      <div class="session-row">
+      <div class="session-row create-quiz-question">
         ${quizQuestions.length>1?`<button type="button" class="remove-btn" onclick="removeCreateQuizQuestion(${i})">✕</button>`:''}
         <span class="mini-label">Question ${i+1}</span>
         <div class="field-group"><label>Question</label><input value="${escHtml(q.text||'')}" oninput="onCreateQuizQuestion(${i},'text',this.value)"></div>
         ${(q.options||["","","",""]).map((o,j)=>`
-          <div class="field-row" style="align-items:center;">
+          <div class="create-quiz-answer">
             <input type="radio" name="createQuizCorrect${i}" ${q.correctIndex===j?'checked':''} onchange="onCreateQuizQuestion(${i},'correctIndex',${j})">
-            <input value="${escHtml(o)}" placeholder="Answer ${j+1}" oninput="onCreateQuizOption(${i},${j},this.value)">
+            <input type="text" value="${escHtml(o)}" placeholder="Answer ${j+1}" oninput="onCreateQuizOption(${i},${j},this.value)">
           </div>`).join("")}
-        <label style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+        <label class="create-quiz-text-response">
           <input type="checkbox" ${q.textResponse?'checked':''} onchange="onCreateQuizQuestion(${i},'textResponse',this.checked)">
           Add a text response field
         </label>
