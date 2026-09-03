@@ -1280,7 +1280,7 @@ function renderQuizTab() {
         ${q.media ? (q.media.type === 'video'
           ? `<div style="margin:12px 0;"><video controls playsinline preload="metadata" src="${escHtml(q.media.data)}" style="width:100%;max-height:320px;border-radius:10px;background:#000;"></video></div>`
           : `<div style="margin:12px 0;"><img src="${escHtml(q.media.data)}" alt="Question image" style="width:100%;max-height:320px;object-fit:contain;border-radius:10px;"></div>`) : ''}
-        ${(q.options || []).filter(Boolean).map((opt, i) => { const actualIndex=(q.options||[]).indexOf(opt); const a=quizAnswers[questionId] || {}; return `
+        ${q.textResponse ? '' : (q.options || []).filter(Boolean).map((opt, i) => { const actualIndex=(q.options||[]).indexOf(opt); const a=quizAnswers[questionId] || {}; return `
           <label class="quiz-option-row ${a.choice === actualIndex ? 'checked' : ''}">
             <input type="radio" name="answer-${questionId}" ${a.choice === actualIndex ? "checked" : ""} onchange="onQuizAnswer('${questionId}',${actualIndex})">
             <span>${escHtml(opt)}</span>
@@ -1566,6 +1566,9 @@ function renderQuizEditor() {
           <div style="font-size:10.5px;color:var(--pf-muted);margin-top:5px;">Images up to 1 MB. Short MP4/WebM videos up to 8 MB.</div>
           ${q.media ? `<button type="button" class="remove-btn" style="position:static;margin-top:6px;" onclick="removeQuizQuestionMedia(${i})">Remove media</button>` : ''}
         </div>
+        <label style="display:flex;gap:8px;align-items:center;margin:10px 0;font-size:12px;"><input type="checkbox" ${q.textResponse ? 'checked' : ''} onchange="onEditQuizTextResponse(${i},this.checked)"> Text response instead of multiple choice</label>
+        ${q.textResponse ? `
+        <div class="field-hint" style="margin-bottom:4px;">Participants will only see a free-text field for this question. Uncheck to bring back the multiple-choice answers.</div>` : `
         <div class="field-group" style="margin:10px 0;">
           <label>Question type</label>
           <select onchange="onEditQuizMode(${i},this.value)" style="width:100%;padding:9px;border:2px solid var(--pf-border);border-radius:8px;font-size:13px;">
@@ -1579,8 +1582,7 @@ function renderQuizEditor() {
             ${q.mode === 'survey' ? '' : `<input type="radio" name="correct-${i}" ${q.correctIndex === oi ? "checked" : ""} onchange="onEditQuizCorrect(${i},${oi})">`}
             <input type="text" value="${escHtml(q.options[oi] || "")}" placeholder="Option ${oi+1}" oninput="onEditQuizOption(${i},${oi},this.value)">
           </div>
-        `).join("")}
-        <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:12px;"><input type="checkbox" ${q.textResponse ? 'checked' : ''} onchange="onEditQuizTextResponse(${i},this.checked)"> Include a text response field</label>
+        `).join("")}`}
       </div>
     `).join("")}
     <button class="add-btn" onclick="addQuizQuestion()">+ Add question</button>

@@ -844,19 +844,21 @@ function renderModuleEditor(module) {
         ${quizQuestions.length>1?`<button type="button" class="remove-btn" onclick="removeCreateQuizQuestion(${i})">✕</button>`:''}
         <span class="mini-label">Question ${i+1}</span>
         <div class="field-group"><label>Question</label><input value="${escHtml(q.text||'')}" oninput="onCreateQuizQuestion(${i},'text',this.value)"></div>
+        <label class="create-quiz-text-response">
+          <input type="checkbox" ${q.textResponse?'checked':''} onchange="onCreateQuizQuestion(${i},'textResponse',this.checked)">
+          Text response instead of multiple choice
+        </label>
+        ${q.textResponse ? `
+        <div class="field-hint" style="margin-top:6px;">Participants will only see a free-text field for this question. Uncheck to bring back the multiple-choice answers.</div>` : `
         ${(q.options||["","","",""]).map((o,j)=>`
           <div class="create-quiz-answer">
             <input type="radio" name="createQuizCorrect${i}" ${q.correctIndex===j?'checked':''} onchange="onCreateQuizQuestion(${i},'correctIndex',${j})">
             <input type="text" value="${escHtml(o)}" placeholder="Answer ${j+1}" oninput="onCreateQuizOption(${i},${j},this.value)">
           </div>`).join("")}
-        <label class="create-quiz-text-response">
-          <input type="checkbox" ${q.textResponse?'checked':''} onchange="onCreateQuizQuestion(${i},'textResponse',this.checked)">
-          Add a text response field
-        </label>
         <select onchange="onCreateQuizQuestion(${i},'mode',this.value)" style="margin-top:8px;">
           <option value="graded" ${q.mode==='graded'?'selected':''}>Graded</option>
           <option value="survey" ${q.mode==='survey'?'selected':''}>Survey</option>
-        </select>
+        </select>`}
       </div>`).join("");
     fields = `${qList}<button type="button" class="add-session-btn" onclick="addCreateQuizQuestion()">+ Add quiz question</button>`;
   }
