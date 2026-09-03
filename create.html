@@ -827,7 +827,7 @@ function addCreateQuizQuestion(){
   render();
 }
 function removeCreateQuizQuestion(i){ quizQuestions.splice(i,1); render(); }
-function onCreateQuizQuestion(i,key,value){ quizQuestions[i][key]=value; render(); }
+function onCreateQuizQuestion(i,key,value){ quizQuestions[i][key]=value; if(key==='textResponse' && value) quizQuestions[i].mode='survey'; render(); }
 function onCreateQuizOption(i,j,value){ quizQuestions[i].options[j]=value; render(); }
 function renderModuleEditor(module) {
   const c = form.moduleContent[module];
@@ -849,7 +849,7 @@ function renderModuleEditor(module) {
           Text response instead of multiple choice
         </label>
         ${q.textResponse ? `
-        <div class="field-hint" style="margin-top:6px;">Participants will only see a free-text field for this question. Uncheck to bring back the multiple-choice answers.</div>` : `
+        <div class="field-hint" style="margin-top:6px;">Participants will only see a free-text field for this question, and it's scored as a survey question (no correct answer). Uncheck to bring back the multiple-choice answers.</div>` : `
         ${(q.options||["","","",""]).map((o,j)=>`
           <div class="create-quiz-answer">
             <input type="radio" name="createQuizCorrect${i}" ${q.correctIndex===j?'checked':''} onchange="onCreateQuizQuestion(${i},'correctIndex',${j})">

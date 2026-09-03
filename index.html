@@ -1568,7 +1568,7 @@ function renderQuizEditor() {
         </div>
         <label style="display:flex;gap:8px;align-items:center;margin:10px 0;font-size:12px;"><input type="checkbox" ${q.textResponse ? 'checked' : ''} onchange="onEditQuizTextResponse(${i},this.checked)"> Text response instead of multiple choice</label>
         ${q.textResponse ? `
-        <div class="field-hint" style="margin-bottom:4px;">Participants will only see a free-text field for this question. Uncheck to bring back the multiple-choice answers.</div>` : `
+        <div class="field-hint" style="margin-bottom:4px;">Participants will only see a free-text field for this question, and it's scored as a survey question (no correct answer). Uncheck to bring back the multiple-choice answers.</div>` : `
         <div class="field-group" style="margin:10px 0;">
           <label>Question type</label>
           <select onchange="onEditQuizMode(${i},this.value)" style="width:100%;padding:9px;border:2px solid var(--pf-border);border-radius:8px;font-size:13px;">
@@ -1868,7 +1868,7 @@ function onEditQuizPassPct(val) {
 function onEditQuizQuestion(i, key, val) { editQuizQuestions[i][key] = val; }
 function onEditQuizOption(i, oi, val) { editQuizQuestions[i].options[oi] = val; }
 function onEditQuizMode(i, mode) { editQuizQuestions[i].mode = mode === 'survey' ? 'survey' : 'graded'; if(mode==='survey') editQuizQuestions[i].correctIndex=null; else if(editQuizQuestions[i].correctIndex===null) editQuizQuestions[i].correctIndex=0; rerenderOrganizerScroll(); }
-function onEditQuizTextResponse(i, checked) { editQuizQuestions[i].textResponse = !!checked; rerenderOrganizerScroll(); }
+function onEditQuizTextResponse(i, checked) { editQuizQuestions[i].textResponse = !!checked; if (checked) editQuizQuestions[i].mode = 'survey'; rerenderOrganizerScroll(); }
 function onQuizQuestionMedia(i, file) {
   if (!file) return;
   const isImage = file.type.startsWith('image/');
