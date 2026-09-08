@@ -192,7 +192,7 @@
   .add-session-btn:hover { border-color: var(--pf-indigo); }
 
   .row-actions { position:absolute; top:8px; right:8px; display:flex; gap:4px; align-items:center; }
-  .row-actions .remove-btn { position:static; }
+  .row-actions .remove-btn { position:static !important; top:auto !important; right:auto !important; }
   .move-btn {
     width:24px; height:24px; border-radius:50%; border:none;
     background:#e5f0f8; color:var(--pf-indigo); font-size:11px; font-weight:bold;
@@ -463,6 +463,7 @@ let form = {
   adminPin: "",
   participantCount: 100,
   facultyCount: 20,
+  observerCount: 0,
   modules: { handsOn: false, map: false, industry: false, quiz: false, evaluations: false, conferenceFeedback: false, contact: false, facultyInfo: false },
   moduleContent: {
     handsOn: { title: "Breakout sessions", intro: "", sessions: [newHandsOnSession()] },
@@ -516,6 +517,14 @@ function render() {
           <div class="link-label">Tell faculty to enter</div>
           <div class="link-value" id="facultyCodeVal">${escHtml(code)} + their number (1000–${1000 + form.facultyCount - 1})</div>
           <button class="copy-btn" onclick="copyText('facultyCodeVal')">Copy</button>
+        </div>
+        ` : ""}
+
+        ${form.observerCount > 0 ? `
+        <div class="link-box">
+          <div class="link-label">Tell observers to enter</div>
+          <div class="link-value" id="observerCodeVal">${escHtml(code)} + their number (2000–${2000 + form.observerCount - 1})</div>
+          <button class="copy-btn" onclick="copyText('observerCodeVal')">Copy</button>
         </div>
         ` : ""}
 
@@ -639,6 +648,11 @@ function render() {
           <input type="number" id="fFacultyCount" min="0" max="999" value="${form.facultyCount}" oninput="onField('facultyCount', parseInt(this.value)||0)">
           <div class="field-hint">Log in with 1000–${1000 + (form.facultyCount||0) - 1}.</div>
         </div>
+      </div>
+      <div class="field-group">
+        <label for="fObserverCount">Observer numbers</label>
+        <input type="number" id="fObserverCount" min="0" max="999" value="${form.observerCount}" oninput="onField('observerCount', parseInt(this.value)||0)">
+        <div class="field-hint">Log in with 2000–${2000 + (form.observerCount||0) - 1}. Observers get the same add-ons as faculty (including evaluations, if enabled), but never see breakout sessions and are never placed in a breakout group.</div>
       </div>
       </div></details>
 
@@ -1032,6 +1046,7 @@ function submitConference() {
     adminPin: form.adminPin,
     participantCount: form.participantCount,
     facultyCount: form.facultyCount,
+    observerCount: form.observerCount,
     modules: form.modules,
     moduleContent: form.moduleContent,
     quizQuestions: form.modules.quiz ? quizQuestions : [],

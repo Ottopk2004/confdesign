@@ -203,7 +203,7 @@
     background: var(--pf-gray); color: var(--pf-theme); font-size:12.5px; font-weight:bold; cursor:pointer; margin-bottom: 14px;
   }
   .row-actions { position:absolute; top:6px; right:6px; display:flex; gap:4px; align-items:center; }
-  .row-actions .remove-btn { position:static; }
+  .row-actions .remove-btn { position:static !important; top:auto !important; right:auto !important; }
   .move-btn {
     width:22px; height:22px; border-radius:50%; border:none;
     background:var(--pf-theme-light); color:var(--pf-theme); font-size:11px; font-weight:bold; cursor:pointer; line-height:1;
@@ -399,6 +399,7 @@ const DEMO_CONFERENCE = {
     contactEmail: "demo@example.com",
     participantCount: 50,
     facultyCount: 10,
+    observerCount: 5,
   },
   schedule: [
     { date: "2027-06-10", time: "09:00", title: "Welcome & opening remarks", speaker: "Dr. A. Organizer" },
@@ -414,8 +415,10 @@ const nrParam = params.get("nr");
 
 // Number blocks for the login system — mirrors platform-worker.js.
 // Participant: 1 to meta.participantCount. Faculty: 1000 to
-// 1000+meta.facultyCount-1. The two can never overlap.
+// 1000+meta.facultyCount-1. Observer: 2000 to 2000+meta.observerCount-1.
+// The three can never overlap.
 const NUMBER_BLOCK_SIZE = 1000;
+const OBSERVER_BLOCK_START = 2000;
 function deriveRole(nrRaw, meta) {
   const n = parseInt(nrRaw, 10);
   if (!n || n < 1) return null;
@@ -423,6 +426,9 @@ function deriveRole(nrRaw, meta) {
   const facultyStart = NUMBER_BLOCK_SIZE;
   const facultyEnd = NUMBER_BLOCK_SIZE + (meta.facultyCount || 0) - 1;
   if (n >= facultyStart && n <= facultyEnd) return "faculty";
+  const observerStart = OBSERVER_BLOCK_START;
+  const observerEnd = OBSERVER_BLOCK_START + (meta.observerCount || 0) - 1;
+  if (n >= observerStart && n <= observerEnd) return "observer";
   return null;
 }
 
@@ -558,8 +564,8 @@ function afterConfLoaded() {
     }
     loginNr = nrParam;
     if (role === "participant") { resetQuizParticipantState(); resetRegistrationState(); }
-    if (role === "faculty") resetEvaluationState();
-    mode = role; // "participant" or "faculty"
+    if (role === "faculty" || role === "observer") resetEvaluationState();
+    mode = role; // "participant", "faculty" or "observer"
     render();
     if (role === "participant") {
       if (emailRegistrationNeeded()) {
@@ -569,7 +575,7 @@ function afterConfLoaded() {
         registrationRegistered = true;
       }
     }
-    if (role === "faculty" && confData.meta.modules?.evaluations) loadEvaluationConfig();
+    if ((role === "faculty" || role === "observer") && confData.meta.modules?.evaluations) loadEvaluationConfig();
     return;
   }
   // Reached this page without going through login.html first.
@@ -691,6 +697,27 @@ function render() {
     setHtmlPreservingFocus(shell, `
       <div class="conf-header">
         <div class="eyebrow"><span>Programme</span><span class="mode-badge">Faculty</span></div>
+        <h1>${escHtml(meta.name)}</h1>
+        <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
+      </div>
+      <div class="toolbar">
+        <div class="who">Logged in as #${escHtml(loginNr)}</div>
+        <a href="login.html" style="text-decoration:none;"><button>Log out</button></a>
+      </div>
+      <div class="tab-bar">${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" data-tab="${t.key}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}</div>
+      <div class="panel-scroll" id="participantScroll">
+        ${renderParticipantModule(participantTab)}
+      </div>
+    `);
+    return;
+  }
+
+  if (mode === "observer") {
+    const tabs = getParticipantTabs(meta);
+    if (!tabs.some(t => t.key === participantTab)) participantTab = "schedule";
+    setHtmlPreservingFocus(shell, `
+      <div class="conf-header">
+        <div class="eyebrow"><span>Programme</span><span class="mode-badge">Observer</span></div>
         <h1>${escHtml(meta.name)}</h1>
         <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
       </div>
@@ -869,11 +896,11 @@ function getParticipantTabs(meta) {
   const modules = meta.modules || {};
   return [
     { key: "schedule", icon: "◷", label: "Schedule", enabled: true },
-    { key: "handsOn", icon: "▣", label: "Breakout sessions", enabled: !!modules.handsOn },
+    { key: "handsOn", icon: "▣", label: "Breakout sessions", enabled: !!modules.handsOn && mode !== "observer" },
     { key: "map", icon: "◇", label: "Map", enabled: !!modules.map },
     { key: "industry", icon: "▱", label: "Industry", enabled: !!modules.industry },
     { key: "quiz", icon: "☑", label: "Test", enabled: mode === "participant" && !!modules.quiz },
-    { key: "evaluations", icon: "✓", label: "Evaluate", enabled: mode === "faculty" && !!modules.evaluations },
+    { key: "evaluations", icon: "✓", label: "Evaluate", enabled: (mode === "faculty" || mode === "observer") && !!modules.evaluations },
     { key: "conferenceFeedback", icon: "✎", label: "Feedback", enabled: !!modules.conferenceFeedback },
     { key: "contact", icon: "⌕", label: "Contact", enabled: !!modules.contact },
     { key: "facultyInfo", icon: "☺", label: "Faculty", enabled: !!modules.facultyInfo },
@@ -881,7 +908,7 @@ function getParticipantTabs(meta) {
 }
 
 function renderParticipantModule(tab) {
-  if (mode === "faculty" && tab === "evaluations") return renderEvaluationTab();
+  if ((mode === "faculty" || mode === "observer") && tab === "evaluations") return renderEvaluationTab();
   if (tab === "schedule") return renderScheduleReadOnly(confData.schedule);
   if (tab === "quiz") return renderQuizTab();
   if (tab === "evaluations") return renderEvaluationTab();
@@ -1212,7 +1239,7 @@ function switchParticipantTab(tab) {
   };
   setActiveTab();
 
-  if (mode === "faculty" && tab === "evaluations" && !evaluationConfig && !evaluationLoading) {
+  if ((mode === "faculty" || mode === "observer") && tab === "evaluations" && !evaluationConfig && !evaluationLoading) {
     loadEvaluationConfig();
   }
   if (mode === "participant" && tab === "quiz" && !quizQuestions) {
@@ -1466,9 +1493,16 @@ function renderOrganizerEditor() {
           </div>
         </div>
 
+        <div class="field-group">
+          <label>Observer numbers open</label>
+          <input type="number" min="0" max="999" value="${editMeta.observerCount || 0}" oninput="onEditMeta('observerCount', parseInt(this.value)||0)">
+          <div class="field-hint" style="margin-top:6px;">Observers get the same add-ons as faculty (including evaluations, if enabled), but never see breakout sessions and are never placed in a breakout group.</div>
+        </div>
+
         <div class="field-hint" style="margin:-6px 0 14px;">
           Participants log in with ${escHtml(editMeta.slug.toUpperCase())} + 1–${editMeta.participantCount}.
           Faculty log in with ${escHtml(editMeta.slug.toUpperCase())} + 1000–${1000 + (editMeta.facultyCount || 0) - 1}.
+          Observers log in with ${escHtml(editMeta.slug.toUpperCase())} + 2000–${2000 + (editMeta.observerCount || 0) - 1}.
         </div>
       </div>
       ${saveButton}`;
@@ -2127,6 +2161,7 @@ function saveOrganizerChanges() {
     contactEmail: editMeta.contactEmail,
     participantCount: editMeta.participantCount,
     facultyCount: editMeta.facultyCount,
+    observerCount: editMeta.observerCount,
     branding: editMeta.branding || {logo:""},
     modules: editMeta.modules,
     moduleContent: editModuleContent,
