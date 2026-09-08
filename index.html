@@ -202,13 +202,13 @@
     width:100%; padding:10px; border:2px dashed var(--pf-border); border-radius:10px;
     background: var(--pf-gray); color: var(--pf-theme); font-size:12.5px; font-weight:bold; cursor:pointer; margin-bottom: 14px;
   }
-  .move-btns { position:absolute; top:6px; left:6px; display:flex; gap:4px; }
+  .row-actions { position:absolute; top:6px; right:6px; display:flex; gap:4px; align-items:center; }
+  .row-actions .remove-btn { position:static; }
   .move-btn {
     width:22px; height:22px; border-radius:50%; border:none;
     background:var(--pf-theme-light); color:var(--pf-theme); font-size:11px; font-weight:bold; cursor:pointer; line-height:1;
   }
   .move-btn:disabled { opacity:.35; cursor:default; }
-  .session-edit-row.has-move-btns { padding-left:38px; }
 
   .topic-toggle { border:1px dashed var(--pf-border); border-radius:8px; margin-top:10px; overflow:hidden; }
   .topic-toggle summary { cursor:pointer; padding:8px 10px; font-size:11.5px; font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
@@ -1480,22 +1480,22 @@ function renderOrganizerEditor() {
         <div class="mini-label" style="margin:0 0 12px;font-size:12px;">Schedule</div>
         <div class="field-hint" style="margin:0 0 14px;">Add a day, then add the activities that happen on it. Schedule can be changed at any time after the conference has been created.</div>
         ${editScheduleDays.map((day, di) => `
-          <div class="session-edit-row has-move-btns">
-            <div class="move-btns">
+          <div class="session-edit-row">
+            <div class="row-actions">
               <button class="move-btn" title="Move day up" ${di===0?'disabled':''} onclick="moveEditScheduleDay(${di},-1)">▲</button>
               <button class="move-btn" title="Move day down" ${di===editScheduleDays.length-1?'disabled':''} onclick="moveEditScheduleDay(${di},1)">▼</button>
+              ${editScheduleDays.length > 1 ? `<button class="remove-btn" onclick="removeEditScheduleDay(${di})">✕</button>` : ""}
             </div>
-            ${editScheduleDays.length > 1 ? `<button class="remove-btn" onclick="removeEditScheduleDay(${di})">✕</button>` : ""}
             <span class="mini-label">Day ${di + 1}</span>
             <input type="date" value="${escHtml(day.date)}" oninput="onEditScheduleDayDate(${di},this.value)">
 
             ${day.items.map((item, ii) => `
-              <div class="quiz-edit-row has-move-btns" style="margin-top:10px;">
-                <div class="move-btns">
+              <div class="quiz-edit-row" style="margin-top:10px;">
+                <div class="row-actions">
                   <button class="move-btn" title="Move activity up" ${ii===0?'disabled':''} onclick="moveEditScheduleItem(${di},${ii},-1)">▲</button>
                   <button class="move-btn" title="Move activity down" ${ii===day.items.length-1?'disabled':''} onclick="moveEditScheduleItem(${di},${ii},1)">▼</button>
+                  ${day.items.length > 1 ? `<button class="remove-btn" onclick="removeEditScheduleItem(${di},${ii})">✕</button>` : ""}
                 </div>
-                ${day.items.length > 1 ? `<button class="remove-btn" onclick="removeEditScheduleItem(${di},${ii})">✕</button>` : ""}
                 <div class="field-row" style="margin-bottom:8px;">
                   <div>
                     <span class="mini-label">Start</span>
