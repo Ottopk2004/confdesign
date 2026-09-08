@@ -202,6 +202,26 @@
     width:100%; padding:10px; border:2px dashed var(--pf-border); border-radius:10px;
     background: var(--pf-gray); color: var(--pf-theme); font-size:12.5px; font-weight:bold; cursor:pointer; margin-bottom: 14px;
   }
+  .move-btns { position:absolute; top:6px; left:6px; display:flex; gap:4px; }
+  .move-btn {
+    width:22px; height:22px; border-radius:50%; border:none;
+    background:var(--pf-theme-light); color:var(--pf-theme); font-size:11px; font-weight:bold; cursor:pointer; line-height:1;
+  }
+  .move-btn:disabled { opacity:.35; cursor:default; }
+  .session-edit-row.has-move-btns { padding-left:38px; }
+
+  .topic-toggle { border:1px dashed var(--pf-border); border-radius:8px; margin-top:10px; overflow:hidden; }
+  .topic-toggle summary { cursor:pointer; padding:8px 10px; font-size:11.5px; font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
+  .topic-toggle .topic-body { padding:10px; }
+  .topic-toggle textarea { width:100%; min-height:70px; }
+
+  .faculty-grid { display:flex; flex-wrap:wrap; gap:12px; }
+  .faculty-card { flex:1 1 220px; max-width:300px; border:2px solid #cfdae3; border-radius:14px; background:#f7f8f9; padding:16px; position:relative; }
+  .faculty-card .remove-btn { position:absolute; top:8px; right:8px; }
+  .faculty-card h4 { color:var(--pf-theme); margin-bottom:2px; }
+  .faculty-card .faculty-role { font-size:12.5px; font-weight:bold; color:var(--pf-ink); }
+  .faculty-card .faculty-workplace { font-size:12px; color:var(--pf-muted); margin-top:2px; }
+
   .save-btn {
     width:100%; padding:14px; border:none; border-radius:10px; font-size:14.5px; font-weight:bold;
     background: var(--pf-theme); color:#fff; cursor:pointer;
@@ -856,6 +876,7 @@ function getParticipantTabs(meta) {
     { key: "evaluations", icon: "✓", label: "Evaluate", enabled: mode === "faculty" && !!modules.evaluations },
     { key: "conferenceFeedback", icon: "✎", label: "Feedback", enabled: !!modules.conferenceFeedback },
     { key: "contact", icon: "⌕", label: "Contact", enabled: !!modules.contact },
+    { key: "facultyInfo", icon: "☺", label: "Faculty", enabled: !!modules.facultyInfo },
   ].filter(t => t.enabled);
 }
 
@@ -866,7 +887,7 @@ function renderParticipantModule(tab) {
   if (tab === "evaluations") return renderEvaluationTab();
   if (tab === "conferenceFeedback") return renderConferenceFeedbackTab();
   const c = (confData.moduleContent || {})[tab] || {};
-  const heading = c.title || ({ handsOn:'Breakout sessions', map:'Map', industry:'Industry', contact:'Contact' }[tab] || 'Information');
+  const heading = c.title || ({ handsOn:'Breakout sessions', map:'Map', industry:'Industry', contact:'Contact', facultyInfo:'Faculty' }[tab] || 'Information');
   const top = `<h2 style="color:var(--pf-theme)">${escHtml(heading)}</h2>${c.intro ? `<p class="content-intro">${escHtml(c.intro)}</p>` : ''}${c.image ? `<img class="content-image" src="${c.image}" alt="${escHtml(heading)}">` : ''}`;
   if (tab === 'map') return `${top}${c.address ? `<div class="info-card"><h3>Venue</h3><p>${escHtml(c.address)}</p></div>` : emptyModule()}`;
   if (tab === 'handsOn') {
@@ -881,6 +902,12 @@ function renderParticipantModule(tab) {
     const coordinator = contactCard('Course Coordinator', c.coordinatorName, c.coordinatorPhone, c.coordinatorEmail || confData.meta.contactEmail);
     const support = contactCard('Technical Support', c.supportName, c.supportPhone, c.supportEmail);
     return top + (coordinator + support || emptyModule());
+  }
+  if (tab === 'facultyInfo') {
+    const members = Array.isArray(c.members) ? c.members.filter(m => m && (m.name || m.role || m.workplace)) : [];
+    if (!members.length) return top + emptyModule();
+    const cards = members.map(m => `<div class="faculty-card"><h4>${escHtml(m.name || 'Faculty member')}</h4>${m.role ? `<div class="faculty-role">${escHtml(m.role)}</div>` : ''}${m.workplace ? `<div class="faculty-workplace">${escHtml(m.workplace)}</div>` : ''}</div>`).join('');
+    return top + `<div class="faculty-grid">${cards}</div>`;
   }
   return top + emptyModule();
 }
@@ -945,7 +972,7 @@ function normalizeDisplayHandsOn(c){const sessions=Array.isArray(c.sessions)?c.s
 function sessionDates(hs){const base=hs.date?new Date(`${hs.date}T00:00:00`):null;if(!base||isNaN(base))return null;const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),from=new Date(base),to=new Date(base);from.setHours(Math.floor(start/60),start%60,0,0);to.setHours(Math.floor(end/60),end%60,0,0);return {base,from,to,start,end};}
 
 
-function renderFacultyHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const facultyPosition=Number(loginNr)-999,total=Number(confData.meta.facultyCount)||0,baseBucket=balancedBucket(facultyPosition,total,n),stationIndex=(baseBucket+sessionIndex)%n,s=stations[stationIndex]||{};const originalBucket=(stationIndex-sessionIndex+n)%n,colleagues=bucketMembers(originalBucket,total,n,999);return `<div class="day-label" style="margin-top:16px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div><div class="info-card"><h3>Your station: ${escHtml(s.name||`Station ${stationIndex+1}`)}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(s.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(s.stand||'TBA')}</strong></div></div><p style="margin-top:14px"><strong>Faculty at this station:</strong> ${colleagues.map(x=>'#'+x).join(', ')}</p></div>`;}
+function renderFacultyHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const facultyPosition=Number(loginNr)-999,total=Number(confData.meta.facultyCount)||0,baseBucket=balancedBucket(facultyPosition,total,n),stationIndex=(baseBucket+sessionIndex)%n,s=stations[stationIndex]||{};const originalBucket=(stationIndex-sessionIndex+n)%n,colleagues=bucketMembers(originalBucket,total,n,999);return `<div class="day-label" style="margin-top:16px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your station: ${escHtml(s.name||`Station ${stationIndex+1}`)}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(s.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(s.stand||'TBA')}</strong></div></div><p style="margin-top:14px"><strong>Faculty at this station:</strong> ${colleagues.map(x=>'#'+x).join(', ')}</p></div>`;}
 
 // Breakout groups: everyone gets ONE group for the whole session (no
 // rotation), so this is much simpler than the station renderer above —
@@ -955,7 +982,7 @@ function renderParticipantBreakoutSession(hs,sessionIndex){
   const total=Number(confData.meta.participantCount)||0;
   const groupIdx=breakoutGroupIndex(Number(loginNr),total,n,hs.groupSeed);
   const members=breakoutGroupMembers(groupIdx,total,n,hs.groupSeed).filter(x=>x!==Number(loginNr));
-  return `<div class="day-label" style="margin-top:18px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div><div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${members.length?`<p style="margin-top:14px"><strong>With you:</strong> ${members.map(x=>'#'+x).join(', ')}</p>`:''}</div>`;
+  return `<div class="day-label" style="margin-top:18px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${members.length?`<p style="margin-top:14px"><strong>With you:</strong> ${members.map(x=>'#'+x).join(', ')}</p>`:''}</div>`;
 }
 function renderFacultyBreakoutSession(hs,sessionIndex){
   const n=Number(hs.groupCount)||0; if(!n||!hs.groupSeed) return '';
@@ -965,9 +992,9 @@ function renderFacultyBreakoutSession(hs,sessionIndex){
   const colleagues=breakoutGroupMembers(groupIdx,total,n,hs.groupSeed,999).filter(x=>x!==facultyPosition);
   const pTotal=Number(confData.meta.participantCount)||0;
   const participants=breakoutGroupMembers(groupIdx,pTotal,n,hs.groupSeed);
-  return `<div class="day-label" style="margin-top:16px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div><div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${colleagues.length?`<p style="margin-top:14px"><strong>Faculty with you:</strong> ${colleagues.map(x=>'#'+x).join(', ')}</p>`:''}${participants.length?`<p style="margin-top:8px"><strong>Participants in this group:</strong> ${participants.map(x=>'#'+x).join(', ')}</p>`:''}</div>`;
+  return `<div class="day-label" style="margin-top:16px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${colleagues.length?`<p style="margin-top:14px"><strong>Faculty with you:</strong> ${colleagues.map(x=>'#'+x).join(', ')}</p>`:''}${participants.length?`<p style="margin-top:8px"><strong>Participants in this group:</strong> ${participants.map(x=>'#'+x).join(', ')}</p>`:''}</div>`;
 }
-function renderParticipantHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=balancedBucket(Number(loginNr),total,n);let cards='';for(let r=0;r<n;r++){const from=start+r*step,to=Math.min(from+step,end),station=stations[(group+sessionIndex+r)%n]||{};if(from>=end)break;cards+=`<div class="info-card"><h3>${escHtml(station.name||'Station')}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${timeOf(from)}–${timeOf(to)}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(station.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(station.stand||'TBA')}</strong></div></div></div>`;}return `<div class="day-label" style="margin-top:18px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${cards}`;}
+function renderParticipantHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=balancedBucket(Number(loginNr),total,n);let cards='';for(let r=0;r<n;r++){const from=start+r*step,to=Math.min(from+step,end),station=stations[(group+sessionIndex+r)%n]||{};if(from>=end)break;cards+=`<div class="info-card"><h3>${escHtml(station.name||'Station')}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${timeOf(from)}–${timeOf(to)}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(station.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(station.stand||'TBA')}</strong></div></div></div>`;}return `<div class="day-label" style="margin-top:18px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px">${escHtml(hs.topic)}</p>`:''}${cards}`;}
 function renderNextUpAcrossSessions(sessions){const now=new Date();let chosen=null;for(let si=0;si<sessions.length;si++){const d=sessionDates(sessions[si]);if(!d)continue;if(now<d.to){chosen={hs:sessions[si],si,d};break;}}if(!chosen)return `<div class="next-up-card" style="background:#41708f"><div class="next-label">BREAKOUT SESSIONS</div><h2>All rotations completed</h2></div>`;const hs=chosen.hs,stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length,step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=balancedBucket(Number(loginNr),total,n);return renderNextUpCard(hs,stations,group,n,chosen.d.start,chosen.d.end,step,chosen.si);}
 function renderNextUpCard(c,stations,group,n,start,end,step,sessionIndex=0){
   const now=new Date(), base=c.date?new Date(`${c.date}T00:00:00`):null;
@@ -1453,13 +1480,21 @@ function renderOrganizerEditor() {
         <div class="mini-label" style="margin:0 0 12px;font-size:12px;">Schedule</div>
         <div class="field-hint" style="margin:0 0 14px;">Add a day, then add the activities that happen on it. Schedule can be changed at any time after the conference has been created.</div>
         ${editScheduleDays.map((day, di) => `
-          <div class="session-edit-row">
+          <div class="session-edit-row has-move-btns">
+            <div class="move-btns">
+              <button class="move-btn" title="Move day up" ${di===0?'disabled':''} onclick="moveEditScheduleDay(${di},-1)">▲</button>
+              <button class="move-btn" title="Move day down" ${di===editScheduleDays.length-1?'disabled':''} onclick="moveEditScheduleDay(${di},1)">▼</button>
+            </div>
             ${editScheduleDays.length > 1 ? `<button class="remove-btn" onclick="removeEditScheduleDay(${di})">✕</button>` : ""}
             <span class="mini-label">Day ${di + 1}</span>
             <input type="date" value="${escHtml(day.date)}" oninput="onEditScheduleDayDate(${di},this.value)">
 
             ${day.items.map((item, ii) => `
-              <div class="quiz-edit-row" style="margin-top:10px;">
+              <div class="quiz-edit-row has-move-btns" style="margin-top:10px;">
+                <div class="move-btns">
+                  <button class="move-btn" title="Move activity up" ${ii===0?'disabled':''} onclick="moveEditScheduleItem(${di},${ii},-1)">▲</button>
+                  <button class="move-btn" title="Move activity down" ${ii===day.items.length-1?'disabled':''} onclick="moveEditScheduleItem(${di},${ii},1)">▼</button>
+                </div>
                 ${day.items.length > 1 ? `<button class="remove-btn" onclick="removeEditScheduleItem(${di},${ii})">✕</button>` : ""}
                 <div class="field-row" style="margin-bottom:8px;">
                   <div>
@@ -1495,7 +1530,7 @@ function renderOrganizerEditor() {
         <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Modules and add-ons</div>
         <div class="field-hint" style="margin:0 0 12px;">You can add or remove modules at any time, even after the conference has been created. Turn a module on, edit its content, then save changes.</div>
 
-        ${[['handsOn','Breakout sessions'],['map','Map'],['industry','Industry'],['quiz','Quiz'],['evaluations','Faculty evaluation'],['conferenceFeedback','Conference evaluation'],['contact','Contact']].map(([key,label]) => `
+        ${[['handsOn','Breakout sessions'],['map','Map'],['industry','Industry'],['quiz','Quiz'],['evaluations','Faculty evaluation'],['conferenceFeedback','Conference evaluation'],['contact','Contact'],['facultyInfo','Faculty']].map(([key,label]) => `
           <label class="module-toggle" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;display:flex;margin-bottom:8px;">
             <input type="checkbox" ${editMeta.modules && editMeta.modules[key] ? "checked" : ""} onchange="onToggleModule('${key}',this.checked)" style="width:18px;height:18px;margin-top:2px;accent-color:var(--pf-theme);flex-shrink:0;">
             <div><div style="font-size:13.5px;font-weight:bold;">${label}</div><div style="font-size:11.5px;color:var(--pf-muted);">${key==='evaluations'?'Enable faculty evaluation for this conference.':'Show this module to participants.'}</div></div>
@@ -1504,7 +1539,7 @@ function renderOrganizerEditor() {
         ${['handsOn','map','industry'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
         ${hasQuiz ? `<details class="organizer-module" ${editOpenModule==='quiz'?'open':''} ontoggle="if(this.open)editOpenModule='quiz';else if(editOpenModule==='quiz')editOpenModule='' "><summary>Edit quiz questions</summary><div class="organizer-module-body">${renderQuizEditor()}</div></details>` : ''}
         ${hasEvaluations ? `<details class="organizer-module" ${editOpenModule==='evaluations'?'open':''} ontoggle="if(this.open)editOpenModule='evaluations';else if(editOpenModule==='evaluations')editOpenModule='' "><summary>Edit ${escHtml((editModuleContent.evaluations&&editModuleContent.evaluations.title)||'Faculty evaluation')}</summary><div class="organizer-module-body">${renderEvaluationEditor()}</div></details>` : ''}
-        ${['conferenceFeedback','contact'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
+        ${['conferenceFeedback','contact','facultyInfo'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
       </div>
       ${saveButton}`;
   }
@@ -1669,7 +1704,7 @@ function onToggleModule(key, checked) {
 function ensureModuleContentDefaults() {
   const defaults = {
     handsOn:{title:'Breakout sessions',intro:'',mode:'rotation',sessions:[newEditHandsOnSession()]}, map:{title:'Venue map',intro:'',address:'',image:''},
-    industry:{title:'Industry',intro:'',booths:[newEditIndustryBooth()]}, quiz:{title:'Final test',intro:'Answer all questions. The test can only be taken once.'}, evaluations:{title:'Faculty evaluation',intro:'Evaluate each participant at your assigned post.',posts:[],items:[]}, conferenceFeedback:{title:'Conference evaluation',intro:'We would value your feedback.',items:[{id:'fb1',type:'comment',question:'How would you evaluate the conference?'}]}, contact:{title:'Contact',intro:'',coordinatorName:'',coordinatorPhone:'',coordinatorEmail:'',supportName:'',supportPhone:'',supportEmail:'',image:''}
+    industry:{title:'Industry',intro:'',booths:[newEditIndustryBooth()]}, quiz:{title:'Final test',intro:'Answer all questions. The test can only be taken once.'}, evaluations:{title:'Faculty evaluation',intro:'Evaluate each participant at your assigned post.',posts:[],items:[]}, conferenceFeedback:{title:'Conference evaluation',intro:'We would value your feedback.',items:[{id:'fb1',type:'comment',question:'How would you evaluate the conference?'}]}, contact:{title:'Contact',intro:'',coordinatorName:'',coordinatorPhone:'',coordinatorEmail:'',supportName:'',supportPhone:'',supportEmail:'',image:''}, facultyInfo:{title:'Faculty',intro:'',members:[newEditFacultyMember()]}
   };
   for (const key of Object.keys(defaults)) {
     const existing=editModuleContent[key]||{};
@@ -1734,15 +1769,16 @@ function renderFeedbackItemsEditor(module){
       <button class="add-btn" onclick="addEditFeedbackItem('${module}','mc')">+ Add multiple choice</button>
     </div>`;
 }
-function newEditHandsOnSession(){return {date:'',startTime:'09:00',endTime:'11:30',rotationMinutes:30,stationCount:5,stations:Array.from({length:5},(_,i)=>({name:`Station ${i+1}`,room:'',stand:`Stand ${i+1}`}))};}
-function newEditBreakoutSession(){return {date:'',startTime:'09:00',endTime:'11:30',groupCount:5,groupAssignment:'randomize',groupSeed:newBreakoutSeed()};}
+function newEditHandsOnSession(){return {date:'',startTime:'09:00',endTime:'11:30',rotationMinutes:30,stationCount:5,topic:'',stations:Array.from({length:5},(_,i)=>({name:`Station ${i+1}`,room:'',stand:`Stand ${i+1}`}))};}
+function newEditBreakoutSession(){return {date:'',startTime:'09:00',endTime:'11:30',groupCount:5,groupAssignment:'randomize',groupSeed:newBreakoutSeed(),topic:''};}
 function normalizeEditHandsOn(c){
   if(!c.mode) c.mode = 'rotation';
   if(!Array.isArray(c.sessions)||c.sessions.length===0){
     c.sessions = c.mode==='breakout'
-      ? [{date:c.date||'',startTime:c.startTime||'09:00',endTime:c.endTime||'11:30',groupCount:c.groupCount||5,groupAssignment:'randomize',groupSeed:newBreakoutSeed()}]
-      : [{date:c.date||'',startTime:c.startTime||'09:00',endTime:c.endTime||'11:30',rotationMinutes:c.rotationMinutes||30,stationCount:c.stationCount||5,stations:c.stations||newEditHandsOnSession().stations}];
+      ? [{date:c.date||'',startTime:c.startTime||'09:00',endTime:c.endTime||'11:30',groupCount:c.groupCount||5,groupAssignment:'randomize',groupSeed:newBreakoutSeed(),topic:c.topic||''}]
+      : [{date:c.date||'',startTime:c.startTime||'09:00',endTime:c.endTime||'11:30',rotationMinutes:c.rotationMinutes||30,stationCount:c.stationCount||5,topic:c.topic||'',stations:c.stations||newEditHandsOnSession().stations}];
   }
+  c.sessions.forEach(s=>{if(s.topic===undefined)s.topic='';});
   return c;
 }
 // Switching mode replaces the sessions with a single, blank session in
@@ -1781,6 +1817,11 @@ function normalizeEditIndustry(c){if(!Array.isArray(c.booths)){c.booths=String(c
 function addEditIndustryBooth(){if(editModuleContent.industry.booths.length>=12){alert('A maximum of 12 industry booths is supported.');return;}editModuleContent.industry.booths.push(newEditIndustryBooth());rerenderOrganizerScroll();}
 function removeEditIndustryBooth(i){if(editModuleContent.industry.booths.length>1)editModuleContent.industry.booths.splice(i,1);rerenderOrganizerScroll();}
 function onEditIndustryBooth(i,key,value){editModuleContent.industry.booths[i][key]=value;}
+function newEditFacultyMember(){return {name:'',role:'',workplace:''};}
+function normalizeEditFacultyInfo(c){if(!Array.isArray(c.members)||!c.members.length)c.members=[newEditFacultyMember()];return c;}
+function addEditFacultyMember(){if(editModuleContent.facultyInfo.members.length>=200){alert('A maximum of 200 faculty members is supported.');return;}editModuleContent.facultyInfo.members.push(newEditFacultyMember());rerenderOrganizerScroll();}
+function removeEditFacultyMember(i){if(editModuleContent.facultyInfo.members.length>1)editModuleContent.facultyInfo.members.splice(i,1);rerenderOrganizerScroll();}
+function onEditFacultyMember(i,key,value){editModuleContent.facultyInfo.members[i][key]=value;}
 function onEditIndustryImage(i,file){if(!file)return;if(file.size>1024*1024){alert('The image must be smaller than 1 MB.');return;}const reader=new FileReader();reader.onload=()=>{editModuleContent.industry.booths[i].image=reader.result;rerenderOrganizerScroll();};reader.readAsDataURL(file);}
 // Shows the organizer exactly which participant (and faculty, if any are
 // open) numbers land in each station group for a given hands-on session,
@@ -1845,9 +1886,9 @@ function renderOrganizerModuleContent(module) {
     normalizeEditHandsOn(c);
     const modeToggle = `<div class="field-group"><label>Mode</label><div class="segmented"><div class="segmented-btn ${c.mode==='rotation'?'selected':''}" onclick="onEditHandsOnMode('rotation')">Station rotation</div><div class="segmented-btn ${c.mode==='breakout'?'selected':''}" onclick="onEditHandsOnMode('breakout')">Breakout groups</div></div><div class="field-hint">Station rotation moves participants between physical stations over time. Breakout groups just splits everyone into discussion groups.</div></div>`;
     if(c.mode==='breakout'){
-      specific = modeToggle + `${c.sessions.map((hs,si)=>`<div class="session-edit-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeEditBreakoutSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-theme);margin-bottom:10px">Session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditBreakoutSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of groups</label><input type="number" min="1" max="50" value="${hs.groupCount}" onchange="onEditBreakoutGroupCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditBreakoutSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditBreakoutSession(${si},'endTime',this.value)"></div></div>${si>0?`<div class="field-group"><label>Group assignment</label><div class="segmented"><div class="segmented-btn ${hs.groupAssignment==='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'keep')">Keep same groups</div><div class="segmented-btn ${hs.groupAssignment!=='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'randomize')">New random groups</div></div><div class="field-hint">"Keep same groups" reuses the grouping from Session ${si}.</div></div>`:''}${renderBreakoutGroupOverview(hs.groupCount,hs.groupSeed)}</div>`).join('')}<button class="add-btn" onclick="addEditBreakoutSession()">+ Add another session</button>`;
+      specific = modeToggle + `${c.sessions.map((hs,si)=>`<div class="session-edit-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeEditBreakoutSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-theme);margin-bottom:10px">Session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditBreakoutSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of groups</label><input type="number" min="1" max="50" value="${hs.groupCount}" onchange="onEditBreakoutGroupCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditBreakoutSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditBreakoutSession(${si},'endTime',this.value)"></div></div>${si>0?`<div class="field-group"><label>Group assignment</label><div class="segmented"><div class="segmented-btn ${hs.groupAssignment==='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'keep')">Keep same groups</div><div class="segmented-btn ${hs.groupAssignment!=='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'randomize')">New random groups</div></div><div class="field-hint">"Keep same groups" reuses the grouping from Session ${si}.</div></div>`:''}${renderBreakoutGroupOverview(hs.groupCount,hs.groupSeed)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditBreakoutSession(${si},'topic',this.value)">${escHtml(hs.topic||'')}</textarea></div></details></div>`).join('')}<button class="add-btn" onclick="addEditBreakoutSession()">+ Add another session</button>`;
     } else {
-      specific = modeToggle + `${c.sessions.map((hs,si)=>`<div class="session-edit-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeEditHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-theme);margin-bottom:10px">Session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onEditHandsOnCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onEditHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-edit-row"><span class="mini-label">Station ${i+1}</span><input value="${escHtml(s.name)}" oninput="onEditHandsOnStation(${si},${i},'name',this.value)"><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onEditHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onEditHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}${renderHandsOnGroupOverview(hs.stationCount,hs.stations)}</div>`).join('')}<button class="add-btn" onclick="addEditHandsOnSession()">+ Add another session</button>`;
+      specific = modeToggle + `${c.sessions.map((hs,si)=>`<div class="session-edit-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeEditHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-theme);margin-bottom:10px">Session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onEditHandsOnCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onEditHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-edit-row"><span class="mini-label">Station ${i+1}</span><input value="${escHtml(s.name)}" oninput="onEditHandsOnStation(${si},${i},'name',this.value)"><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onEditHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onEditHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}${renderHandsOnGroupOverview(hs.stationCount,hs.stations)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditHandsOnSession(${si},'topic',this.value)">${escHtml(hs.topic||'')}</textarea></div></details></div>`).join('')}<button class="add-btn" onclick="addEditHandsOnSession()">+ Add another session</button>`;
     }
   }
   if(module==='map') specific=`<div class="field-group"><label>Address</label><input value="${escHtml(c.address)}" oninput="onEditModuleContent('map','address',this.value)"></div>${renderOrganizerImage('map')}`;
@@ -1856,6 +1897,7 @@ function renderOrganizerModuleContent(module) {
   }
     if(module==='industry'){normalizeEditIndustry(c);specific=`${c.booths.map((b,i)=>`<div class="session-edit-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeEditIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onEditIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onEditIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input value="${escHtml(b.website)}" placeholder="https://..." oninput="onEditIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditIndustryImage(${i},this.files[0])">${b.image?`<img class="content-image" src="${b.image}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent.industry.booths[${i}].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div></div>`).join('')}<button class="add-btn" onclick="addEditIndustryBooth()">+ Add industry booth</button>`;}
   if(module==='contact') specific=`<div class="field-group"><label>Coordinator name</label><input value="${escHtml(c.coordinatorName)}" oninput="onEditModuleContent('contact','coordinatorName',this.value)"></div><div class="field-row"><div class="field-group"><label>Phone</label><input value="${escHtml(c.coordinatorPhone)}" oninput="onEditModuleContent('contact','coordinatorPhone',this.value)"></div><div class="field-group"><label>Email</label><input value="${escHtml(c.coordinatorEmail)}" oninput="onEditModuleContent('contact','coordinatorEmail',this.value)"></div></div><div class="field-group"><label>Technical support name</label><input value="${escHtml(c.supportName)}" oninput="onEditModuleContent('contact','supportName',this.value)"></div><div class="field-row"><div class="field-group"><label>Support phone</label><input value="${escHtml(c.supportPhone)}" oninput="onEditModuleContent('contact','supportPhone',this.value)"></div><div class="field-group"><label>Support email</label><input value="${escHtml(c.supportEmail)}" oninput="onEditModuleContent('contact','supportEmail',this.value)"></div></div>${renderOrganizerImage('contact')}`;
+  if(module==='facultyInfo'){normalizeEditFacultyInfo(c);specific=`<div class="faculty-grid">${c.members.map((m,i)=>`<div class="faculty-card">${c.members.length>1?`<button type="button" class="remove-btn" onclick="removeEditFacultyMember(${i})">✕</button>`:''}<span class="mini-label">Faculty ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(m.name)}" placeholder="e.g. Dr. Jane Smith" oninput="onEditFacultyMember(${i},'name',this.value)"></div><div class="field-group"><label>Role / what they do</label><input value="${escHtml(m.role)}" placeholder="e.g. Consultant anaesthetist" oninput="onEditFacultyMember(${i},'role',this.value)"></div><div class="field-group"><label>Workplace</label><input value="${escHtml(m.workplace)}" placeholder="e.g. Rigshospitalet" oninput="onEditFacultyMember(${i},'workplace',this.value)"></div></div>`).join('')}</div><button type="button" class="add-btn" style="margin-top:10px" onclick="addEditFacultyMember()">+ Add faculty member</button>`;}
   return `<details class="organizer-module" ${editOpenModule===module?'open':''} ontoggle="if(this.open)editOpenModule='${module}';else if(editOpenModule==='${module}')editOpenModule='' "><summary>Edit ${escHtml(c.title||module)}</summary><div class="organizer-module-body"><div class="field-group"><label>Heading</label><input value="${escHtml(c.title)}" oninput="onEditModuleContent('${module}','title',this.value)"></div><div class="field-group"><label>Introduction</label><textarea oninput="onEditModuleContent('${module}','intro',this.value)">${escHtml(c.intro)}</textarea></div>${specific}</div></details>`;
 }
 function renderOrganizerImage(module){const img=editModuleContent[module].image;return `<div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditModuleImage('${module}',this.files[0])">${img?`<img class="content-image" src="${img}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent['${module}'].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div>`;}
@@ -2010,6 +2052,21 @@ function onEditScheduleTimeInput(input, di, ii, key) {
 }
 function addEditScheduleDay() {
   editScheduleDays.push({ date: "", items: [newEditScheduleItem()] });
+  rerenderOrganizerScroll();
+}
+function moveEditScheduleDay(di, dir) {
+  const target = di + dir;
+  if (target < 0 || target >= editScheduleDays.length) return;
+  const [day] = editScheduleDays.splice(di, 1);
+  editScheduleDays.splice(target, 0, day);
+  rerenderOrganizerScroll();
+}
+function moveEditScheduleItem(di, ii, dir) {
+  const items = editScheduleDays[di].items;
+  const target = ii + dir;
+  if (target < 0 || target >= items.length) return;
+  const [item] = items.splice(ii, 1);
+  items.splice(target, 0, item);
   rerenderOrganizerScroll();
 }
 function removeEditScheduleDay(di) {
