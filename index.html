@@ -215,12 +215,21 @@
   .topic-toggle .topic-body { padding:10px; }
   .topic-toggle textarea { width:100%; min-height:70px; }
 
-  .faculty-grid { display:flex; flex-wrap:wrap; gap:12px; }
-  .faculty-card { flex:1 1 220px; max-width:300px; border:2px solid #cfdae3; border-radius:14px; background:#f7f8f9; padding:16px; position:relative; }
+  .faculty-grid { display:flex; flex-direction:column; gap:12px; }
+  .faculty-card { width:100%; border:2px solid #cfdae3; border-radius:14px; background:#f7f8f9; padding:16px; position:relative; }
   .faculty-card .remove-btn { position:absolute; top:8px; right:8px; }
   .faculty-card h4 { color:var(--pf-theme); margin-bottom:2px; }
   .faculty-card .faculty-role { font-size:12.5px; font-weight:bold; color:var(--pf-ink); }
   .faculty-card .faculty-workplace { font-size:12px; color:var(--pf-muted); margin-top:2px; }
+  .faculty-card .faculty-photo { width:100%; max-width:220px; border-radius:10px; margin:10px 0; display:block; }
+  .faculty-card .faculty-bio { font-size:13px; color:var(--pf-ink); margin-top:8px; line-height:1.55; white-space:pre-wrap; }
+
+  .group-manager-block { border:1px solid var(--pf-border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
+  .group-manager-title { padding:8px 10px; font-size:11.5px; font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
+  .group-manager-members { padding:6px 10px; }
+  .group-member-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px solid var(--pf-border); font-size:12.5px; }
+  .group-member-row:last-child { border-bottom:none; }
+  .group-member-row select { font-size:12px; padding:4px 6px; border:2px solid var(--pf-border); border-radius:6px; }
 
   .save-btn {
     width:100%; padding:14px; border:none; border-radius:10px; font-size:14.5px; font-weight:bold;
@@ -933,7 +942,7 @@ function renderParticipantModule(tab) {
   if (tab === 'facultyInfo') {
     const members = Array.isArray(c.members) ? c.members.filter(m => m && (m.name || m.role || m.workplace)) : [];
     if (!members.length) return top + emptyModule();
-    const cards = members.map(m => `<div class="faculty-card"><h4>${escHtml(m.name || 'Faculty member')}</h4>${m.role ? `<div class="faculty-role">${escHtml(m.role)}</div>` : ''}${m.workplace ? `<div class="faculty-workplace">${escHtml(m.workplace)}</div>` : ''}</div>`).join('');
+    const cards = members.map(m => `<div class="faculty-card">${m.image?`<img class="faculty-photo" src="${m.image}" alt="${escHtml(m.name||'Faculty member')}">`:''}<h4>${escHtml(m.name || 'Faculty member')}</h4>${m.role ? `<div class="faculty-role">${escHtml(m.role)}</div>` : ''}${m.workplace ? `<div class="faculty-workplace">${escHtml(m.workplace)}</div>` : ''}${m.bio ? `<div class="faculty-bio">${escHtml(m.bio)}</div>` : ''}</div>`).join('');
     return top + `<div class="faculty-grid">${cards}</div>`;
   }
   return top + emptyModule();
@@ -984,6 +993,43 @@ function breakoutGroupMembers(groupIdx, total, groupCount, seed, offset=0) {
 }
 function newBreakoutSeed() { return Math.floor(Math.random() * 1e9); }
 
+// Manual group overrides let the organizer move a specific person into a
+// different group after the random split. An override always wins over
+// the seed-shuffled assignment; everyone else keeps their computed spot.
+function effectiveBreakoutGroupIndex(nr, total, groupCount, seed, offset, overrides) {
+  const ov = overrides && overrides[String(nr)];
+  if (ov !== undefined && ov !== null && ov !== "") {
+    const g = Number(ov);
+    if (Number.isInteger(g) && g >= 0 && g < groupCount) return g;
+  }
+  return breakoutGroupIndex(nr, total, groupCount, seed, offset);
+}
+function effectiveBreakoutGroupMembers(groupIdx, total, groupCount, seed, offset, overrides) {
+  const out = [];
+  for (let i = 1; i <= total; i++) {
+    const nr = offset + i;
+    if (effectiveBreakoutGroupIndex(nr, total, groupCount, seed, offset, overrides) === groupIdx) out.push(nr);
+  }
+  return out;
+}
+
+// Organizer-assigned names (handsOn.names = [{nr,name}]) let breakout
+// views show "Jane Doe (#42)" instead of just "#42". Optional — anyone
+// without an assigned name just shows their number as before.
+function namesLookup(handsOnContent) {
+  const map = {};
+  (Array.isArray(handsOnContent && handsOnContent.names) ? handsOnContent.names : []).forEach(entry => {
+    const nr = String(entry && entry.nr || "").trim();
+    const name = String(entry && entry.name || "").trim();
+    if (nr && name) map[nr] = name;
+  });
+  return map;
+}
+function personLabel(nr, namesMap) {
+  const name = namesMap && namesMap[String(nr)];
+  return name ? `${escHtml(name)} (#${nr})` : `#${nr}`;
+}
+
 function minutesOf(t){const m=String(t||'').match(/^(\d{1,2}):(\d{2})$/);return m?Number(m[1])*60+Number(m[2]):0;}
 function timeOf(m){return `${String(Math.floor(m/60)%24).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;}
 function renderHandsOnAssignment(c){
@@ -999,27 +1045,32 @@ function normalizeDisplayHandsOn(c){const sessions=Array.isArray(c.sessions)?c.s
 function sessionDates(hs){const base=hs.date?new Date(`${hs.date}T00:00:00`):null;if(!base||isNaN(base))return null;const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),from=new Date(base),to=new Date(base);from.setHours(Math.floor(start/60),start%60,0,0);to.setHours(Math.floor(end/60),end%60,0,0);return {base,from,to,start,end};}
 
 
-function renderFacultyHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const facultyPosition=Number(loginNr)-999,total=Number(confData.meta.facultyCount)||0,baseBucket=balancedBucket(facultyPosition,total,n),stationIndex=(baseBucket+sessionIndex)%n,s=stations[stationIndex]||{};const originalBucket=(stationIndex-sessionIndex+n)%n,colleagues=bucketMembers(originalBucket,total,n,999);return `<div class="day-label" style="margin-top:16px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your station: ${escHtml(s.name||`Station ${stationIndex+1}`)}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(s.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(s.stand||'TBA')}</strong></div></div><p style="margin-top:14px"><strong>Faculty at this station:</strong> ${colleagues.map(x=>'#'+x).join(', ')}</p></div>`;}
+function renderFacultyHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const facultyPosition=Number(loginNr)-999,total=Number(confData.meta.facultyCount)||0,baseBucket=balancedBucket(facultyPosition,total,n),stationIndex=(baseBucket+sessionIndex)%n,s=stations[stationIndex]||{};const originalBucket=(stationIndex-sessionIndex+n)%n,colleagues=bucketMembers(originalBucket,total,n,999);const names=namesLookup(confData.moduleContent&&confData.moduleContent.handsOn);return `<div class="day-label" style="margin-top:16px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your station: ${escHtml(s.name||`Station ${stationIndex+1}`)}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(s.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(s.stand||'TBA')}</strong></div></div><p style="margin-top:14px"><strong>Faculty at this station:</strong> ${colleagues.map(x=>personLabel(x,names)).join(', ')}</p></div>`;}
 
 // Breakout groups: everyone gets ONE group for the whole session (no
 // rotation), so this is much simpler than the station renderer above —
-// just look up which seed-shuffled group this person landed in.
+// just look up which seed-shuffled group this person landed in (an
+// organizer override always wins over the computed seed position).
 function renderParticipantBreakoutSession(hs,sessionIndex){
   const n=Number(hs.groupCount)||0; if(!n||!hs.groupSeed) return '';
   const total=Number(confData.meta.participantCount)||0;
-  const groupIdx=breakoutGroupIndex(Number(loginNr),total,n,hs.groupSeed);
-  const members=breakoutGroupMembers(groupIdx,total,n,hs.groupSeed).filter(x=>x!==Number(loginNr));
-  return `<div class="day-label" style="margin-top:18px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${members.length?`<p style="margin-top:14px"><strong>With you:</strong> ${members.map(x=>'#'+x).join(', ')}</p>`:''}</div>`;
+  const overrides=hs.overrides||{};
+  const names=namesLookup(confData.moduleContent&&confData.moduleContent.handsOn);
+  const groupIdx=effectiveBreakoutGroupIndex(Number(loginNr),total,n,hs.groupSeed,0,overrides);
+  const members=effectiveBreakoutGroupMembers(groupIdx,total,n,hs.groupSeed,0,overrides).filter(x=>x!==Number(loginNr));
+  return `<div class="day-label" style="margin-top:18px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${members.length?`<p style="margin-top:14px"><strong>With you:</strong> ${members.map(x=>personLabel(x,names)).join(', ')}</p>`:''}</div>`;
 }
 function renderFacultyBreakoutSession(hs,sessionIndex){
   const n=Number(hs.groupCount)||0; if(!n||!hs.groupSeed) return '';
   const total=Number(confData.meta.facultyCount)||0;
   const facultyPosition=Number(loginNr);
-  const groupIdx=breakoutGroupIndex(facultyPosition,total,n,hs.groupSeed,999);
-  const colleagues=breakoutGroupMembers(groupIdx,total,n,hs.groupSeed,999).filter(x=>x!==facultyPosition);
+  const overrides=hs.overrides||{};
+  const names=namesLookup(confData.moduleContent&&confData.moduleContent.handsOn);
+  const groupIdx=effectiveBreakoutGroupIndex(facultyPosition,total,n,hs.groupSeed,999,overrides);
+  const colleagues=effectiveBreakoutGroupMembers(groupIdx,total,n,hs.groupSeed,999,overrides).filter(x=>x!==facultyPosition);
   const pTotal=Number(confData.meta.participantCount)||0;
-  const participants=breakoutGroupMembers(groupIdx,pTotal,n,hs.groupSeed);
-  return `<div class="day-label" style="margin-top:16px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${colleagues.length?`<p style="margin-top:14px"><strong>Faculty with you:</strong> ${colleagues.map(x=>'#'+x).join(', ')}</p>`:''}${participants.length?`<p style="margin-top:8px"><strong>Participants in this group:</strong> ${participants.map(x=>'#'+x).join(', ')}</p>`:''}</div>`;
+  const participants=effectiveBreakoutGroupMembers(groupIdx,pTotal,n,hs.groupSeed,0,overrides);
+  return `<div class="day-label" style="margin-top:16px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${colleagues.length?`<p style="margin-top:14px"><strong>Faculty with you:</strong> ${colleagues.map(x=>personLabel(x,names)).join(', ')}</p>`:''}${participants.length?`<p style="margin-top:8px"><strong>Participants in this group:</strong> ${participants.map(x=>personLabel(x,names)).join(', ')}</p>`:''}</div>`;
 }
 function renderParticipantHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=balancedBucket(Number(loginNr),total,n);let cards='';for(let r=0;r<n;r++){const from=start+r*step,to=Math.min(from+step,end),station=stations[(group+sessionIndex+r)%n]||{};if(from>=end)break;cards+=`<div class="info-card"><h3>${escHtml(station.name||'Station')}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${timeOf(from)}–${timeOf(to)}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(station.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(station.stand||'TBA')}</strong></div></div></div>`;}return `<div class="day-label" style="margin-top:18px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px">${escHtml(hs.topic)}</p>`:''}${cards}`;}
 function renderNextUpAcrossSessions(sessions){const now=new Date();let chosen=null;for(let si=0;si<sessions.length;si++){const d=sessionDates(sessions[si]);if(!d)continue;if(now<d.to){chosen={hs:sessions[si],si,d};break;}}if(!chosen)return `<div class="next-up-card" style="background:#41708f"><div class="next-label">BREAKOUT SESSIONS</div><h2>All rotations completed</h2></div>`;const hs=chosen.hs,stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length,step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=balancedBucket(Number(loginNr),total,n);return renderNextUpCard(hs,stations,group,n,chosen.d.start,chosen.d.end,step,chosen.si);}
@@ -1804,15 +1855,28 @@ function renderFeedbackItemsEditor(module){
     </div>`;
 }
 function newEditHandsOnSession(){return {date:'',startTime:'09:00',endTime:'11:30',rotationMinutes:30,stationCount:5,topic:'',stations:Array.from({length:5},(_,i)=>({name:`Station ${i+1}`,room:'',stand:`Stand ${i+1}`}))};}
-function newEditBreakoutSession(){return {date:'',startTime:'09:00',endTime:'11:30',groupCount:5,groupAssignment:'randomize',groupSeed:newBreakoutSeed(),topic:''};}
+function newEditBreakoutSession(){return {date:'',startTime:'09:00',endTime:'11:30',groupCount:5,groupAssignment:'randomize',groupSeed:newBreakoutSeed(),topic:'',overrides:{}};}
+function normalizeEditNames(){if(!Array.isArray(editModuleContent.handsOn.names))editModuleContent.handsOn.names=[];}
+function addEditName(){normalizeEditNames();editModuleContent.handsOn.names.push({nr:'',name:''});rerenderOrganizerScroll();}
+function removeEditName(i){editModuleContent.handsOn.names.splice(i,1);rerenderOrganizerScroll();}
+function onEditName(i,key,value){editModuleContent.handsOn.names[i][key]=value;}
+// Optional: give specific participant/faculty numbers a name, so breakout
+// sessions show "Jane Doe (#42)" instead of just "#42". Applies to both
+// station rotation and breakout groups.
+function renderEditNamesEditor(){
+  normalizeEditNames();
+  const entries = editModuleContent.handsOn.names;
+  const rows = entries.map((n,i)=>`<div class="session-edit-row"><button class="remove-btn" onclick="removeEditName(${i})">✕</button><div class="field-row"><div class="field-group"><label>Number</label><input type="text" inputmode="numeric" placeholder="e.g. 42 or 1005" value="${escHtml(n.nr)}" oninput="onEditName(${i},'nr',this.value.replace(/\\D/g,''))"></div><div class="field-group"><label>Name</label><input value="${escHtml(n.name)}" placeholder="e.g. Jane Doe" oninput="onEditName(${i},'name',this.value)"></div></div></div>`).join('');
+  return `<details class="topic-toggle" style="margin-top:16px"><summary>Participant &amp; faculty names (optional)</summary><div class="topic-body"><div class="field-hint" style="margin-bottom:10px">Give specific numbers a name so it shows next to "#42" in breakout sessions. Anyone without a name here just shows their number, as before.</div>${rows}<button type="button" class="add-btn" onclick="addEditName()">+ Add a name</button></div></details>`;
+}
 function normalizeEditHandsOn(c){
   if(!c.mode) c.mode = 'rotation';
   if(!Array.isArray(c.sessions)||c.sessions.length===0){
     c.sessions = c.mode==='breakout'
-      ? [{date:c.date||'',startTime:c.startTime||'09:00',endTime:c.endTime||'11:30',groupCount:c.groupCount||5,groupAssignment:'randomize',groupSeed:newBreakoutSeed(),topic:c.topic||''}]
+      ? [{date:c.date||'',startTime:c.startTime||'09:00',endTime:c.endTime||'11:30',groupCount:c.groupCount||5,groupAssignment:'randomize',groupSeed:newBreakoutSeed(),topic:c.topic||'',overrides:{}}]
       : [{date:c.date||'',startTime:c.startTime||'09:00',endTime:c.endTime||'11:30',rotationMinutes:c.rotationMinutes||30,stationCount:c.stationCount||5,topic:c.topic||'',stations:c.stations||newEditHandsOnSession().stations}];
   }
-  c.sessions.forEach(s=>{if(s.topic===undefined)s.topic='';});
+  c.sessions.forEach(s=>{if(s.topic===undefined)s.topic='';if(c.mode==='breakout'&&!s.overrides)s.overrides={};});
   return c;
 }
 // Switching mode replaces the sessions with a single, blank session in
@@ -1833,6 +1897,21 @@ function onEditBreakoutAssignment(si,value){
   const s = sessions[si];
   s.groupAssignment = value;
   s.groupSeed = value === 'keep' && si > 0 ? sessions[si-1].groupSeed : newBreakoutSeed();
+  s.overrides = value === 'keep' && si > 0 ? Object.assign({}, sessions[si-1].overrides || {}) : {};
+  rerenderOrganizerScroll();
+}
+// Manually move one participant/faculty number into a different group for
+// this session. This is stored as an override that always wins over the
+// seed-shuffled assignment, so it naturally unbalances that one session —
+// which is expected, since it's a deliberate manual choice.
+function onMoveBreakoutMember(si, nr, groupIdxRaw){
+  const s = editModuleContent.handsOn.sessions[si];
+  if (!s.overrides) s.overrides = {};
+  const groupIdx = parseInt(groupIdxRaw, 10);
+  const n = Number(s.groupCount) || 0;
+  const baseIdx = breakoutGroupIndex(nr, nr > 999 ? (Number(editMeta.facultyCount)||0) : (Number(editMeta.participantCount)||0), n, s.groupSeed, nr > 999 ? 999 : 0);
+  if (groupIdx === baseIdx) delete s.overrides[String(nr)];
+  else s.overrides[String(nr)] = groupIdx;
   rerenderOrganizerScroll();
 }
 function addEditBreakoutSession(){
@@ -1851,11 +1930,12 @@ function normalizeEditIndustry(c){if(!Array.isArray(c.booths)){c.booths=String(c
 function addEditIndustryBooth(){if(editModuleContent.industry.booths.length>=12){alert('A maximum of 12 industry booths is supported.');return;}editModuleContent.industry.booths.push(newEditIndustryBooth());rerenderOrganizerScroll();}
 function removeEditIndustryBooth(i){if(editModuleContent.industry.booths.length>1)editModuleContent.industry.booths.splice(i,1);rerenderOrganizerScroll();}
 function onEditIndustryBooth(i,key,value){editModuleContent.industry.booths[i][key]=value;}
-function newEditFacultyMember(){return {name:'',role:'',workplace:''};}
+function newEditFacultyMember(){return {name:'',role:'',workplace:'',bio:'',image:''};}
 function normalizeEditFacultyInfo(c){if(!Array.isArray(c.members)||!c.members.length)c.members=[newEditFacultyMember()];return c;}
 function addEditFacultyMember(){if(editModuleContent.facultyInfo.members.length>=200){alert('A maximum of 200 faculty members is supported.');return;}editModuleContent.facultyInfo.members.push(newEditFacultyMember());rerenderOrganizerScroll();}
 function removeEditFacultyMember(i){if(editModuleContent.facultyInfo.members.length>1)editModuleContent.facultyInfo.members.splice(i,1);rerenderOrganizerScroll();}
 function onEditFacultyMember(i,key,value){editModuleContent.facultyInfo.members[i][key]=value;}
+function onEditFacultyImage(i,file){if(!file)return;if(file.size>1024*1024){alert('The image must be smaller than 1 MB.');return;}const reader=new FileReader();reader.onload=()=>{editModuleContent.facultyInfo.members[i].image=reader.result;rerenderOrganizerScroll();};reader.readAsDataURL(file);}
 function onEditIndustryImage(i,file){if(!file)return;if(file.size>1024*1024){alert('The image must be smaller than 1 MB.');return;}const reader=new FileReader();reader.onload=()=>{editModuleContent.industry.booths[i].image=reader.result;rerenderOrganizerScroll();};reader.readAsDataURL(file);}
 // Shows the organizer exactly which participant (and faculty, if any are
 // open) numbers land in each station group for a given hands-on session,
@@ -1889,28 +1969,37 @@ function renderHandsOnGroupOverview(stationCount, stations) {
 }
 
 // Breakout groups are seed-shuffled (not a simple contiguous range like
-// station rotation), so members are listed out individually rather than
-// shown as a "#1–#4" range.
-function renderBreakoutGroupOverview(groupCount, seed) {
-  const n = Number(groupCount) || 0;
-  if (n < 1 || !seed) return '';
+// station rotation), so members are listed individually. Each member has
+// a "move to group" select so the organizer can manually rebalance after
+// the random split — an explicit override always wins over the seed.
+function renderBreakoutGroupManager(si) {
+  const hs = editModuleContent.handsOn.sessions[si];
+  const n = Number(hs.groupCount) || 0;
+  if (n < 1 || !hs.groupSeed) return '';
   const pTotal = Number(editMeta.participantCount) || 0;
   const fTotal = Number(editMeta.facultyCount) || 0;
-  const rows = [];
+  const overrides = hs.overrides || {};
+  const names = namesLookup(editModuleContent.handsOn);
+  const groupOptions = (current) => Array.from({length:n},(_,gi)=>`<option value="${gi}" ${gi===current?'selected':''}>Group ${gi+1}</option>`).join('');
+  const blocks = [];
   for (let g = 0; g < n; g++) {
-    const pMembers = breakoutGroupMembers(g, pTotal, n, seed);
-    const fMembers = fTotal > 0 ? breakoutGroupMembers(g, fTotal, n, seed, 999) : [];
-    const label = pMembers.map(x => '#' + x).concat(fMembers.map(x => '#' + x)).join(', ') || '—';
-    rows.push(`
-      <div class="group-overview-row">
-        <span class="group-overview-station">Group ${g + 1}</span>
-        <span class="group-overview-range">${escHtml(label)}</span>
+    const pMembers = effectiveBreakoutGroupMembers(g, pTotal, n, hs.groupSeed, 0, overrides);
+    const fMembers = fTotal > 0 ? effectiveBreakoutGroupMembers(g, fTotal, n, hs.groupSeed, 999, overrides) : [];
+    const rows = pMembers.concat(fMembers).map(nr => `
+      <div class="group-member-row">
+        <span>${personLabel(nr, names)}</span>
+        <select onchange="onMoveBreakoutMember(${si},${nr},this.value)">${groupOptions(g)}</select>
+      </div>`).join('');
+    blocks.push(`
+      <div class="group-manager-block">
+        <div class="group-manager-title">Group ${g + 1} (${pMembers.length + fMembers.length})</div>
+        <div class="group-manager-members">${rows || '<div class="group-member-row"><span>—</span></div>'}</div>
       </div>`);
   }
   return `
     <div class="mini-label" style="margin:14px 0 6px;font-size:11px;">Who's in which group</div>
-    <div class="field-hint" style="margin:0 0 8px;">Based on the current participant/faculty counts and number of groups. Updates automatically as you change them above.</div>
-    <div class="group-overview">${rows.join('')}</div>`;
+    <div class="field-hint" style="margin:0 0 8px;">Groups are randomly balanced by default. Use the dropdown next to a name to move that person into a different group — this only affects this one session.</div>
+    ${blocks.join('')}`;
 }
 
 function renderOrganizerModuleContent(module) {
@@ -1920,10 +2009,11 @@ function renderOrganizerModuleContent(module) {
     normalizeEditHandsOn(c);
     const modeToggle = `<div class="field-group"><label>Mode</label><div class="segmented"><div class="segmented-btn ${c.mode==='rotation'?'selected':''}" onclick="onEditHandsOnMode('rotation')">Station rotation</div><div class="segmented-btn ${c.mode==='breakout'?'selected':''}" onclick="onEditHandsOnMode('breakout')">Breakout groups</div></div><div class="field-hint">Station rotation moves participants between physical stations over time. Breakout groups just splits everyone into discussion groups.</div></div>`;
     if(c.mode==='breakout'){
-      specific = modeToggle + `${c.sessions.map((hs,si)=>`<div class="session-edit-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeEditBreakoutSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-theme);margin-bottom:10px">Session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditBreakoutSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of groups</label><input type="number" min="1" max="50" value="${hs.groupCount}" onchange="onEditBreakoutGroupCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditBreakoutSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditBreakoutSession(${si},'endTime',this.value)"></div></div>${si>0?`<div class="field-group"><label>Group assignment</label><div class="segmented"><div class="segmented-btn ${hs.groupAssignment==='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'keep')">Keep same groups</div><div class="segmented-btn ${hs.groupAssignment!=='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'randomize')">New random groups</div></div><div class="field-hint">"Keep same groups" reuses the grouping from Session ${si}.</div></div>`:''}${renderBreakoutGroupOverview(hs.groupCount,hs.groupSeed)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditBreakoutSession(${si},'topic',this.value)">${escHtml(hs.topic||'')}</textarea></div></details></div>`).join('')}<button class="add-btn" onclick="addEditBreakoutSession()">+ Add another session</button>`;
+      specific = modeToggle + `${c.sessions.map((hs,si)=>`<div class="session-edit-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeEditBreakoutSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-theme);margin-bottom:10px">Session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditBreakoutSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of groups</label><input type="number" min="1" max="50" value="${hs.groupCount}" onchange="onEditBreakoutGroupCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditBreakoutSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditBreakoutSession(${si},'endTime',this.value)"></div></div>${si>0?`<div class="field-group"><label>Group assignment</label><div class="segmented"><div class="segmented-btn ${hs.groupAssignment==='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'keep')">Keep same groups</div><div class="segmented-btn ${hs.groupAssignment!=='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'randomize')">New random groups</div></div><div class="field-hint">"Keep same groups" reuses the grouping from Session ${si}.</div></div>`:''}${renderBreakoutGroupManager(si)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditBreakoutSession(${si},'topic',this.value)">${escHtml(hs.topic||'')}</textarea></div></details></div>`).join('')}<button class="add-btn" onclick="addEditBreakoutSession()">+ Add another session</button>`;
     } else {
       specific = modeToggle + `${c.sessions.map((hs,si)=>`<div class="session-edit-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeEditHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-theme);margin-bottom:10px">Session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onEditHandsOnCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onEditHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-edit-row"><span class="mini-label">Station ${i+1}</span><input value="${escHtml(s.name)}" oninput="onEditHandsOnStation(${si},${i},'name',this.value)"><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onEditHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onEditHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}${renderHandsOnGroupOverview(hs.stationCount,hs.stations)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditHandsOnSession(${si},'topic',this.value)">${escHtml(hs.topic||'')}</textarea></div></details></div>`).join('')}<button class="add-btn" onclick="addEditHandsOnSession()">+ Add another session</button>`;
     }
+    specific += renderEditNamesEditor();
   }
   if(module==='map') specific=`<div class="field-group"><label>Address</label><input value="${escHtml(c.address)}" oninput="onEditModuleContent('map','address',this.value)"></div>${renderOrganizerImage('map')}`;
   if(module==='conferenceFeedback'){
@@ -1931,7 +2021,7 @@ function renderOrganizerModuleContent(module) {
   }
     if(module==='industry'){normalizeEditIndustry(c);specific=`${c.booths.map((b,i)=>`<div class="session-edit-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeEditIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onEditIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onEditIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input value="${escHtml(b.website)}" placeholder="https://..." oninput="onEditIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditIndustryImage(${i},this.files[0])">${b.image?`<img class="content-image" src="${b.image}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent.industry.booths[${i}].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div></div>`).join('')}<button class="add-btn" onclick="addEditIndustryBooth()">+ Add industry booth</button>`;}
   if(module==='contact') specific=`<div class="field-group"><label>Coordinator name</label><input value="${escHtml(c.coordinatorName)}" oninput="onEditModuleContent('contact','coordinatorName',this.value)"></div><div class="field-row"><div class="field-group"><label>Phone</label><input value="${escHtml(c.coordinatorPhone)}" oninput="onEditModuleContent('contact','coordinatorPhone',this.value)"></div><div class="field-group"><label>Email</label><input value="${escHtml(c.coordinatorEmail)}" oninput="onEditModuleContent('contact','coordinatorEmail',this.value)"></div></div><div class="field-group"><label>Technical support name</label><input value="${escHtml(c.supportName)}" oninput="onEditModuleContent('contact','supportName',this.value)"></div><div class="field-row"><div class="field-group"><label>Support phone</label><input value="${escHtml(c.supportPhone)}" oninput="onEditModuleContent('contact','supportPhone',this.value)"></div><div class="field-group"><label>Support email</label><input value="${escHtml(c.supportEmail)}" oninput="onEditModuleContent('contact','supportEmail',this.value)"></div></div>${renderOrganizerImage('contact')}`;
-  if(module==='facultyInfo'){normalizeEditFacultyInfo(c);specific=`<div class="faculty-grid">${c.members.map((m,i)=>`<div class="faculty-card">${c.members.length>1?`<button type="button" class="remove-btn" onclick="removeEditFacultyMember(${i})">✕</button>`:''}<span class="mini-label">Faculty ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(m.name)}" placeholder="e.g. Dr. Jane Smith" oninput="onEditFacultyMember(${i},'name',this.value)"></div><div class="field-group"><label>Role / what they do</label><input value="${escHtml(m.role)}" placeholder="e.g. Consultant anaesthetist" oninput="onEditFacultyMember(${i},'role',this.value)"></div><div class="field-group"><label>Workplace</label><input value="${escHtml(m.workplace)}" placeholder="e.g. Rigshospitalet" oninput="onEditFacultyMember(${i},'workplace',this.value)"></div></div>`).join('')}</div><button type="button" class="add-btn" style="margin-top:10px" onclick="addEditFacultyMember()">+ Add faculty member</button>`;}
+  if(module==='facultyInfo'){normalizeEditFacultyInfo(c);specific=`<div class="faculty-grid">${c.members.map((m,i)=>`<div class="faculty-card">${c.members.length>1?`<button type="button" class="remove-btn" onclick="removeEditFacultyMember(${i})">✕</button>`:''}<span class="mini-label">Faculty ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(m.name)}" placeholder="e.g. Dr. Jane Smith" oninput="onEditFacultyMember(${i},'name',this.value)"></div><div class="field-group"><label>Role / what they do</label><input value="${escHtml(m.role)}" placeholder="e.g. Consultant anaesthetist" oninput="onEditFacultyMember(${i},'role',this.value)"></div><div class="field-group"><label>Workplace</label><input value="${escHtml(m.workplace)}" placeholder="e.g. Rigshospitalet" oninput="onEditFacultyMember(${i},'workplace',this.value)"></div><div class="field-group"><label>Photo (optional, maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditFacultyImage(${i},this.files[0])">${m.image?`<img class="content-image" src="${m.image}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent.facultyInfo.members[${i}].image='';rerenderOrganizerScroll()">Remove photo</button>`:''}</div><details class="topic-toggle"><summary>About this person (optional)</summary><div class="topic-body"><textarea placeholder="A short bio — background, interests, what to ask them about…" oninput="onEditFacultyMember(${i},'bio',this.value)">${escHtml(m.bio||'')}</textarea></div></details></div>`).join('')}</div><button type="button" class="add-btn" style="margin-top:10px" onclick="addEditFacultyMember()">+ Add faculty member</button>`;}
   return `<details class="organizer-module" ${editOpenModule===module?'open':''} ontoggle="if(this.open)editOpenModule='${module}';else if(editOpenModule==='${module}')editOpenModule='' "><summary>Edit ${escHtml(c.title||module)}</summary><div class="organizer-module-body"><div class="field-group"><label>Heading</label><input value="${escHtml(c.title)}" oninput="onEditModuleContent('${module}','title',this.value)"></div><div class="field-group"><label>Introduction</label><textarea oninput="onEditModuleContent('${module}','intro',this.value)">${escHtml(c.intro)}</textarea></div>${specific}</div></details>`;
 }
 function renderOrganizerImage(module){const img=editModuleContent[module].image;return `<div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditModuleImage('${module}',this.files[0])">${img?`<img class="content-image" src="${img}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent['${module}'].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div>`;}
