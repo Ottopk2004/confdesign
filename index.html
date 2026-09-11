@@ -231,6 +231,22 @@
   .group-member-row:last-child { border-bottom:none; }
   .group-member-row select { font-size:12px; padding:4px 6px; border:2px solid var(--pf-border); border-radius:6px; }
 
+  .names-role-group { border:1px solid var(--pf-border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
+  .names-role-group summary { cursor:pointer; padding:8px 10px; font-size:11.5px; font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
+  .names-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:6px 10px; padding:10px; }
+  .names-grid-item { display:flex; align-items:center; gap:6px; }
+  .names-grid-nr { font-size:11.5px; color:var(--pf-muted); font-weight:bold; min-width:40px; flex-shrink:0; }
+  .names-grid-item input { flex:1; min-width:0; padding:6px 8px; font-size:12.5px; border:2px solid var(--pf-border); border-radius:6px; }
+  .names-grid-item input:focus { border-color:var(--pf-theme); outline:none; }
+
+  .session-collapsible { border:2px solid var(--pf-border); border-radius:10px; margin-bottom:10px; position:relative; overflow:hidden; }
+  .session-collapsible > summary { cursor:pointer; padding:12px 44px 12px 14px; background:var(--pf-gray); color:var(--pf-theme); font-weight:bold; font-size:13px; list-style:none; }
+  .session-collapsible > summary::-webkit-details-marker { display:none; }
+  .session-collapsible > summary::before { content:'▸'; display:inline-block; width:12px; font-size:11px; }
+  .session-collapsible[open] > summary::before { content:'▾'; }
+  .session-collapsible > summary .remove-btn { position:absolute; top:9px; right:10px; }
+  .session-collapsible-body { padding:14px; }
+
   .save-btn {
     width:100%; padding:14px; border:none; border-radius:10px; font-size:14.5px; font-weight:bold;
     background: var(--pf-theme); color:#fff; cursor:pointer;
@@ -450,6 +466,8 @@ let editMeta = null;
 let editScheduleDays = null;
 let editModuleContent = null;
 let editOpenModule = '';
+let editOpenSessions = {};
+let editOpenListItems = {};
 let saveStatus = "";
 let saveStatusIsError = false;
 
@@ -1121,6 +1139,8 @@ function doOrganizerLogin() {
 
 function enterOrganizerMode() {
   editMeta = Object.assign({}, confData.meta);
+  editOpenSessions = {};
+  editOpenListItems = {};
   if(!editMeta.branding) editMeta.branding = {logo:"", size:"medium", position:"left"};
   if(!editMeta.branding.size) editMeta.branding.size = "medium";
   if(!editMeta.branding.position) editMeta.branding.position = "left";
@@ -1857,17 +1877,41 @@ function renderFeedbackItemsEditor(module){
 function newEditHandsOnSession(){return {date:'',startTime:'09:00',endTime:'11:30',rotationMinutes:30,stationCount:5,topic:'',stations:Array.from({length:5},(_,i)=>({name:`Station ${i+1}`,room:'',stand:`Stand ${i+1}`}))};}
 function newEditBreakoutSession(){return {date:'',startTime:'09:00',endTime:'11:30',groupCount:5,groupAssignment:'randomize',groupSeed:newBreakoutSeed(),topic:'',overrides:{}};}
 function normalizeEditNames(){if(!Array.isArray(editModuleContent.handsOn.names))editModuleContent.handsOn.names=[];}
-function addEditName(){normalizeEditNames();editModuleContent.handsOn.names.push({nr:'',name:''});rerenderOrganizerScroll();}
-function removeEditName(i){editModuleContent.handsOn.names.splice(i,1);rerenderOrganizerScroll();}
-function onEditName(i,key,value){editModuleContent.handsOn.names[i][key]=value;}
-// Optional: give specific participant/faculty numbers a name, so breakout
-// sessions show "Jane Doe (#42)" instead of just "#42". Applies to both
-// station rotation and breakout groups.
-function renderEditNamesEditor(){
+// Optional: give specific participant/faculty/observer numbers a name, so
+// breakout sessions show "Jane Doe (#42)" instead of just "#42". One box
+// per number that already exists (based on the counts set under Access),
+// so there's nothing to manually add or remove — just type a name where
+// you want one, and leave the rest blank to keep showing just the number.
+function editPersonName(nr){
+  const arr = (editModuleContent.handsOn && editModuleContent.handsOn.names) || [];
+  const entry = arr.find(e => String(e.nr) === String(nr));
+  return entry ? entry.name : '';
+}
+function setEditPersonName(nr, name){
   normalizeEditNames();
-  const entries = editModuleContent.handsOn.names;
-  const rows = entries.map((n,i)=>`<div class="session-edit-row"><button class="remove-btn" onclick="removeEditName(${i})">✕</button><div class="field-row"><div class="field-group"><label>Number</label><input type="text" inputmode="numeric" placeholder="e.g. 42 or 1005" value="${escHtml(n.nr)}" oninput="onEditName(${i},'nr',this.value.replace(/\\D/g,''))"></div><div class="field-group"><label>Name</label><input value="${escHtml(n.name)}" placeholder="e.g. Jane Doe" oninput="onEditName(${i},'name',this.value)"></div></div></div>`).join('');
-  return `<details class="topic-toggle" style="margin-top:16px"><summary>Participant &amp; faculty names (optional)</summary><div class="topic-body"><div class="field-hint" style="margin-bottom:10px">Give specific numbers a name so it shows next to "#42" in breakout sessions. Anyone without a name here just shows their number, as before.</div>${rows}<button type="button" class="add-btn" onclick="addEditName()">+ Add a name</button></div></details>`;
+  const arr = editModuleContent.handsOn.names;
+  const idx = arr.findIndex(e => String(e.nr) === String(nr));
+  if (name.trim()) {
+    if (idx === -1) arr.push({nr:String(nr), name}); else arr[idx].name = name;
+  } else if (idx !== -1) {
+    arr.splice(idx,1);
+  }
+}
+function renderNamesRoleGroup(label, start, count){
+  if (count <= 0) return '';
+  let rows = '';
+  for (let i = 0; i < count; i++) {
+    const nr = start + i;
+    rows += `<div class="names-grid-item"><span class="names-grid-nr">#${nr}</span><input type="text" placeholder="Name" value="${escHtml(editPersonName(nr))}" oninput="setEditPersonName(${nr},this.value)"></div>`;
+  }
+  return `<details class="names-role-group"><summary>${label} (${count})</summary><div class="names-grid">${rows}</div></details>`;
+}
+function renderEditNamesEditor(){
+  const pCount = Number(editMeta.participantCount) || 0;
+  const fCount = Number(editMeta.facultyCount) || 0;
+  const oCount = Number(editMeta.observerCount) || 0;
+  const body = renderNamesRoleGroup('Participants', 1, pCount) + renderNamesRoleGroup('Faculty', 1000, fCount) + renderNamesRoleGroup('Observers', 2000, oCount);
+  return `<details class="topic-toggle" style="margin-top:16px"><summary>Participant &amp; faculty names (optional)</summary><div class="topic-body"><div class="field-hint" style="margin-bottom:10px">A box for every number open under Access. Type a name where you want one shown in breakout sessions — leave the rest blank to just show the number.</div>${body || '<div class="field-hint">Set participant/faculty/observer numbers under Access first.</div>'}</div></details>`;
 }
 function normalizeEditHandsOn(c){
   if(!c.mode) c.mode = 'rotation';
@@ -1917,22 +1961,23 @@ function onMoveBreakoutMember(si, nr, groupIdxRaw){
 function addEditBreakoutSession(){
   const sessions = editModuleContent.handsOn.sessions;
   sessions.push(newEditBreakoutSession());
+  editOpenSessions[`handsOn-breakout-${sessions.length-1}`] = true;
   rerenderOrganizerScroll();
 }
 function removeEditBreakoutSession(i){if(editModuleContent.handsOn.sessions.length>1)editModuleContent.handsOn.sessions.splice(i,1);rerenderOrganizerScroll();}
-function addEditHandsOnSession(){editModuleContent.handsOn.sessions.push(newEditHandsOnSession());rerenderOrganizerScroll();}
+function addEditHandsOnSession(){const sessions=editModuleContent.handsOn.sessions;sessions.push(newEditHandsOnSession());editOpenSessions[`handsOn-rotation-${sessions.length-1}`]=true;rerenderOrganizerScroll();}
 function removeEditHandsOnSession(i){if(editModuleContent.handsOn.sessions.length>1)editModuleContent.handsOn.sessions.splice(i,1);rerenderOrganizerScroll();}
 function onEditHandsOnCount(si,value){const c=editModuleContent.handsOn.sessions[si],count=Math.max(1,Math.min(30,parseInt(value)||1));c.stationCount=count;c.stations=c.stations||[];while(c.stations.length<count)c.stations.push({name:`Station ${c.stations.length+1}`,room:'',stand:`Stand ${c.stations.length+1}`});c.stations=c.stations.slice(0,count);rerenderOrganizerScroll();}
 function onEditHandsOnSession(si,key,value){editModuleContent.handsOn.sessions[si][key]=value;}
 function onEditHandsOnStation(si,i,key,value){editModuleContent.handsOn.sessions[si].stations[i][key]=value;}
 function newEditIndustryBooth(){return {name:'',description:'',website:'',image:''};}
 function normalizeEditIndustry(c){if(!Array.isArray(c.booths)){c.booths=String(c.items||'').split(/\r?\n/).filter(Boolean).map(line=>{const p=line.split('|').map(x=>x.trim());return {name:p[0]||'',description:p[1]||'',website:p[2]||'',image:''};});if(!c.booths.length)c.booths=[newEditIndustryBooth()];}return c;}
-function addEditIndustryBooth(){if(editModuleContent.industry.booths.length>=12){alert('A maximum of 12 industry booths is supported.');return;}editModuleContent.industry.booths.push(newEditIndustryBooth());rerenderOrganizerScroll();}
+function addEditIndustryBooth(){if(editModuleContent.industry.booths.length>=12){alert('A maximum of 12 industry booths is supported.');return;}editModuleContent.industry.booths.push(newEditIndustryBooth());editOpenListItems[`industry-${editModuleContent.industry.booths.length-1}`]=true;rerenderOrganizerScroll();}
 function removeEditIndustryBooth(i){if(editModuleContent.industry.booths.length>1)editModuleContent.industry.booths.splice(i,1);rerenderOrganizerScroll();}
 function onEditIndustryBooth(i,key,value){editModuleContent.industry.booths[i][key]=value;}
 function newEditFacultyMember(){return {name:'',role:'',workplace:'',bio:'',image:''};}
 function normalizeEditFacultyInfo(c){if(!Array.isArray(c.members)||!c.members.length)c.members=[newEditFacultyMember()];return c;}
-function addEditFacultyMember(){if(editModuleContent.facultyInfo.members.length>=200){alert('A maximum of 200 faculty members is supported.');return;}editModuleContent.facultyInfo.members.push(newEditFacultyMember());rerenderOrganizerScroll();}
+function addEditFacultyMember(){if(editModuleContent.facultyInfo.members.length>=200){alert('A maximum of 200 faculty members is supported.');return;}editModuleContent.facultyInfo.members.push(newEditFacultyMember());editOpenListItems[`faculty-${editModuleContent.facultyInfo.members.length-1}`]=true;rerenderOrganizerScroll();}
 function removeEditFacultyMember(i){if(editModuleContent.facultyInfo.members.length>1)editModuleContent.facultyInfo.members.splice(i,1);rerenderOrganizerScroll();}
 function onEditFacultyMember(i,key,value){editModuleContent.facultyInfo.members[i][key]=value;}
 function onEditFacultyImage(i,file){if(!file)return;if(file.size>1024*1024){alert('The image must be smaller than 1 MB.');return;}const reader=new FileReader();reader.onload=()=>{editModuleContent.facultyInfo.members[i].image=reader.result;rerenderOrganizerScroll();};reader.readAsDataURL(file);}
@@ -2009,9 +2054,21 @@ function renderOrganizerModuleContent(module) {
     normalizeEditHandsOn(c);
     const modeToggle = `<div class="field-group"><label>Mode</label><div class="segmented"><div class="segmented-btn ${c.mode==='rotation'?'selected':''}" onclick="onEditHandsOnMode('rotation')">Station rotation</div><div class="segmented-btn ${c.mode==='breakout'?'selected':''}" onclick="onEditHandsOnMode('breakout')">Breakout groups</div></div><div class="field-hint">Station rotation moves participants between physical stations over time. Breakout groups just splits everyone into discussion groups.</div></div>`;
     if(c.mode==='breakout'){
-      specific = modeToggle + `${c.sessions.map((hs,si)=>`<div class="session-edit-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeEditBreakoutSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-theme);margin-bottom:10px">Session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditBreakoutSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of groups</label><input type="number" min="1" max="50" value="${hs.groupCount}" onchange="onEditBreakoutGroupCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditBreakoutSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditBreakoutSession(${si},'endTime',this.value)"></div></div>${si>0?`<div class="field-group"><label>Group assignment</label><div class="segmented"><div class="segmented-btn ${hs.groupAssignment==='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'keep')">Keep same groups</div><div class="segmented-btn ${hs.groupAssignment!=='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'randomize')">New random groups</div></div><div class="field-hint">"Keep same groups" reuses the grouping from Session ${si}.</div></div>`:''}${renderBreakoutGroupManager(si)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditBreakoutSession(${si},'topic',this.value)">${escHtml(hs.topic||'')}</textarea></div></details></div>`).join('')}<button class="add-btn" onclick="addEditBreakoutSession()">+ Add another session</button>`;
+      specific = modeToggle + `${c.sessions.map((hs,si)=>{
+        const key=`handsOn-breakout-${si}`;
+        const label=`Session ${si+1}${hs.date?' · '+escHtml(hs.date):''}${hs.startTime?' · '+escHtml(hs.startTime)+(hs.endTime?'–'+escHtml(hs.endTime):''):''}${hs.groupCount?' · '+hs.groupCount+' groups':''}`;
+        const removeBtn=c.sessions.length>1?`<button class="remove-btn" onclick="event.stopPropagation();event.preventDefault();removeEditBreakoutSession(${si})">✕</button>`:'';
+        const body=`<div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditBreakoutSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of groups</label><input type="number" min="1" max="50" value="${hs.groupCount}" onchange="onEditBreakoutGroupCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditBreakoutSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditBreakoutSession(${si},'endTime',this.value)"></div></div>${si>0?`<div class="field-group"><label>Group assignment</label><div class="segmented"><div class="segmented-btn ${hs.groupAssignment==='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'keep')">Keep same groups</div><div class="segmented-btn ${hs.groupAssignment!=='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'randomize')">New random groups</div></div><div class="field-hint">"Keep same groups" reuses the grouping from Session ${si}.</div></div>`:''}${renderBreakoutGroupManager(si)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditBreakoutSession(${si},'topic',this.value)">${escHtml(hs.topic||'')}</textarea></div></details>`;
+        return `<details class="session-collapsible" ${editOpenSessions[key]?'open':''} ontoggle="if(this.open){editOpenSessions['${key}']=true}else{delete editOpenSessions['${key}']}"><summary>${label}${removeBtn}</summary><div class="session-collapsible-body">${body}</div></details>`;
+      }).join('')}<button class="add-btn" onclick="addEditBreakoutSession()">+ Add another session</button>`;
     } else {
-      specific = modeToggle + `${c.sessions.map((hs,si)=>`<div class="session-edit-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeEditHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-theme);margin-bottom:10px">Session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onEditHandsOnCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onEditHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-edit-row"><span class="mini-label">Station ${i+1}</span><input value="${escHtml(s.name)}" oninput="onEditHandsOnStation(${si},${i},'name',this.value)"><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onEditHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onEditHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}${renderHandsOnGroupOverview(hs.stationCount,hs.stations)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditHandsOnSession(${si},'topic',this.value)">${escHtml(hs.topic||'')}</textarea></div></details></div>`).join('')}<button class="add-btn" onclick="addEditHandsOnSession()">+ Add another session</button>`;
+      specific = modeToggle + `${c.sessions.map((hs,si)=>{
+        const key=`handsOn-rotation-${si}`;
+        const label=`Session ${si+1}${hs.date?' · '+escHtml(hs.date):''}${hs.startTime?' · '+escHtml(hs.startTime)+(hs.endTime?'–'+escHtml(hs.endTime):''):''}${hs.stationCount?' · '+hs.stationCount+' stations':''}`;
+        const removeBtn=c.sessions.length>1?`<button class="remove-btn" onclick="event.stopPropagation();event.preventDefault();removeEditHandsOnSession(${si})">✕</button>`:'';
+        const body=`<div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onEditHandsOnCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onEditHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-edit-row"><span class="mini-label">Station ${i+1}</span><input value="${escHtml(s.name)}" oninput="onEditHandsOnStation(${si},${i},'name',this.value)"><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onEditHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onEditHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}${renderHandsOnGroupOverview(hs.stationCount,hs.stations)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditHandsOnSession(${si},'topic',this.value)">${escHtml(hs.topic||'')}</textarea></div></details>`;
+        return `<details class="session-collapsible" ${editOpenSessions[key]?'open':''} ontoggle="if(this.open){editOpenSessions['${key}']=true}else{delete editOpenSessions['${key}']}"><summary>${label}${removeBtn}</summary><div class="session-collapsible-body">${body}</div></details>`;
+      }).join('')}<button class="add-btn" onclick="addEditHandsOnSession()">+ Add another session</button>`;
     }
     specific += renderEditNamesEditor();
   }
@@ -2019,9 +2076,21 @@ function renderOrganizerModuleContent(module) {
   if(module==='conferenceFeedback'){
     specific=renderFeedbackItemsEditor('conferenceFeedback');
   }
-    if(module==='industry'){normalizeEditIndustry(c);specific=`${c.booths.map((b,i)=>`<div class="session-edit-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeEditIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onEditIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onEditIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input value="${escHtml(b.website)}" placeholder="https://..." oninput="onEditIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditIndustryImage(${i},this.files[0])">${b.image?`<img class="content-image" src="${b.image}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent.industry.booths[${i}].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div></div>`).join('')}<button class="add-btn" onclick="addEditIndustryBooth()">+ Add industry booth</button>`;}
+    if(module==='industry'){normalizeEditIndustry(c);specific=`${c.booths.map((b,i)=>{
+      const key=`industry-${i}`;
+      const label=escHtml(b.name || `Industry booth ${i+1}`);
+      const removeBtn=c.booths.length>1?`<button class="remove-btn" onclick="event.stopPropagation();event.preventDefault();removeEditIndustryBooth(${i})">✕</button>`:'';
+      const body=`<div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onEditIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onEditIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input value="${escHtml(b.website)}" placeholder="https://..." oninput="onEditIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditIndustryImage(${i},this.files[0])">${b.image?`<img class="content-image" src="${b.image}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent.industry.booths[${i}].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div>`;
+      return `<details class="session-collapsible" ${editOpenListItems[key]?'open':''} ontoggle="if(this.open){editOpenListItems['${key}']=true}else{delete editOpenListItems['${key}']}"><summary>${label}${removeBtn}</summary><div class="session-collapsible-body">${body}</div></details>`;
+    }).join('')}<button class="add-btn" onclick="addEditIndustryBooth()">+ Add industry booth</button>`;}
   if(module==='contact') specific=`<div class="field-group"><label>Coordinator name</label><input value="${escHtml(c.coordinatorName)}" oninput="onEditModuleContent('contact','coordinatorName',this.value)"></div><div class="field-row"><div class="field-group"><label>Phone</label><input value="${escHtml(c.coordinatorPhone)}" oninput="onEditModuleContent('contact','coordinatorPhone',this.value)"></div><div class="field-group"><label>Email</label><input value="${escHtml(c.coordinatorEmail)}" oninput="onEditModuleContent('contact','coordinatorEmail',this.value)"></div></div><div class="field-group"><label>Technical support name</label><input value="${escHtml(c.supportName)}" oninput="onEditModuleContent('contact','supportName',this.value)"></div><div class="field-row"><div class="field-group"><label>Support phone</label><input value="${escHtml(c.supportPhone)}" oninput="onEditModuleContent('contact','supportPhone',this.value)"></div><div class="field-group"><label>Support email</label><input value="${escHtml(c.supportEmail)}" oninput="onEditModuleContent('contact','supportEmail',this.value)"></div></div>${renderOrganizerImage('contact')}`;
-  if(module==='facultyInfo'){normalizeEditFacultyInfo(c);specific=`<div class="faculty-grid">${c.members.map((m,i)=>`<div class="faculty-card">${c.members.length>1?`<button type="button" class="remove-btn" onclick="removeEditFacultyMember(${i})">✕</button>`:''}<span class="mini-label">Faculty ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(m.name)}" placeholder="e.g. Dr. Jane Smith" oninput="onEditFacultyMember(${i},'name',this.value)"></div><div class="field-group"><label>Role / what they do</label><input value="${escHtml(m.role)}" placeholder="e.g. Consultant anaesthetist" oninput="onEditFacultyMember(${i},'role',this.value)"></div><div class="field-group"><label>Workplace</label><input value="${escHtml(m.workplace)}" placeholder="e.g. Rigshospitalet" oninput="onEditFacultyMember(${i},'workplace',this.value)"></div><div class="field-group"><label>Photo (optional, maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditFacultyImage(${i},this.files[0])">${m.image?`<img class="content-image" src="${m.image}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent.facultyInfo.members[${i}].image='';rerenderOrganizerScroll()">Remove photo</button>`:''}</div><details class="topic-toggle"><summary>About this person (optional)</summary><div class="topic-body"><textarea placeholder="A short bio — background, interests, what to ask them about…" oninput="onEditFacultyMember(${i},'bio',this.value)">${escHtml(m.bio||'')}</textarea></div></details></div>`).join('')}</div><button type="button" class="add-btn" style="margin-top:10px" onclick="addEditFacultyMember()">+ Add faculty member</button>`;}
+  if(module==='facultyInfo'){normalizeEditFacultyInfo(c);specific=`<div class="faculty-grid">${c.members.map((m,i)=>{
+    const key=`faculty-${i}`;
+    const label=escHtml(m.name || `Faculty ${i+1}`)+(m.role?` <span style="font-weight:normal;opacity:.75">— ${escHtml(m.role)}</span>`:'');
+    const removeBtn=c.members.length>1?`<button type="button" class="remove-btn" onclick="event.stopPropagation();event.preventDefault();removeEditFacultyMember(${i})">✕</button>`:'';
+    const body=`<div class="field-group"><label>Name</label><input value="${escHtml(m.name)}" placeholder="e.g. Dr. Jane Smith" oninput="onEditFacultyMember(${i},'name',this.value)"></div><div class="field-group"><label>Role / what they do</label><input value="${escHtml(m.role)}" placeholder="e.g. Consultant anaesthetist" oninput="onEditFacultyMember(${i},'role',this.value)"></div><div class="field-group"><label>Workplace</label><input value="${escHtml(m.workplace)}" placeholder="e.g. Rigshospitalet" oninput="onEditFacultyMember(${i},'workplace',this.value)"></div><div class="field-group"><label>Photo (optional, maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditFacultyImage(${i},this.files[0])">${m.image?`<img class="content-image" src="${m.image}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent.facultyInfo.members[${i}].image='';rerenderOrganizerScroll()">Remove photo</button>`:''}</div><details class="topic-toggle"><summary>About this person (optional)</summary><div class="topic-body"><textarea placeholder="A short bio — background, interests, what to ask them about…" oninput="onEditFacultyMember(${i},'bio',this.value)">${escHtml(m.bio||'')}</textarea></div></details>`;
+    return `<details class="session-collapsible" ${editOpenListItems[key]?'open':''} ontoggle="if(this.open){editOpenListItems['${key}']=true}else{delete editOpenListItems['${key}']}"><summary>${label}${removeBtn}</summary><div class="session-collapsible-body">${body}</div></details>`;
+  }).join('')}</div><button type="button" class="add-btn" style="margin-top:10px" onclick="addEditFacultyMember()">+ Add faculty member</button>`;}
   return `<details class="organizer-module" ${editOpenModule===module?'open':''} ontoggle="if(this.open)editOpenModule='${module}';else if(editOpenModule==='${module}')editOpenModule='' "><summary>Edit ${escHtml(c.title||module)}</summary><div class="organizer-module-body"><div class="field-group"><label>Heading</label><input value="${escHtml(c.title)}" oninput="onEditModuleContent('${module}','title',this.value)"></div><div class="field-group"><label>Introduction</label><textarea oninput="onEditModuleContent('${module}','intro',this.value)">${escHtml(c.intro)}</textarea></div>${specific}</div></details>`;
 }
 function renderOrganizerImage(module){const img=editModuleContent[module].image;return `<div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditModuleImage('${module}',this.files[0])">${img?`<img class="content-image" src="${img}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent['${module}'].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div>`;}

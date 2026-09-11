@@ -218,6 +218,22 @@
   .faculty-card .field-group { margin-bottom:8px; }
   .faculty-card .field-group:last-child { margin-bottom:0; }
 
+  .names-role-group { border:1px solid var(--pf-border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
+  .names-role-group summary { cursor:pointer; padding:8px 10px; font-size:11.5px; font-weight:bold; color:var(--pf-indigo); background:var(--pf-gray); }
+  .names-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:6px 10px; padding:10px; }
+  .names-grid-item { display:flex; align-items:center; gap:6px; }
+  .names-grid-nr { font-size:11.5px; color:var(--pf-muted); font-weight:bold; min-width:40px; flex-shrink:0; }
+  .names-grid-item input { flex:1; min-width:0; padding:6px 8px; font-size:12.5px; border:2px solid var(--pf-border); border-radius:6px; }
+  .names-grid-item input:focus { border-color:var(--pf-indigo); outline:none; }
+
+  .session-collapsible { border:2px solid var(--pf-border); border-radius:10px; margin-bottom:10px; position:relative; overflow:hidden; }
+  .session-collapsible > summary { cursor:pointer; padding:12px 44px 12px 14px; background:var(--pf-gray); color:var(--pf-indigo); font-weight:bold; font-size:13px; list-style:none; }
+  .session-collapsible > summary::-webkit-details-marker { display:none; }
+  .session-collapsible > summary::before { content:'▸'; display:inline-block; width:12px; font-size:11px; }
+  .session-collapsible[open] > summary::before { content:'▾'; }
+  .session-collapsible > summary .remove-btn { position:absolute; top:9px; right:10px; }
+  .session-collapsible-body { padding:14px; }
+
   .submit-btn {
     width: 100%;
     padding: 15px;
@@ -486,6 +502,8 @@ let creating = false;
 let createResult = null;
 let openModule = '';
 let openCreateSection = 'details';
+let openSessions = {};
+let openListItems = {};
 
 function cleanCode(str) {
   return str.toLowerCase().replace(/[^a-z]/g, "").slice(0, 12);
@@ -854,24 +872,48 @@ function renderFeedbackItemsEditor(module){
 function newHandsOnSession(){return {date:'',startTime:'09:00',endTime:'11:30',rotationMinutes:30,stationCount:5,topic:'',stations:Array.from({length:5},(_,i)=>({name:`Station ${i+1}`,room:'',stand:`Stand ${i+1}`}))};}
 function normalizeHandsOn(c){if(!Array.isArray(c.sessions))c.sessions=[{date:c.date||'',startTime:c.startTime||'09:00',endTime:c.endTime||'11:30',rotationMinutes:c.rotationMinutes||30,stationCount:c.stationCount||5,topic:c.topic||'',stations:c.stations||newHandsOnSession().stations}];c.sessions.forEach(s=>{if(s.topic===undefined)s.topic='';});return c;}
 function normalizeNames(){if(!Array.isArray(form.moduleContent.handsOn.names))form.moduleContent.handsOn.names=[];}
-function addName(){normalizeNames();form.moduleContent.handsOn.names.push({nr:'',name:''});render();}
-function removeName(i){form.moduleContent.handsOn.names.splice(i,1);render();}
-function onName(i,key,value){form.moduleContent.handsOn.names[i][key]=value;}
-// Optional: give specific participant/faculty numbers a name, so breakout
-// sessions later show "Jane Doe (#42)" instead of just "#42".
-function renderNamesEditor(){
+// Optional: give specific participant/faculty/observer numbers a name, so
+// breakout sessions later show "Jane Doe (#42)" instead of just "#42".
+// One box per number that already exists (based on the counts set under
+// Access) — nothing to manually add or remove.
+function personName(nr){
+  const arr=(form.moduleContent.handsOn && form.moduleContent.handsOn.names)||[];
+  const entry=arr.find(e=>String(e.nr)===String(nr));
+  return entry?entry.name:'';
+}
+function setPersonName(nr,name){
   normalizeNames();
-  const entries=form.moduleContent.handsOn.names;
-  const rows=entries.map((n,i)=>`<div class="session-row"><button class="remove-btn" onclick="removeName(${i})">✕</button><div class="field-row"><div class="field-group"><label>Number</label><input type="text" inputmode="numeric" placeholder="e.g. 42 or 1005" value="${escHtml(n.nr)}" oninput="onName(${i},'nr',this.value.replace(/\\D/g,''))"></div><div class="field-group"><label>Name</label><input value="${escHtml(n.name)}" placeholder="e.g. Jane Doe" oninput="onName(${i},'name',this.value)"></div></div></div>`).join('');
-  return `<details class="topic-toggle" style="margin-top:16px"><summary>Participant &amp; faculty names (optional)</summary><div class="topic-body"><div class="field-hint" style="margin-bottom:10px">Give specific numbers a name so it shows next to "#42" in breakout sessions. This can also be done later when managing the conference.</div>${rows}<button type="button" class="add-session-btn" onclick="addName()">+ Add a name</button></div></details>`;
+  const arr=form.moduleContent.handsOn.names;
+  const idx=arr.findIndex(e=>String(e.nr)===String(nr));
+  if(name.trim()){
+    if(idx===-1)arr.push({nr:String(nr),name});else arr[idx].name=name;
+  } else if(idx!==-1){
+    arr.splice(idx,1);
+  }
+}
+function renderNamesRoleGroup(label,start,count){
+  if(count<=0)return '';
+  let rows='';
+  for(let i=0;i<count;i++){
+    const nr=start+i;
+    rows+=`<div class="names-grid-item"><span class="names-grid-nr">#${nr}</span><input type="text" placeholder="Name" value="${escHtml(personName(nr))}" oninput="setPersonName(${nr},this.value)"></div>`;
+  }
+  return `<details class="names-role-group"><summary>${label} (${count})</summary><div class="names-grid">${rows}</div></details>`;
+}
+function renderNamesEditor(){
+  const pCount=Number(form.participantCount)||0;
+  const fCount=Number(form.facultyCount)||0;
+  const oCount=Number(form.observerCount)||0;
+  const body=renderNamesRoleGroup('Participants',1,pCount)+renderNamesRoleGroup('Faculty',1000,fCount)+renderNamesRoleGroup('Observers',2000,oCount);
+  return `<details class="topic-toggle" style="margin-top:16px"><summary>Participant &amp; faculty names (optional)</summary><div class="topic-body"><div class="field-hint" style="margin-bottom:10px">A box for every number set under Access. Type a name where you want one shown in breakout sessions — leave the rest blank to just show the number.</div>${body || '<div class="field-hint">Set participant/faculty/observer numbers under Access first.</div>'}</div></details>`;
 }
 function newFacultyMember(){return {name:'',role:'',workplace:'',bio:'',image:''};}
 function normalizeFacultyInfo(c){if(!Array.isArray(c.members)||!c.members.length)c.members=[newFacultyMember()];return c;}
-function addFacultyMember(){if(form.moduleContent.facultyInfo.members.length>=200){alert('A maximum of 200 faculty members is supported.');return;}form.moduleContent.facultyInfo.members.push(newFacultyMember());render();}
+function addFacultyMember(){if(form.moduleContent.facultyInfo.members.length>=200){alert('A maximum of 200 faculty members is supported.');return;}form.moduleContent.facultyInfo.members.push(newFacultyMember());openListItems[`faculty-${form.moduleContent.facultyInfo.members.length-1}`]=true;render();}
 function removeFacultyMember(i){if(form.moduleContent.facultyInfo.members.length>1)form.moduleContent.facultyInfo.members.splice(i,1);render();}
 function onFacultyMember(i,key,value){form.moduleContent.facultyInfo.members[i][key]=value;}
 function onFacultyImage(i,file){if(!file)return;if(file.size>1024*1024){alert('The image must be smaller than 1 MB.');return;}const reader=new FileReader();reader.onload=()=>{form.moduleContent.facultyInfo.members[i].image=reader.result;render();};reader.readAsDataURL(file);}
-function addHandsOnSession(){form.moduleContent.handsOn.sessions.push(newHandsOnSession());render();}
+function addHandsOnSession(){form.moduleContent.handsOn.sessions.push(newHandsOnSession());openSessions[`handsOn-${form.moduleContent.handsOn.sessions.length-1}`]=true;render();}
 function removeHandsOnSession(i){if(form.moduleContent.handsOn.sessions.length>1)form.moduleContent.handsOn.sessions.splice(i,1);render();}
 function onHandsOnStationCount(sessionIndex,value) {
   const c=form.moduleContent.handsOn.sessions[sessionIndex], count=Math.max(1,Math.min(30,parseInt(value)||1));
@@ -884,7 +926,7 @@ function onHandsOnStation(si,i,key,value){form.moduleContent.handsOn.sessions[si
 function validateHandsOn(c){const toMin=t=>{const m=String(t||'').match(/^(\d{2}):(\d{2})$/);return m?Number(m[1])*60+Number(m[2]):0;};normalizeHandsOn(c);return c.sessions.length>0&&c.sessions.every(s=>!!s.date&&toMin(s.endTime)>toMin(s.startTime)&&(toMin(s.endTime)-toMin(s.startTime))>=Number(s.stationCount||0)*Number(s.rotationMinutes||0));}
 function newIndustryBooth(){return {name:'',description:'',website:'',image:''};}
 function normalizeIndustry(c){if(!Array.isArray(c.booths)){c.booths=String(c.items||'').split(/\r?\n/).filter(Boolean).map(line=>{const p=line.split('|').map(x=>x.trim());return {name:p[0]||'',description:p[1]||'',website:p[2]||'',image:''};});if(!c.booths.length)c.booths=[newIndustryBooth()];}return c;}
-function addIndustryBooth(){if(form.moduleContent.industry.booths.length>=12){alert('A maximum of 12 industry booths is supported.');return;}form.moduleContent.industry.booths.push(newIndustryBooth());render();}
+function addIndustryBooth(){if(form.moduleContent.industry.booths.length>=12){alert('A maximum of 12 industry booths is supported.');return;}form.moduleContent.industry.booths.push(newIndustryBooth());openListItems[`industry-${form.moduleContent.industry.booths.length-1}`]=true;render();}
 function removeIndustryBooth(i){if(form.moduleContent.industry.booths.length>1)form.moduleContent.industry.booths.splice(i,1);render();}
 function onIndustryBooth(i,key,value){form.moduleContent.industry.booths[i][key]=value;}
 function onIndustryBoothImage(i,file){if(!file)return;if(file.size>1024*1024){alert('The image must be smaller than 1 MB.');return;}const reader=new FileReader();reader.onload=()=>{form.moduleContent.industry.booths[i].image=reader.result;render();};reader.readAsDataURL(file);}
@@ -905,9 +947,21 @@ function renderModuleEditor(module) {
     <div class="field-group"><label>Tab heading</label><input type="text" value="${escHtml(c.title)}" oninput="onModuleContent('${module}','title',this.value)"></div>
     <div class="field-group"><label>Introduction</label><textarea placeholder="Information shown at the top of this section" oninput="onModuleContent('${module}','intro',this.value)">${escHtml(c.intro)}</textarea></div>`;
   let fields = '';
-  if (module === 'handsOn') { normalizeHandsOn(c); fields = `${c.sessions.map((hs,si)=>`<div class="session-row">${c.sessions.length>1?`<button class="remove-btn" onclick="removeHandsOnSession(${si})">✕</button>`:''}<h3 style="color:var(--pf-indigo);margin-bottom:12px">Breakout session ${si+1}</h3><div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onHandsOnStationCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes/rotation</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-row"><span class="mini-label">Station ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(s.name)}" oninput="onHandsOnStation(${si},${i},'name',this.value)"></div><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this breakout session about?" oninput="onHandsOnSession(${si},'topic',this.value)">${escHtml(hs.topic||'')}</textarea></div></details></div>`).join('')}<button type="button" class="add-session-btn" onclick="addHandsOnSession()">+ Add another breakout session</button><div id="handsOnValidation" class="field-hint ${validateHandsOn(c)?'':'error'}">Each session must fit stations × minutes per rotation.</div>${renderNamesEditor()}`; }
+  if (module === 'handsOn') { normalizeHandsOn(c); fields = `${c.sessions.map((hs,si)=>{
+    const key=`handsOn-${si}`;
+    const label=`Breakout session ${si+1}${hs.date?' · '+escHtml(hs.date):''}${hs.startTime?' · '+escHtml(hs.startTime)+(hs.endTime?'–'+escHtml(hs.endTime):''):''}${hs.stationCount?' · '+hs.stationCount+' stations':''}`;
+    const removeBtn=c.sessions.length>1?`<button class="remove-btn" onclick="event.stopPropagation();event.preventDefault();removeHandsOnSession(${si})">✕</button>`:'';
+    const body=`<div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onHandsOnStationCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes/rotation</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-row"><span class="mini-label">Station ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(s.name)}" oninput="onHandsOnStation(${si},${i},'name',this.value)"></div><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this breakout session about?" oninput="onHandsOnSession(${si},'topic',this.value)">${escHtml(hs.topic||'')}</textarea></div></details>`;
+    return `<details class="session-collapsible" ${openSessions[key]?'open':''} ontoggle="if(this.open){openSessions['${key}']=true}else{delete openSessions['${key}']}"><summary>${label}${removeBtn}</summary><div class="session-collapsible-body">${body}</div></details>`;
+  }).join('')}<button type="button" class="add-session-btn" onclick="addHandsOnSession()">+ Add another breakout session</button><div id="handsOnValidation" class="field-hint ${validateHandsOn(c)?'':'error'}">Each session must fit stations × minutes per rotation.</div>${renderNamesEditor()}`; }
   if (module === 'map') fields = `<div class="field-group"><label>Venue address</label><input type="text" value="${escHtml(c.address)}" oninput="onModuleContent('map','address',this.value)"></div>${renderImageField('map')}`;
-  if (module === 'industry') { normalizeIndustry(c); fields = `${c.booths.map((b,i)=>`<div class="session-row">${c.booths.length>1?`<button class="remove-btn" onclick="removeIndustryBooth(${i})">✕</button>`:''}<span class="mini-label">Industry booth ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input type="url" value="${escHtml(b.website)}" placeholder="https://..." oninput="onIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Booth image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onIndustryBoothImage(${i},this.files[0])">${b.image?`<img class="image-preview" src="${b.image}" alt="Preview"><button type="button" class="remove-image-btn" onclick="form.moduleContent.industry.booths[${i}].image='';render()">Remove image</button>`:''}</div></div>`).join('')}<button type="button" class="add-session-btn" onclick="addIndustryBooth()">+ Add industry booth</button>`; }
+  if (module === 'industry') { normalizeIndustry(c); fields = `${c.booths.map((b,i)=>{
+    const key=`industry-${i}`;
+    const label=escHtml(b.name || `Industry booth ${i+1}`);
+    const removeBtn=c.booths.length>1?`<button class="remove-btn" onclick="event.stopPropagation();event.preventDefault();removeIndustryBooth(${i})">✕</button>`:'';
+    const body=`<div class="field-group"><label>Name</label><input value="${escHtml(b.name)}" oninput="onIndustryBooth(${i},'name',this.value)"></div><div class="field-group"><label>Description</label><textarea oninput="onIndustryBooth(${i},'description',this.value)">${escHtml(b.description)}</textarea></div><div class="field-group"><label>Website</label><input type="url" value="${escHtml(b.website)}" placeholder="https://..." oninput="onIndustryBooth(${i},'website',this.value)"></div><div class="field-group"><label>Booth image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onIndustryBoothImage(${i},this.files[0])">${b.image?`<img class="image-preview" src="${b.image}" alt="Preview"><button type="button" class="remove-image-btn" onclick="form.moduleContent.industry.booths[${i}].image='';render()">Remove image</button>`:''}</div>`;
+    return `<details class="session-collapsible" ${openListItems[key]?'open':''} ontoggle="if(this.open){openListItems['${key}']=true}else{delete openListItems['${key}']}"><summary>${label}${removeBtn}</summary><div class="session-collapsible-body">${body}</div></details>`;
+  }).join('')}<button type="button" class="add-session-btn" onclick="addIndustryBooth()">+ Add industry booth</button>`; }
   if (module === 'quiz') {
     const qList = quizQuestions.map((q,i)=>`
       <div class="session-row create-quiz-question">
@@ -941,7 +995,13 @@ function renderModuleEditor(module) {
     <div class="field-group"><label>Coordinator email</label><input type="email" value="${escHtml(c.coordinatorEmail)}" oninput="onModuleContent('contact','coordinatorEmail',this.value)"></div>
     <div class="field-row"><div class="field-group"><label>Technical support</label><input type="text" value="${escHtml(c.supportName)}" oninput="onModuleContent('contact','supportName',this.value)"></div><div class="field-group"><label>Support phone</label><input type="text" value="${escHtml(c.supportPhone)}" oninput="onModuleContent('contact','supportPhone',this.value)"></div></div>
     <div class="field-group"><label>Support email</label><input type="email" value="${escHtml(c.supportEmail)}" oninput="onModuleContent('contact','supportEmail',this.value)"></div>${renderImageField('contact')}`;
-  if (module === 'facultyInfo') { normalizeFacultyInfo(c); fields = `<div class="faculty-grid">${c.members.map((m,i)=>`<div class="faculty-card">${c.members.length>1?`<button type="button" class="remove-btn" onclick="removeFacultyMember(${i})">✕</button>`:''}<span class="mini-label">Faculty ${i+1}</span><div class="field-group"><label>Name</label><input value="${escHtml(m.name)}" placeholder="e.g. Dr. Jane Smith" oninput="onFacultyMember(${i},'name',this.value)"></div><div class="field-group"><label>Role / what they do</label><input value="${escHtml(m.role)}" placeholder="e.g. Consultant anaesthetist" oninput="onFacultyMember(${i},'role',this.value)"></div><div class="field-group"><label>Workplace</label><input value="${escHtml(m.workplace)}" placeholder="e.g. Rigshospitalet" oninput="onFacultyMember(${i},'workplace',this.value)"></div><div class="field-group"><label>Photo (optional, maximum 1 MB)</label><input type="file" accept="image/*" onchange="onFacultyImage(${i},this.files[0])">${m.image?`<img class="image-preview" src="${m.image}" alt="Preview"><button type="button" class="remove-image-btn" onclick="form.moduleContent.facultyInfo.members[${i}].image='';render()">Remove photo</button>`:''}</div><details class="topic-toggle"><summary>About this person (optional)</summary><div class="topic-body"><textarea placeholder="A short bio — background, interests, what to ask them about…" oninput="onFacultyMember(${i},'bio',this.value)">${escHtml(m.bio||'')}</textarea></div></details></div>`).join('')}</div><button type="button" class="add-session-btn" style="margin-top:10px" onclick="addFacultyMember()">+ Add faculty member</button>`; }
+  if (module === 'facultyInfo') { normalizeFacultyInfo(c); fields = `<div class="faculty-grid">${c.members.map((m,i)=>{
+    const key=`faculty-${i}`;
+    const label=escHtml(m.name || `Faculty ${i+1}`)+(m.role?` <span style="font-weight:normal;opacity:.75">— ${escHtml(m.role)}</span>`:'');
+    const removeBtn=c.members.length>1?`<button type="button" class="remove-btn" onclick="event.stopPropagation();event.preventDefault();removeFacultyMember(${i})">✕</button>`:'';
+    const body=`<div class="field-group"><label>Name</label><input value="${escHtml(m.name)}" placeholder="e.g. Dr. Jane Smith" oninput="onFacultyMember(${i},'name',this.value)"></div><div class="field-group"><label>Role / what they do</label><input value="${escHtml(m.role)}" placeholder="e.g. Consultant anaesthetist" oninput="onFacultyMember(${i},'role',this.value)"></div><div class="field-group"><label>Workplace</label><input value="${escHtml(m.workplace)}" placeholder="e.g. Rigshospitalet" oninput="onFacultyMember(${i},'workplace',this.value)"></div><div class="field-group"><label>Photo (optional, maximum 1 MB)</label><input type="file" accept="image/*" onchange="onFacultyImage(${i},this.files[0])">${m.image?`<img class="image-preview" src="${m.image}" alt="Preview"><button type="button" class="remove-image-btn" onclick="form.moduleContent.facultyInfo.members[${i}].image='';render()">Remove photo</button>`:''}</div><details class="topic-toggle"><summary>About this person (optional)</summary><div class="topic-body"><textarea placeholder="A short bio — background, interests, what to ask them about…" oninput="onFacultyMember(${i},'bio',this.value)">${escHtml(m.bio||'')}</textarea></div></details>`;
+    return `<details class="session-collapsible" ${openListItems[key]?'open':''} ontoggle="if(this.open){openListItems['${key}']=true}else{delete openListItems['${key}']}"><summary>${label}${removeBtn}</summary><div class="session-collapsible-body">${body}</div></details>`;
+  }).join('')}</div><button type="button" class="add-session-btn" style="margin-top:10px" onclick="addFacultyMember()">+ Add faculty member</button>`; }
   return `<details class="module-editor" ${openModule===module?'open':''} ontoggle="if(this.open)openModule='${module}';else if(openModule==='${module}')openModule='' "><summary>${module==='quiz'?'Edit quiz questions':`Edit ${escHtml(c.title || module)}`}</summary><div class="module-editor-body">${common}${fields}</div></details>`;
 }
 
