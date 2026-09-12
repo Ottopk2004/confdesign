@@ -213,16 +213,24 @@
   .topic-toggle { border:1px dashed var(--pf-border); border-radius:8px; margin-top:10px; overflow:hidden; }
   .topic-toggle summary { cursor:pointer; padding:8px 10px; font-size:11.5px; font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
   .topic-toggle .topic-body { padding:10px; }
+  .topic-preview { margin-top:10px; padding-top:10px; border-top:1px dashed var(--pf-border); }
+  .topic-preview-label { font-size:10px; text-transform:uppercase; letter-spacing:.03em; color:var(--pf-muted); font-weight:bold; margin-bottom:4px; }
+  .topic-preview-text { font-size:13px; color:var(--pf-ink); line-height:1.55; margin:0; min-height:18px; }
+  .topic-preview-text:empty::before { content:'Nothing typed yet — participants won\'t see anything here.'; color:var(--pf-muted); font-style:italic; }
   .topic-toggle textarea { width:100%; min-height:70px; }
 
   .faculty-grid { display:flex; flex-direction:column; gap:12px; }
-  .faculty-card { width:100%; border:2px solid #cfdae3; border-radius:14px; background:#f7f8f9; padding:16px; position:relative; }
-  .faculty-card .remove-btn { position:absolute; top:8px; right:8px; }
-  .faculty-card h4 { color:var(--pf-theme); margin-bottom:2px; }
-  .faculty-card .faculty-role { font-size:12.5px; font-weight:bold; color:var(--pf-ink); }
-  .faculty-card .faculty-workplace { font-size:12px; color:var(--pf-muted); margin-top:2px; }
-  .faculty-card .faculty-photo { width:100%; max-width:220px; border-radius:10px; margin:10px 0; display:block; }
-  .faculty-card .faculty-bio { font-size:13px; color:var(--pf-ink); margin-top:8px; line-height:1.55; white-space:pre-wrap; }
+  .faculty-card { width:100%; border:2px solid #cfdae3; border-radius:14px; background:#f7f8f9; overflow:hidden; }
+  .faculty-card > summary { cursor:pointer; padding:14px 40px 14px 16px; list-style:none; position:relative; }
+  .faculty-card > summary::-webkit-details-marker { display:none; }
+  .faculty-card > summary::after { content:'▾'; position:absolute; right:16px; top:50%; transform:translateY(-50%); color:var(--pf-theme); font-size:13px; transition:transform .15s; }
+  .faculty-card[open] > summary::after { transform:translateY(-50%) rotate(180deg); }
+  .faculty-summary-name { display:block; color:var(--pf-theme); font-weight:bold; font-size:15px; }
+  .faculty-summary-role { display:block; font-size:12.5px; font-weight:bold; color:var(--pf-ink); margin-top:2px; }
+  .faculty-card-body { padding:0 16px 16px; }
+  .faculty-card .faculty-workplace { font-size:12px; color:var(--pf-muted); margin-top:-4px; margin-bottom:6px; }
+  .faculty-card .faculty-photo { width:100%; max-width:220px; border-radius:10px; margin:6px 0 10px; display:block; }
+  .faculty-card .faculty-bio { font-size:13px; color:var(--pf-ink); line-height:1.55; white-space:pre-wrap; }
 
   .group-manager-block { border:1px solid var(--pf-border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
   .group-manager-title { padding:8px 10px; font-size:11.5px; font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
@@ -510,6 +518,8 @@ let editQuizQuestions = null;
 let editQuizPassPct = 70;
 let resetLookupNr = "";
 let resetLookupResult = null; // { locked, submittedAt, passed, scorePct } | { error }
+let feedbackResetLookupNr = "";
+let feedbackResetLookupResult = null; // { locked, submittedAt, role } | { error }
 let quizSaveStatus = "";
 let quizSaveStatusIsError = false;
 let quizAnalytics = null;
@@ -960,7 +970,7 @@ function renderParticipantModule(tab) {
   if (tab === 'facultyInfo') {
     const members = Array.isArray(c.members) ? c.members.filter(m => m && (m.name || m.role || m.workplace)) : [];
     if (!members.length) return top + emptyModule();
-    const cards = members.map(m => `<div class="faculty-card">${m.image?`<img class="faculty-photo" src="${m.image}" alt="${escHtml(m.name||'Faculty member')}">`:''}<h4>${escHtml(m.name || 'Faculty member')}</h4>${m.role ? `<div class="faculty-role">${escHtml(m.role)}</div>` : ''}${m.workplace ? `<div class="faculty-workplace">${escHtml(m.workplace)}</div>` : ''}${m.bio ? `<div class="faculty-bio">${escHtml(m.bio)}</div>` : ''}</div>`).join('');
+    const cards = members.map(m => `<details class="faculty-card"><summary><span class="faculty-summary-name">${escHtml(m.name || 'Faculty member')}</span>${m.role ? `<span class="faculty-summary-role">${escHtml(m.role)}</span>` : ''}</summary><div class="faculty-card-body">${m.image?`<img class="faculty-photo" src="${m.image}" alt="${escHtml(m.name||'Faculty member')}">`:''}${m.workplace ? `<div class="faculty-workplace">${escHtml(m.workplace)}</div>` : ''}${m.bio ? `<div class="faculty-bio">${escHtml(m.bio)}</div>` : ''}</div></details>`).join('');
     return top + `<div class="faculty-grid">${cards}</div>`;
   }
   return top + emptyModule();
@@ -1154,6 +1164,7 @@ function enterOrganizerMode() {
   editQuizQuestions = null;
   editQuizPassPct = 70;
   resetLookupNr = ""; resetLookupResult = null;
+  feedbackResetLookupNr = ""; feedbackResetLookupResult = null;
 
   mode = "organizer";
   render();
@@ -1655,6 +1666,8 @@ function renderOrganizerEditor() {
       <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Participant administration</div>
       ${hasQuiz ? renderQuizResetTool() : `
         <div class="info-card"><strong>Reset a participant's quiz</strong><div class="field-hint" style="margin-top:5px;">Quiz is not enabled for this conference.</div></div>`}
+      ${hasFeedback ? renderFeedbackResetTool() : `
+        <div class="info-card" style="margin-top:14px;"><strong>Reset a conference evaluation</strong><div class="field-hint" style="margin-top:5px;">Conference evaluation is not enabled for this conference.</div></div>`}
       ${renderRegistrationResetTool()}
 
       ${hasQuiz ? renderQuizAnalytics() : `
@@ -1793,6 +1806,76 @@ function renderResetLookupResult() {
     <div class="save-status ok">Participant ${escHtml(resetLookupNr)}: submitted${resetLookupResult.submittedAt ? " on " + new Date(resetLookupResult.submittedAt).toLocaleString("en-GB") : ""} — ${resetLookupResult.passed ? "Passed" : "Not passed"}.</div>
     <button class="save-btn" style="background:var(--pf-red);margin-top:8px;" onclick="doQuizReset()">Reset, so they can take it again</button>
   `;
+}
+
+// Same idea as the quiz reset tool above, but for a person's conference
+// evaluation submission — works for any number (participant, faculty, or
+// observer), since all three can submit conference feedback.
+function renderFeedbackResetTool() {
+  return `
+    <div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Reset a conference evaluation</div>
+    <div class="field-row" style="align-items:flex-end;">
+      <div class="field-group" style="margin-bottom:0;">
+        <label>Participant / faculty / observer number</label>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="${escHtml(feedbackResetLookupNr)}" oninput="onFeedbackResetLookupNr(this.value)">
+      </div>
+      <button class="save-btn" style="width:auto;padding:9px 16px;margin-top:0;" onclick="lookupFeedbackStatus()">Look up</button>
+    </div>
+    ${renderFeedbackResetLookupResult()}
+  `;
+}
+
+function renderFeedbackResetLookupResult() {
+  if (!feedbackResetLookupResult) return "";
+  if (feedbackResetLookupResult.error) {
+    return `<div class="save-status error">${escHtml(feedbackResetLookupResult.error)}</div>`;
+  }
+  if (!feedbackResetLookupResult.locked) {
+    return `<div class="save-status ok">#${escHtml(feedbackResetLookupNr)} hasn't submitted a conference evaluation yet — nothing to reset.</div>`;
+  }
+  return `
+    <div class="save-status ok">#${escHtml(feedbackResetLookupNr)}${feedbackResetLookupResult.role ? " (" + escHtml(feedbackResetLookupResult.role) + ")" : ""}: submitted${feedbackResetLookupResult.submittedAt ? " on " + new Date(feedbackResetLookupResult.submittedAt).toLocaleString("en-GB") : ""}.</div>
+    <button class="save-btn" style="background:var(--pf-red);margin-top:8px;" onclick="doFeedbackReset()">Reset, so they can submit again</button>
+  `;
+}
+
+function onFeedbackResetLookupNr(val) { feedbackResetLookupNr = val.replace(/\D/g, ""); }
+
+function lookupFeedbackStatus() {
+  if (!feedbackResetLookupNr) return;
+  feedbackResetLookupResult = null;
+  rerenderOrganizerScroll();
+
+  if (!PLATFORM_WORKER_URL) {
+    feedbackResetLookupResult = { locked: false };
+    rerenderOrganizerScroll();
+    return;
+  }
+
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/status?nr=${encodeURIComponent(feedbackResetLookupNr)}`)
+    .then(res => res.json())
+    .then(data => { feedbackResetLookupResult = data; rerenderOrganizerScroll(); })
+    .catch(() => { feedbackResetLookupResult = { error: "Couldn't check status." }; rerenderOrganizerScroll(); });
+}
+
+function doFeedbackReset() {
+  if (!confirm(`Reset the conference evaluation for #${feedbackResetLookupNr}? They'll be able to submit it again.`)) return;
+
+  if (!PLATFORM_WORKER_URL) {
+    console.log("Simulated feedback reset (PLATFORM_WORKER_URL is not set yet) for nr", feedbackResetLookupNr);
+    feedbackResetLookupResult = { locked: false };
+    rerenderOrganizerScroll();
+    return;
+  }
+
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nr: feedbackResetLookupNr, adminPin: pinInput }),
+  })
+    .then(res => res.json())
+    .then(() => { feedbackResetLookupResult = { locked: false }; rerenderOrganizerScroll(); })
+    .catch(() => alert("Couldn't reset — check your connection."));
 }
 
 function onToggleModule(key, checked) {
@@ -2058,7 +2141,7 @@ function renderOrganizerModuleContent(module) {
         const key=`handsOn-breakout-${si}`;
         const label=`Session ${si+1}${hs.date?' · '+escHtml(hs.date):''}${hs.startTime?' · '+escHtml(hs.startTime)+(hs.endTime?'–'+escHtml(hs.endTime):''):''}${hs.groupCount?' · '+hs.groupCount+' groups':''}`;
         const removeBtn=c.sessions.length>1?`<button class="remove-btn" onclick="event.stopPropagation();event.preventDefault();removeEditBreakoutSession(${si})">✕</button>`:'';
-        const body=`<div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditBreakoutSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of groups</label><input type="number" min="1" max="50" value="${hs.groupCount}" onchange="onEditBreakoutGroupCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditBreakoutSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditBreakoutSession(${si},'endTime',this.value)"></div></div>${si>0?`<div class="field-group"><label>Group assignment</label><div class="segmented"><div class="segmented-btn ${hs.groupAssignment==='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'keep')">Keep same groups</div><div class="segmented-btn ${hs.groupAssignment!=='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'randomize')">New random groups</div></div><div class="field-hint">"Keep same groups" reuses the grouping from Session ${si}.</div></div>`:''}${renderBreakoutGroupManager(si)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditBreakoutSession(${si},'topic',this.value)">${escHtml(hs.topic||'')}</textarea></div></details>`;
+        const body=`<div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditBreakoutSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of groups</label><input type="number" min="1" max="50" value="${hs.groupCount}" onchange="onEditBreakoutGroupCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditBreakoutSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditBreakoutSession(${si},'endTime',this.value)"></div></div>${si>0?`<div class="field-group"><label>Group assignment</label><div class="segmented"><div class="segmented-btn ${hs.groupAssignment==='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'keep')">Keep same groups</div><div class="segmented-btn ${hs.groupAssignment!=='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'randomize')">New random groups</div></div><div class="field-hint">"Keep same groups" reuses the grouping from Session ${si}.</div></div>`:''}${renderBreakoutGroupManager(si)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditBreakoutSession(${si},'topic',this.value);this.parentElement.querySelector('.topic-preview-text').textContent=this.value;">${escHtml(hs.topic||'')}</textarea><div class="topic-preview"><div class="topic-preview-label">Preview — shown under the session date</div><p class="topic-preview-text">${escHtml(hs.topic||'')}</p></div></div></details>`;
         return `<details class="session-collapsible" ${editOpenSessions[key]?'open':''} ontoggle="if(this.open){editOpenSessions['${key}']=true}else{delete editOpenSessions['${key}']}"><summary>${label}${removeBtn}</summary><div class="session-collapsible-body">${body}</div></details>`;
       }).join('')}<button class="add-btn" onclick="addEditBreakoutSession()">+ Add another session</button>`;
     } else {
@@ -2066,7 +2149,7 @@ function renderOrganizerModuleContent(module) {
         const key=`handsOn-rotation-${si}`;
         const label=`Session ${si+1}${hs.date?' · '+escHtml(hs.date):''}${hs.startTime?' · '+escHtml(hs.startTime)+(hs.endTime?'–'+escHtml(hs.endTime):''):''}${hs.stationCount?' · '+hs.stationCount+' stations':''}`;
         const removeBtn=c.sessions.length>1?`<button class="remove-btn" onclick="event.stopPropagation();event.preventDefault();removeEditHandsOnSession(${si})">✕</button>`:'';
-        const body=`<div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onEditHandsOnCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onEditHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-edit-row"><span class="mini-label">Station ${i+1}</span><input value="${escHtml(s.name)}" oninput="onEditHandsOnStation(${si},${i},'name',this.value)"><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onEditHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onEditHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}${renderHandsOnGroupOverview(hs.stationCount,hs.stations)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditHandsOnSession(${si},'topic',this.value)">${escHtml(hs.topic||'')}</textarea></div></details>`;
+        const body=`<div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onEditHandsOnCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onEditHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-edit-row"><span class="mini-label">Station ${i+1}</span><input value="${escHtml(s.name)}" oninput="onEditHandsOnStation(${si},${i},'name',this.value)"><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onEditHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onEditHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}${renderHandsOnGroupOverview(hs.stationCount,hs.stations)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditHandsOnSession(${si},'topic',this.value);this.parentElement.querySelector('.topic-preview-text').textContent=this.value;">${escHtml(hs.topic||'')}</textarea><div class="topic-preview"><div class="topic-preview-label">Preview — shown under the session date</div><p class="topic-preview-text">${escHtml(hs.topic||'')}</p></div></div></details>`;
         return `<details class="session-collapsible" ${editOpenSessions[key]?'open':''} ontoggle="if(this.open){editOpenSessions['${key}']=true}else{delete editOpenSessions['${key}']}"><summary>${label}${removeBtn}</summary><div class="session-collapsible-body">${body}</div></details>`;
       }).join('')}<button class="add-btn" onclick="addEditHandsOnSession()">+ Add another session</button>`;
     }
