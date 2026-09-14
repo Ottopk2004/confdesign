@@ -168,6 +168,48 @@
 <script>
 const PLATFORM_WORKER_URL = "https://cm-worker.conferenceplanner.workers.dev";
 
+// "Remember me" — mirrors the same localStorage keys used in index.html.
+// Scanning a conference's QR code (which only encodes ?conf=slug, no
+// personal number) or just typing confdesign.com logs you straight back
+// in if this browser has logged in before, instead of asking again.
+function getRememberedNr(slug) {
+  try { return localStorage.getItem('cd_login_' + slug) || null; } catch (e) { return null; }
+}
+function getLastRememberedLogin() {
+  try {
+    const slug = localStorage.getItem('cd_last_slug');
+    if (!slug) return null;
+    const nr = localStorage.getItem('cd_login_' + slug);
+    return nr ? { slug, nr } : null;
+  } catch (e) { return null; }
+}
+
+(function tryAutoLogin() {
+  const params = new URLSearchParams(location.search);
+  const qrSlug = (params.get('conf') || '').trim().toLowerCase();
+
+  if (qrSlug) {
+    const nr = getRememberedNr(qrSlug);
+    if (nr) {
+      location.replace(`index.html?conf=${encodeURIComponent(qrSlug)}&nr=${encodeURIComponent(nr)}`);
+      return;
+    }
+    // Known conference (from a QR code) but no remembered number yet —
+    // pre-fill the code so the person only has to type their own number.
+    const input = document.getElementById('codeInput');
+    if (input) {
+      input.value = qrSlug.toUpperCase();
+      requestAnimationFrame(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); });
+    }
+    return;
+  }
+
+  const last = getLastRememberedLogin();
+  if (last) {
+    location.replace(`index.html?conf=${encodeURIComponent(last.slug)}&nr=${encodeURIComponent(last.nr)}`);
+  }
+})();
+
 function onCodeInput(v) {
   document.getElementById("codeError").textContent = "";
 }

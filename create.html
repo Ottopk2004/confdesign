@@ -484,7 +484,7 @@ let form = {
   participantCount: 100,
   facultyCount: 20,
   observerCount: 0,
-  modules: { handsOn: false, map: false, industry: false, quiz: false, evaluations: false, conferenceFeedback: false, contact: false, facultyInfo: false },
+  modules: { handsOn: false, map: false, industry: false, quiz: false, evaluations: false, conferenceFeedback: false, contact: false, facultyInfo: false, presentations: false },
   moduleContent: {
     handsOn: { title: "Breakout sessions", intro: "", sessions: [newHandsOnSession()] },
     map: { title: "Venue map", intro: "", address: "", image: "" },
@@ -494,6 +494,7 @@ let form = {
     conferenceFeedback: { title: "Conference evaluation", intro: "We would value your feedback.", items: [{ id: "fb1", type: "comment", question: "How would you evaluate the conference?" }] },
     contact: { title: "Contact", intro: "", coordinatorName: "", coordinatorPhone: "", coordinatorEmail: "", supportName: "", supportPhone: "", supportEmail: "", image: "" },
     facultyInfo: { title: "Faculty", intro: "", members: [newFacultyMember()] },
+    presentations: { title: "Presentations", intro: "" },
   },
 };
 
@@ -697,7 +698,8 @@ function render() {
         ['evaluations','✓','Faculty evaluations','Faculty can mark participants pass/fail and add comments.'],
         ['conferenceFeedback','✎','Conference evaluation','Let participants submit a written evaluation of the conference.'],
         ['contact','⌕','Contact','Course coordinator and technical support details.'],
-        ['facultyInfo','☺','Faculty','Introduce faculty members: who they are, their role and where they work.']
+        ['facultyInfo','☺','Faculty','Introduce faculty members: who they are, their role and where they work.'],
+        ['presentations','▤','Presentations','Faculty can upload the slides they presented, for participants to download afterwards. Uploading itself happens after the conference is created.']
       ].map(([key,icon,name,desc]) => `
         <div class="module-row">
           <label class="module-toggle">
@@ -715,6 +717,7 @@ function render() {
       ${form.modules.conferenceFeedback ? renderModuleEditor('conferenceFeedback') : ''}
       ${form.modules.contact ? renderModuleEditor('contact') : ''}
       ${form.modules.facultyInfo ? renderModuleEditor('facultyInfo') : ''}
+      ${form.modules.presentations ? renderModuleEditor('presentations') : ''}
       </div></details>
 
     <details class="card" ${openCreateSection==='schedule'?'open':''} ontoggle="trackCreateSection(this,'schedule')">
@@ -833,7 +836,7 @@ function normalizeFeedbackItems(c){
   }
   return c;
 }
-function addFeedbackItem(module,type){const c=form.moduleContent[module];if(!Array.isArray(c.items))c.items=[];if(c.items.length>=20){alert('A maximum of 20 add-ons is supported.');return;}c.items.push(newFeedbackItem(type));render();}
+function addFeedbackItem(module,type){const c=form.moduleContent[module];if(!Array.isArray(c.items))c.items=[];if(c.items.length>=20){alert('A maximum of 20 questions is supported.');return;}c.items.push(newFeedbackItem(type));render();}
 function removeFeedbackItem(module,i){form.moduleContent[module].items.splice(i,1);render();}
 function onFeedbackItemField(module,i,key,value){form.moduleContent[module].items[i][key]=value;}
 function addFeedbackItemOption(module,i){const it=form.moduleContent[module].items[i];if(!Array.isArray(it.options))it.options=[];if(it.options.length>=10){alert('A maximum of 10 answer options is supported.');return;}it.options.push('');render();}
