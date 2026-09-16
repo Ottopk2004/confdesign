@@ -1371,6 +1371,7 @@ function enterOrganizerMode() {
   feedbackResetLookupNr = ""; feedbackResetLookupResult = null;
   certTemplate = null; certTemplateLoading = false; certTemplateError = "";
   certTemplateSaveStatus = ""; certTemplateSaveStatusIsError = false;
+  certPreviewLoading = false; certPreviewError = "";
   certSendState = { nr: "", name: "", date: "", email: "", sending: false, message: "", error: "" };
   certBulkState = { date: "", sending: false, result: null, error: "" };
 
@@ -2475,6 +2476,26 @@ function saveCertTemplate(){
   const payload=Object.assign({},certTemplate,{adminPin:pinInput});
   fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/certificate-template`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't save the template.");certTemplate=d.template;certTemplateSaveStatus="Saved.";certTemplateSaveStatusIsError=false;rerenderOrganizerScroll();}).catch(e=>{certTemplateSaveStatus=e.message;certTemplateSaveStatusIsError=true;rerenderOrganizerScroll();});
 }
+let certPreviewLoading = false;
+let certPreviewError = "";
+// Renders a real PDF using whatever is currently in the form — including
+// edits not yet saved — with sample name/date, and opens it in a new tab.
+// A custom background must already be uploaded first (that part saves
+// itself immediately), but title/body/color text previews before saving.
+function previewCertificate(){
+  certPreviewLoading=true;certPreviewError="";rerenderOrganizerScroll();
+  const payload={title:certTemplate.title,bodyText:certTemplate.bodyText,accentColor:certTemplate.accentColor,useCustomBackground:certTemplate.useCustomBackground,adminPin:pinInput};
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/certificate-template/preview`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(async r=>{
+    if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||"Couldn't generate a preview.");}
+    return r.blob();
+  }).then(blob=>{
+    certPreviewLoading=false;rerenderOrganizerScroll();
+    const url=URL.createObjectURL(blob);
+    const win=window.open(url,'_blank');
+    if(!win){certPreviewError="Your browser blocked the preview from opening — please allow pop-ups for this site and try again.";rerenderOrganizerScroll();}
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }).catch(e=>{certPreviewLoading=false;certPreviewError=e.message;rerenderOrganizerScroll();});
+}
 function uploadCertBackground(fileInput){
   const file=fileInput.files && fileInput.files[0];
   if(!file)return;
@@ -2524,6 +2545,9 @@ function renderCertificatesTab(){
       </div>` : ''}
 
     <button class="save-btn" style="width:auto;padding:10px 18px;" onclick="saveCertTemplate()">Save template</button>
+    <button class="pin-btn" style="width:auto;padding:10px 18px;margin-left:8px;" onclick="previewCertificate()" ${certPreviewLoading?'disabled':''}>${certPreviewLoading?'Generating preview…':'Preview certificate'}</button>
+    <div class="field-hint" style="margin-top:6px;">Opens a sample PDF (name "Jane Doe") in a new tab, using whatever is in the fields above right now — even if you haven't saved yet.</div>
+    ${certPreviewError?`<div class="save-status error">${escHtml(certPreviewError)}</div>`:''}
     <div class="save-status ${certTemplateSaveStatusIsError?'error':'ok'}">${escHtml(certTemplateSaveStatus)}</div>
 
     <div class="mini-label" style="margin:26px 0 8px;font-size:12px;">Send to one person</div>
