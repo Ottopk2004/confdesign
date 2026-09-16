@@ -128,26 +128,27 @@
     font-weight: bold; cursor: pointer;
   }
 
-  .tab-bar-wrap { position: relative; }
+  .tab-bar-wrap { position: relative; padding: 0 34px; }
   .tab-bar {
     display: flex; border-bottom: 2px solid var(--pf-border); overflow-x:auto; background-color:#fff;
-    background-image:
-      linear-gradient(to right, #fff 30%, rgba(255,255,255,0)),
-      linear-gradient(to right, rgba(255,255,255,0), #fff 70%),
-      radial-gradient(farthest-side at 0% 50%, rgba(0,0,0,.18), rgba(0,0,0,0)),
-      radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.18), rgba(0,0,0,0));
-    background-repeat: no-repeat;
-    background-size: 36px 100%, 36px 100%, 12px 100%, 12px 100%;
-    background-position: 0 0, 100% 0, 0 0, 100% 0;
-    background-attachment: local, local, scroll, scroll;
+    scroll-behavior: smooth;
   }
   .tab-btn {
     flex: 0 0 auto; min-width:112px; text-align: center; padding: 15px 12px; font-size: 14px; font-weight: bold;
     color: var(--pf-muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;
   }
   .tab-btn.active { color: var(--pf-theme); border-bottom-color: var(--pf-theme); background:var(--pf-theme-light); }
-  .tab-bar-hint { text-align:center; font-size:10.5px; color:var(--pf-muted); padding:4px 0 0; background:#fff; }
-  .tab-bar-hint.hidden { display:none; }
+  .tab-bar-arrow {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 30px; height: 30px; border-radius: 50%; border: none;
+    background: var(--pf-theme); color: #fff; font-size: 15px; font-weight: bold;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,.22); z-index: 2; padding: 0;
+  }
+  .tab-bar-arrow.prev { left: 0; }
+  .tab-bar-arrow.next { right: 0; }
+  .tab-bar-arrow.hidden { display: none; }
+
 
   .panel-scroll { padding: 28px 32px 40px; max-height: 760px; overflow-y: auto; }
   .module-placeholder { border:2px solid #cfdae3; border-radius:14px; background:#f7f8f9; padding:28px; }
@@ -351,33 +352,8 @@
   .toolbar { padding:11px 16px; }
   .tab-bar { scrollbar-width:thin; -webkit-overflow-scrolling:touch; }
   .tab-btn { min-width:104px; padding:14px 10px; font-size:13px; }
-  /* On phones, don't rely on horizontal swipe/scroll to discover tabs —
-     several people didn't realize more tabs existed off-screen. Instead,
-     the tabs wrap onto as many rows as needed, like filter chips, so
-     everything is visible and nothing needs to be dragged or "settles"
-     into place. */
-  .tab-bar-wrap { overflow: visible; }
-  .tab-bar {
-    flex-wrap: wrap;
-    overflow-x: visible;
-    background-image: none;
-    justify-content: center;
-    gap: 8px;
-    padding: 10px 10px 8px;
-  }
-  .tab-btn {
-    flex: 0 1 auto;
-    min-width: 0;
-    padding: 9px 14px;
-    font-size: 12.5px;
-    border: 2px solid var(--pf-border);
-    border-bottom: 2px solid var(--pf-border);
-    border-radius: 20px;
-    margin-bottom: 0;
-    background: #fff;
-  }
-  .tab-btn.active { border-color: var(--pf-theme); border-bottom-color: var(--pf-theme); }
-  .tab-bar-hint { display: none; }
+  .tab-bar-wrap { padding: 0 30px; }
+  .tab-bar-arrow { width: 26px; height: 26px; font-size: 13px; }
   .panel-scroll { padding:18px 14px 32px; max-height:none; }
   .field-row { flex-direction:column; gap:0; }
   .field-group input, .field-group textarea { min-height:46px; font-size:16px; }
@@ -753,22 +729,32 @@ function conferenceLogoHtml(meta){
 function renderTabBar(tabs) {
   return `
     <div class="tab-bar-wrap">
+      <button type="button" class="tab-bar-arrow prev hidden" id="tabBarPrev" onclick="scrollTabBar(-1)" aria-label="Show previous tabs">‹</button>
       <div class="tab-bar" id="tabBar" onscroll="checkTabBarOverflow()">
         ${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" data-tab="${t.key}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}
       </div>
-      <div class="tab-bar-hint hidden" id="tabBarHint">‹ Swipe to see more tabs ›</div>
+      <button type="button" class="tab-bar-arrow next hidden" id="tabBarNext" onclick="scrollTabBar(1)" aria-label="Show more tabs">›</button>
     </div>`;
 }
-// Only shows the swipe hint when the tabs genuinely overflow (few tabs on
-// a wide screen never need it), and hides it once the user has scrolled
-// far enough that the remaining tabs are basically all visible.
+// Same arrow-button design on every screen size — rather than relying on
+// swipe (easy to miss) or wrapping tabs onto rows (different look on
+// phone vs desktop), a tap on the arrow scrolls by roughly one tab-bar's
+// width. Arrows hide themselves at whichever end is already fully visible.
+function scrollTabBar(direction) {
+  const bar = document.getElementById("tabBar");
+  if (!bar) return;
+  bar.scrollBy({ left: direction * bar.clientWidth * 0.8, behavior: "smooth" });
+}
 function checkTabBarOverflow() {
   const bar = document.getElementById("tabBar");
-  const hint = document.getElementById("tabBarHint");
-  if (!bar || !hint) return;
+  const prev = document.getElementById("tabBarPrev");
+  const next = document.getElementById("tabBarNext");
+  if (!bar || !prev || !next) return;
   const overflowing = bar.scrollWidth > bar.clientWidth + 4;
-  const nearEnd = bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 4;
-  hint.classList.toggle("hidden", !overflowing || nearEnd);
+  const atStart = bar.scrollLeft <= 4;
+  const atEnd = bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 4;
+  prev.classList.toggle("hidden", !overflowing || atStart);
+  next.classList.toggle("hidden", !overflowing || atEnd);
 }
 
 function render() {
@@ -914,6 +900,7 @@ function render() {
         <a href="login.html" style="text-decoration:none;"><button>Log out</button></a>
       </div>
       <div class="tab-bar-wrap">
+        <button type="button" class="tab-bar-arrow prev hidden" id="tabBarPrev" onclick="scrollTabBar(-1)" aria-label="Show previous tabs">‹</button>
         <div class="tab-bar organizer-editor-tabs" id="tabBar" onscroll="checkTabBarOverflow()">
           <div class="tab-btn ${organizerTab==='general'?'active':''}" data-organizer-tab="general" onclick="setOrganizerTab('general')">General</div>
           <div class="tab-btn ${organizerTab==='schedule'?'active':''}" data-organizer-tab="schedule" onclick="setOrganizerTab('schedule')">Schedule</div>
@@ -921,7 +908,7 @@ function render() {
           <div class="tab-btn ${organizerTab==='certificates'?'active':''}" data-organizer-tab="certificates" onclick="setOrganizerTab('certificates')">Certificates</div>
           <div class="tab-btn ${organizerTab==='administration'?'active':''}" data-organizer-tab="administration" onclick="setOrganizerTab('administration')">Administration</div>
         </div>
-        <div class="tab-bar-hint hidden" id="tabBarHint">‹ Swipe to see more tabs ›</div>
+        <button type="button" class="tab-bar-arrow next hidden" id="tabBarNext" onclick="scrollTabBar(1)" aria-label="Show more tabs">›</button>
       </div>
       <div class="panel-scroll" id="organizerScroll">${renderOrganizerEditor()}</div>
     `);
