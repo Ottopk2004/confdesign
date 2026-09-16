@@ -128,26 +128,31 @@
     font-weight: bold; cursor: pointer;
   }
 
-  .tab-bar-wrap { position: relative; padding: 0 34px; }
+  .tab-bar-wrap { position: relative; padding: 0 26px; }
   .tab-bar {
     display: flex; border-bottom: 2px solid var(--pf-border); overflow-x:auto; background-color:#fff;
     scroll-behavior: smooth;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
   }
   .tab-btn {
     flex: 0 0 auto; min-width:112px; text-align: center; padding: 15px 12px; font-size: 14px; font-weight: bold;
     color: var(--pf-muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
   }
   .tab-btn.active { color: var(--pf-theme); border-bottom-color: var(--pf-theme); background:var(--pf-theme-light); }
   .tab-bar-arrow {
     position: absolute; top: 50%; transform: translateY(-50%);
-    width: 30px; height: 30px; border-radius: 50%; border: none;
-    background: var(--pf-theme); color: #fff; font-size: 15px; font-weight: bold;
+    width: 24px; height: 24px; border: none; background: none;
+    color: #1a1a1a; font-size: 20px; font-weight: bold; line-height: 1;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,.22); z-index: 2; padding: 0;
+    z-index: 2; padding: 0;
   }
-  .tab-bar-arrow.prev { left: 0; }
-  .tab-bar-arrow.next { right: 0; }
+  .tab-bar-arrow.prev { left: 0; justify-content: flex-start; }
+  .tab-bar-arrow.next { right: 0; justify-content: flex-end; }
   .tab-bar-arrow.hidden { display: none; }
+
 
 
   .panel-scroll { padding: 28px 32px 40px; max-height: 760px; overflow-y: auto; }
@@ -352,8 +357,8 @@
   .toolbar { padding:11px 16px; }
   .tab-bar { scrollbar-width:thin; -webkit-overflow-scrolling:touch; }
   .tab-btn { min-width:104px; padding:14px 10px; font-size:13px; }
-  .tab-bar-wrap { padding: 0 30px; }
-  .tab-bar-arrow { width: 26px; height: 26px; font-size: 13px; }
+  .tab-bar-wrap { padding: 0 22px; }
+  .tab-bar-arrow { width: 20px; height: 20px; font-size: 18px; }
   .panel-scroll { padding:18px 14px 32px; max-height:none; }
   .field-row { flex-direction:column; gap:0; }
   .field-group input, .field-group textarea { min-height:46px; font-size:16px; }
