@@ -2462,6 +2462,14 @@ function loadCertTemplate(){
   fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/certificate-template`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't load the certificate template.");certTemplate=d.template;certTemplateLoading=false;rerenderOrganizerScroll();}).catch(e=>{certTemplateLoading=false;certTemplateError=e.message;rerenderOrganizerScroll();});
 }
 function onCertTemplateField(key,value){ if(certTemplate) certTemplate[key]=value; }
+// The background-mode toggle changes what's shown below it (the image
+// upload field appears/disappears), so — unlike plain text fields — it
+// needs an immediate re-render rather than waiting for the next save.
+function onCertTemplateBackgroundMode(useCustom){
+  if(!certTemplate) return;
+  certTemplate.useCustomBackground = useCustom;
+  rerenderOrganizerScroll();
+}
 function saveCertTemplate(){
   certTemplateSaveStatus="Saving…";certTemplateSaveStatusIsError=false;rerenderOrganizerScroll();
   const payload=Object.assign({},certTemplate,{adminPin:pinInput});
@@ -2503,8 +2511,8 @@ function renderCertificatesTab(){
     <div class="field-group">
       <label>Background</label>
       <div class="segmented">
-        <div class="segmented-btn ${!t.useCustomBackground?'selected':''}" onclick="onCertTemplateField('useCustomBackground',false)">Default design</div>
-        <div class="segmented-btn ${t.useCustomBackground?'selected':''}" onclick="onCertTemplateField('useCustomBackground',true)">My own image</div>
+        <div class="segmented-btn ${!t.useCustomBackground?'selected':''}" onclick="onCertTemplateBackgroundMode(false)">Default design</div>
+        <div class="segmented-btn ${t.useCustomBackground?'selected':''}" onclick="onCertTemplateBackgroundMode(true)">My own image</div>
       </div>
     </div>
     ${t.useCustomBackground?`
