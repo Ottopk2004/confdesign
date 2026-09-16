@@ -128,12 +128,26 @@
     font-weight: bold; cursor: pointer;
   }
 
-  .tab-bar { display: flex; border-bottom: 2px solid var(--pf-border); overflow-x:auto; background:#fff; }
+  .tab-bar-wrap { position: relative; }
+  .tab-bar {
+    display: flex; border-bottom: 2px solid var(--pf-border); overflow-x:auto; background-color:#fff;
+    background-image:
+      linear-gradient(to right, #fff 30%, rgba(255,255,255,0)),
+      linear-gradient(to right, rgba(255,255,255,0), #fff 70%),
+      radial-gradient(farthest-side at 0% 50%, rgba(0,0,0,.18), rgba(0,0,0,0)),
+      radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.18), rgba(0,0,0,0));
+    background-repeat: no-repeat;
+    background-size: 36px 100%, 36px 100%, 12px 100%, 12px 100%;
+    background-position: 0 0, 100% 0, 0 0, 100% 0;
+    background-attachment: local, local, scroll, scroll;
+  }
   .tab-btn {
-    flex: 1 0 auto; min-width:112px; text-align: center; padding: 15px 12px; font-size: 14px; font-weight: bold;
+    flex: 0 0 auto; min-width:112px; text-align: center; padding: 15px 12px; font-size: 14px; font-weight: bold;
     color: var(--pf-muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;
   }
   .tab-btn.active { color: var(--pf-theme); border-bottom-color: var(--pf-theme); background:var(--pf-theme-light); }
+  .tab-bar-hint { text-align:center; font-size:10.5px; color:var(--pf-muted); padding:4px 0 0; background:#fff; }
+  .tab-bar-hint.hidden { display:none; }
 
   .panel-scroll { padding: 28px 32px 40px; max-height: 760px; overflow-y: auto; }
   .module-placeholder { border:2px solid #cfdae3; border-radius:14px; background:#f7f8f9; padding:28px; }
@@ -455,6 +469,7 @@ const params = new URLSearchParams(location.search);
 const confSlug = params.get("conf");
 const wantsAdmin = params.get("admin") === "1";
 const nrParam = params.get("nr");
+const rememberParam = params.get("remember"); // "0" opts out; missing/"1" opts in (default on)
 
 // Number blocks for the login system — mirrors platform-worker.js.
 // Participant: 1 to meta.participantCount. Faculty: 1000 to
@@ -488,6 +503,13 @@ let orgPresentationsList = null;
 let orgPresentationsLoading = false;
 let orgPresentationsError = "";
 let orgPresentationsUpload = { title: "", presenterName: "", uploading: false, error: "", message: "" };
+let certTemplate = null;
+let certTemplateLoading = false;
+let certTemplateError = "";
+let certTemplateSaveStatus = "";
+let certTemplateSaveStatusIsError = false;
+let certSendState = { nr: "", name: "", date: "", email: "", sending: false, message: "", error: "" };
+let certBulkState = { date: "", sending: false, result: null, error: "" };
 let editOpenSessions = {};
 let editOpenListItems = {};
 let saveStatus = "";
@@ -599,11 +621,9 @@ function forgetLogin() {
 
 async function loadConference() {
   if (!confSlug) {
-    const last = getLastRememberedLogin();
-    if (last) {
-      location.replace(`index.html?conf=${encodeURIComponent(last.slug)}&nr=${encodeURIComponent(last.nr)}`);
-      return;
-    }
+    // Route through login.html's visible "Welcome back" confirmation
+    // rather than silently logging straight in — so it's always obvious
+    // *why* you ended up in a specific conference/number.
     location.replace("login.html");
     return;
   }
@@ -653,7 +673,7 @@ function afterConfLoaded() {
       return;
     }
     loginNr = nrParam;
-    rememberLogin(confSlug, nrParam);
+    if (rememberParam !== "0") rememberLogin(confSlug, nrParam);
     if (role === "participant") { resetQuizParticipantState(); resetRegistrationState(); }
     if (role === "faculty" || role === "observer") resetEvaluationState();
     mode = role; // "participant", "faculty" or "observer"
@@ -671,11 +691,11 @@ function afterConfLoaded() {
   }
   // Reached this page without a number in the URL — e.g. someone scanned a
   // QR code that only encodes the conference (no personal number baked in).
-  // If this browser has logged in to this specific conference before, use
-  // that instead of making them type their number again.
+  // Route through login.html's visible "Welcome back" confirmation instead
+  // of silently logging straight in, so it's always obvious what's happening.
   const remembered = getRememberedNr(confSlug);
   if (remembered) {
-    location.replace(`index.html?conf=${encodeURIComponent(confSlug)}&nr=${encodeURIComponent(remembered)}`);
+    location.replace(`login.html?conf=${encodeURIComponent(confSlug)}`);
     return;
   }
   mode = "error-nonumber";
@@ -701,6 +721,27 @@ function conferenceLogoHtml(meta){
   const maxHeight = LOGO_SIZES[size] || LOGO_SIZES.medium;
   const align = position === "center" ? "center" : position === "right" ? "flex-end" : "flex-start";
   return `<div class="conference-logo-wrap" style="display:flex;justify-content:${align};"><img class="conference-logo" style="max-height:${maxHeight}px;" src="${escHtml(logoUrl)}" alt="Conference logo"></div>`;
+}
+
+function renderTabBar(tabs) {
+  return `
+    <div class="tab-bar-wrap">
+      <div class="tab-bar" id="tabBar" onscroll="checkTabBarOverflow()">
+        ${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" data-tab="${t.key}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}
+      </div>
+      <div class="tab-bar-hint hidden" id="tabBarHint">‹ Swipe to see more tabs ›</div>
+    </div>`;
+}
+// Only shows the swipe hint when the tabs genuinely overflow (few tabs on
+// a wide screen never need it), and hides it once the user has scrolled
+// far enough that the remaining tabs are basically all visible.
+function checkTabBarOverflow() {
+  const bar = document.getElementById("tabBar");
+  const hint = document.getElementById("tabBarHint");
+  if (!bar || !hint) return;
+  const overflowing = bar.scrollWidth > bar.clientWidth + 4;
+  const nearEnd = bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 4;
+  hint.classList.toggle("hidden", !overflowing || nearEnd);
 }
 
 function render() {
@@ -734,8 +775,9 @@ function render() {
     return;
   }
   if (mode === "error-nonumber") {
+    const loginHref = confSlug ? `login.html?conf=${encodeURIComponent(confSlug)}` : "login.html";
     shell.innerHTML = `<div class="state-screen"><h2>Please log in first</h2>This page needs your code and number — please start from the login page.
-      <div style="margin-top:16px;"><a class="login-btn" style="display:inline-block;text-decoration:none;padding:12px 22px;" href="login.html">Go to login</a></div>
+      <div style="margin-top:16px;"><a class="login-btn" style="display:inline-block;text-decoration:none;padding:12px 22px;" href="${loginHref}">Go to login</a></div>
     </div>`;
     return;
   }
@@ -779,14 +821,13 @@ function render() {
         <div class="who">Logged in as #${escHtml(loginNr)}</div>
         <button onclick="forgetLogin()">Log out</button>
       </div>
-      <div class="tab-bar">
-        ${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" data-tab="${t.key}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}
-      </div>
+      ${renderTabBar(tabs)}
       <div class="panel-scroll" id="participantScroll">
         ${renderParticipantScrollContent()}
       </div>
     `);
     scheduleHandsOnRefresh();
+    requestAnimationFrame(checkTabBarOverflow);
     return;
   }
 
@@ -803,11 +844,12 @@ function render() {
         <div class="who">Logged in as #${escHtml(loginNr)}</div>
         <button onclick="forgetLogin()">Log out</button>
       </div>
-      <div class="tab-bar">${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" data-tab="${t.key}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}</div>
+      ${renderTabBar(tabs)}
       <div class="panel-scroll" id="participantScroll">
         ${renderParticipantModule(participantTab)}
       </div>
     `);
+    requestAnimationFrame(checkTabBarOverflow);
     return;
   }
 
@@ -824,11 +866,12 @@ function render() {
         <div class="who">Logged in as #${escHtml(loginNr)}</div>
         <button onclick="forgetLogin()">Log out</button>
       </div>
-      <div class="tab-bar">${tabs.map(t => `<div class="tab-btn ${participantTab === t.key ? 'active' : ''}" data-tab="${t.key}" onclick="switchParticipantTab('${t.key}')">${t.icon} ${t.label}</div>`).join('')}</div>
+      ${renderTabBar(tabs)}
       <div class="panel-scroll" id="participantScroll">
         ${renderParticipantModule(participantTab)}
       </div>
     `);
+    requestAnimationFrame(checkTabBarOverflow);
     return;
   }
 
@@ -843,14 +886,19 @@ function render() {
         <div class="who">Unlocked with admin PIN</div>
         <a href="login.html" style="text-decoration:none;"><button>Log out</button></a>
       </div>
-      <div class="tab-bar organizer-editor-tabs">
-        <div class="tab-btn ${organizerTab==='general'?'active':''}" data-organizer-tab="general" onclick="setOrganizerTab('general')">General</div>
-        <div class="tab-btn ${organizerTab==='schedule'?'active':''}" data-organizer-tab="schedule" onclick="setOrganizerTab('schedule')">Schedule</div>
-        <div class="tab-btn ${organizerTab==='addons'?'active':''}" data-organizer-tab="addons" onclick="setOrganizerTab('addons')">Add-ons</div>
-        <div class="tab-btn ${organizerTab==='administration'?'active':''}" data-organizer-tab="administration" onclick="setOrganizerTab('administration')">Administration</div>
+      <div class="tab-bar-wrap">
+        <div class="tab-bar organizer-editor-tabs" id="tabBar" onscroll="checkTabBarOverflow()">
+          <div class="tab-btn ${organizerTab==='general'?'active':''}" data-organizer-tab="general" onclick="setOrganizerTab('general')">General</div>
+          <div class="tab-btn ${organizerTab==='schedule'?'active':''}" data-organizer-tab="schedule" onclick="setOrganizerTab('schedule')">Schedule</div>
+          <div class="tab-btn ${organizerTab==='addons'?'active':''}" data-organizer-tab="addons" onclick="setOrganizerTab('addons')">Add-ons</div>
+          <div class="tab-btn ${organizerTab==='certificates'?'active':''}" data-organizer-tab="certificates" onclick="setOrganizerTab('certificates')">Certificates</div>
+          <div class="tab-btn ${organizerTab==='administration'?'active':''}" data-organizer-tab="administration" onclick="setOrganizerTab('administration')">Administration</div>
+        </div>
+        <div class="tab-bar-hint hidden" id="tabBarHint">‹ Swipe to see more tabs ›</div>
       </div>
       <div class="panel-scroll" id="organizerScroll">${renderOrganizerEditor()}</div>
     `);
+    requestAnimationFrame(checkTabBarOverflow);
     return;
   }
 }
@@ -1294,6 +1342,10 @@ function enterOrganizerMode() {
   editQuizPassPct = 70;
   resetLookupNr = ""; resetLookupResult = null;
   feedbackResetLookupNr = ""; feedbackResetLookupResult = null;
+  certTemplate = null; certTemplateLoading = false; certTemplateError = "";
+  certTemplateSaveStatus = ""; certTemplateSaveStatusIsError = false;
+  certSendState = { nr: "", name: "", date: "", email: "", sending: false, message: "", error: "" };
+  certBulkState = { date: "", sending: false, result: null, error: "" };
 
   mode = "organizer";
   render();
@@ -1787,6 +1839,11 @@ function renderOrganizerEditor() {
         ${['conferenceFeedback','contact','facultyInfo','presentations'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
       </div>
       ${saveButton}`;
+  }
+
+  // Certificates
+  if (organizerTab === 'certificates') {
+    return `<div class="editor-tab-content">${renderCertificatesTab()}</div>`;
   }
 
   // Administration
@@ -2368,6 +2425,94 @@ function renderOrgPresentationsManager(){
     ${orgPresentationsUpload.error?`<div class="save-status error">${escHtml(orgPresentationsUpload.error)}</div>`:''}
   `;
 }
+
+// ── Certificates — organizer issues a PDF certificate (built-in design
+// or their own uploaded background image) to one person, or to everyone
+// who has a registered email on file. Generation happens server-side.
+function loadCertTemplate(){
+  certTemplateLoading=true;certTemplateError="";rerenderOrganizerScroll();
+  if(!PLATFORM_WORKER_URL){certTemplate={title:'Certificate of Attendance',bodyText:'For participation in {conference}, held on {date}.',accentColor:'',useCustomBackground:false,hasBackground:false};certTemplateLoading=false;rerenderOrganizerScroll();return;}
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/certificate-template`).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't load the certificate template.");certTemplate=d.template;certTemplateLoading=false;rerenderOrganizerScroll();}).catch(e=>{certTemplateLoading=false;certTemplateError=e.message;rerenderOrganizerScroll();});
+}
+function onCertTemplateField(key,value){ if(certTemplate) certTemplate[key]=value; }
+function saveCertTemplate(){
+  certTemplateSaveStatus="Saving…";certTemplateSaveStatusIsError=false;rerenderOrganizerScroll();
+  const payload=Object.assign({},certTemplate,{adminPin:pinInput});
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/certificate-template`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't save the template.");certTemplate=d.template;certTemplateSaveStatus="Saved.";certTemplateSaveStatusIsError=false;rerenderOrganizerScroll();}).catch(e=>{certTemplateSaveStatus=e.message;certTemplateSaveStatusIsError=true;rerenderOrganizerScroll();});
+}
+function uploadCertBackground(fileInput){
+  const file=fileInput.files && fileInput.files[0];
+  if(!file)return;
+  if(!/^image\/(png|jpeg)$/.test(file.type)){alert('Please choose a PNG or JPG image.');fileInput.value='';return;}
+  if(file.size>5*1024*1024){alert('The image is too large — the maximum size is 5 MB.');fileInput.value='';return;}
+  certTemplateSaveStatus="Uploading image…";certTemplateSaveStatusIsError=false;rerenderOrganizerScroll();
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/certificate-template/background?adminPin=${encodeURIComponent(pinInput)}`,{method:'POST',headers:{'Content-Type':file.type},body:file}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't upload the image.");certTemplateSaveStatus="Image uploaded.";fileInput.value='';loadCertTemplate();}).catch(e=>{certTemplateSaveStatus=e.message;certTemplateSaveStatusIsError=true;rerenderOrganizerScroll();});
+}
+function onCertSendField(key,value){ certSendState[key]=value; }
+function sendCertificate(){
+  if(!certSendState.nr){alert('Enter a number first.');return;}
+  if(!certSendState.email){alert('Enter an email address to send the certificate to.');return;}
+  certSendState.sending=true;certSendState.message='';certSendState.error='';rerenderOrganizerScroll();
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/certificate/send`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nr:certSendState.nr,name:certSendState.name,date:certSendState.date,email:certSendState.email,adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't send the certificate.");certSendState={nr:'',name:'',date:certSendState.date,email:'',sending:false,message:'Certificate sent!',error:''};rerenderOrganizerScroll();}).catch(e=>{certSendState.sending=false;certSendState.error=e.message;rerenderOrganizerScroll();});
+}
+function onCertBulkField(key,value){ certBulkState[key]=value; }
+function sendBulkCertificates(){
+  if(!confirm('Send a certificate to every participant who has a registered email address? This cannot be undone.'))return;
+  certBulkState.sending=true;certBulkState.result=null;certBulkState.error='';rerenderOrganizerScroll();
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/certificate/send-bulk`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:certBulkState.date,adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Couldn't send certificates.");certBulkState.sending=false;certBulkState.result=d;rerenderOrganizerScroll();}).catch(e=>{certBulkState.sending=false;certBulkState.error=e.message;rerenderOrganizerScroll();});
+}
+function renderCertificatesTab(){
+  if(certTemplate===null && !certTemplateLoading) loadCertTemplate();
+  if(certTemplateLoading) return `<div class="empty-note">Loading certificate settings…</div>`;
+  if(certTemplateError) return `<div class="save-status error">${escHtml(certTemplateError)}</div>`;
+  const t=certTemplate||{};
+  return `
+    <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Certificate template</div>
+    <div class="field-hint" style="margin-bottom:12px;">Use the built-in design below, or upload your own background image and we'll add the participant's name and date on top. In the body text you can use <code>{name}</code>, <code>{date}</code> and <code>{conference}</code> — they'll be filled in automatically.</div>
+
+    <div class="field-group"><label>Title</label><input type="text" value="${escHtml(t.title||'')}" oninput="onCertTemplateField('title',this.value)"></div>
+    <div class="field-group"><label>Body text</label><textarea oninput="onCertTemplateField('bodyText',this.value)">${escHtml(t.bodyText||'')}</textarea></div>
+
+    <div class="field-group">
+      <label>Background</label>
+      <div class="segmented">
+        <div class="segmented-btn ${!t.useCustomBackground?'selected':''}" onclick="onCertTemplateField('useCustomBackground',false)">Default design</div>
+        <div class="segmented-btn ${t.useCustomBackground?'selected':''}" onclick="onCertTemplateField('useCustomBackground',true)">My own image</div>
+      </div>
+    </div>
+    ${t.useCustomBackground?`
+      <div class="field-group">
+        <label>Background image (PNG or JPG, landscape, max 5 MB)</label>
+        <input type="file" accept="image/png,image/jpeg" onchange="uploadCertBackground(this)">
+        <div class="field-hint">Your image is used as the full page background — leave space in the middle for the name and near the bottom for the date.</div>
+        ${t.hasBackground?`<img class="content-image" src="${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/certificate-template/background" alt="Certificate background" style="margin-top:10px;max-height:200px;">`:''}
+      </div>` : ''}
+
+    <button class="save-btn" style="width:auto;padding:10px 18px;" onclick="saveCertTemplate()">Save template</button>
+    <div class="save-status ${certTemplateSaveStatusIsError?'error':'ok'}">${escHtml(certTemplateSaveStatus)}</div>
+
+    <div class="mini-label" style="margin:26px 0 8px;font-size:12px;">Send to one person</div>
+    <div class="field-row">
+      <div class="field-group"><label>Number</label><input type="text" inputmode="numeric" value="${escHtml(certSendState.nr)}" oninput="onCertSendField('nr',this.value.replace(/\\D/g,''))"></div>
+      <div class="field-group"><label>Name (optional)</label><input type="text" value="${escHtml(certSendState.name)}" placeholder="e.g. Jane Doe" oninput="onCertSendField('name',this.value)"></div>
+    </div>
+    <div class="field-row">
+      <div class="field-group"><label>Date</label><input type="text" value="${escHtml(certSendState.date)}" placeholder="e.g. 10 June 2026" oninput="onCertSendField('date',this.value)"></div>
+      <div class="field-group"><label>Email address</label><input type="email" value="${escHtml(certSendState.email)}" placeholder="participant@example.com" oninput="onCertSendField('email',this.value)"></div>
+    </div>
+    <button class="save-btn" style="width:auto;padding:10px 18px;" onclick="sendCertificate()" ${certSendState.sending?'disabled':''}>${certSendState.sending?'Sending…':'Send certificate'}</button>
+    ${certSendState.message?`<div class="save-status ok">${escHtml(certSendState.message)}</div>`:''}
+    ${certSendState.error?`<div class="save-status error">${escHtml(certSendState.error)}</div>`:''}
+
+    <div class="mini-label" style="margin:26px 0 8px;font-size:12px;">Send to everyone</div>
+    <div class="field-hint" style="margin-bottom:8px;">Sends to every participant who has registered an email address (from the quiz or faculty evaluation registration). Anyone without one on file is skipped — you'll see how many.</div>
+    <div class="field-group"><label>Date</label><input type="text" value="${escHtml(certBulkState.date||'')}" placeholder="e.g. 10 June 2026" oninput="onCertBulkField('date',this.value)"></div>
+    <button class="save-btn" style="width:auto;padding:10px 18px;background:var(--pf-red);" onclick="sendBulkCertificates()" ${certBulkState.sending?'disabled':''}>${certBulkState.sending?'Sending…':'Send to all participants'}</button>
+    ${certBulkState.result?`<div class="save-status ok">Sent: ${certBulkState.result.sent} · Skipped (no email on file): ${certBulkState.result.skippedNoEmail}${certBulkState.result.failed && certBulkState.result.failed.length?' · Failed: '+certBulkState.result.failed.length:''}</div>`:''}
+    ${certBulkState.error?`<div class="save-status error">${escHtml(certBulkState.error)}</div>`:''}
+  `;
+}
+
 function renderOrganizerImage(module){const img=editModuleContent[module].image;return `<div class="field-group"><label>Image (maximum 1 MB)</label><input type="file" accept="image/*" onchange="onEditModuleImage('${module}',this.files[0])">${img?`<img class="content-image" src="${img}" alt="Preview"><button class="pin-btn" type="button" onclick="editModuleContent['${module}'].image='';rerenderOrganizerScroll()">Remove image</button>`:''}</div>`;}
 function onEditModuleImage(module,file){if(!file)return;if(file.size>1024*1024){alert('The image must be smaller than 1 MB.');return;}const reader=new FileReader();reader.onload=()=>{editModuleContent[module].image=reader.result;rerenderOrganizerScroll();};reader.readAsDataURL(file);}
 

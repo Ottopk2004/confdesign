@@ -110,6 +110,15 @@
     width: 100%; padding: 11px; border: 0.5px solid var(--pf-border); border-radius: 8px;
     background: var(--pf-gray); color: var(--pf-ink); font-size: 13px; font-weight: bold; cursor: pointer; margin-top: 6px;
   }
+
+  .remember-row { display:flex; align-items:center; gap:8px; margin-top:14px; font-size:12.5px; color:var(--pf-muted); }
+  .remember-row input { width:17px; height:17px; flex-shrink:0; accent-color: var(--pf-indigo); }
+  .remember-row label { cursor:pointer; }
+
+  .welcome-back-icon { width:46px; height:46px; border-radius:50%; background:var(--pf-indigo-light); color:var(--pf-indigo); display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:bold; margin-bottom:12px; }
+  .welcome-back-name { font-size:19px; font-weight:bold; color:var(--pf-ink); margin-bottom:2px; }
+  .secondary-btn-wide { width:100%; padding:13px; border:2px solid var(--pf-border); border-radius:10px; background:#fff; color:var(--pf-muted); font-size:13.5px; font-weight:bold; cursor:pointer; margin-top:10px; }
+  .secondary-btn-wide:hover { background:var(--pf-gray); }
 </style>
 <style>
 @media (max-width: 600px) {
@@ -134,35 +143,49 @@
     </div>
   </div>
 
-  <div class="card">
-    <h2>Participant or faculty</h2>
-    <div class="card-sub">Enter your conference code followed by your number — for example <b>HNUS42</b>.</div>
-    <input type="text" class="code-input" id="codeInput" placeholder="e.g. HNUS42" autocomplete="off"
-      oninput="onCodeInput(this.value)" onkeydown="if(event.key==='Enter')doLogin()">
-    <div class="field-error" id="codeError"></div>
-    <button class="primary-btn" onclick="doLogin()">Log in</button>
+  <div class="card" id="welcomeBackCard" style="display:none;">
+    <div class="welcome-back-icon">👋</div>
+    <div class="welcome-back-name" id="welcomeBackName"></div>
+    <div class="card-sub" id="welcomeBackSub">This device is remembered from last time.</div>
+    <button class="primary-btn" onclick="continueRememberedLogin()">Continue</button>
+    <button class="secondary-btn-wide" onclick="clearRememberedAndShowForm()">Not you? Log in as someone else</button>
   </div>
 
-  <div class="divider">or</div>
-
-  <div class="card organizer-card">
-    <h2>Organizer</h2>
-    <div class="card-sub">Create a new conference, or manage one you already run.</div>
-    <button class="organizer-btn" onclick="toggleOrganizerChoice()">Organizer</button>
-
-    <div class="organizer-choice" id="organizerChoice">
-      <a href="create.html" style="text-decoration:none;">
-        <button class="primary-btn" style="margin-top:12px;">Create a new conference</button>
-      </a>
-      <div class="field-hint" style="margin-top:14px;margin-bottom:0;">Already have a conference? Enter its code to manage it:</div>
-      <input type="text" id="manageCodeInput" placeholder="e.g. HNUS" autocomplete="off" style="margin-top:8px;">
-      <button class="secondary-btn" onclick="doManage()">Manage this conference</button>
-      <div class="field-error" id="manageError"></div>
-      <a href="admin.html" style="text-decoration:none;"><button class="secondary-btn" style="margin-top:12px;">Log in as platform admin</button></a>
+  <div id="normalLoginFlow">
+    <div class="card">
+      <h2>Participant or faculty</h2>
+      <div class="card-sub">Enter your conference code followed by your number — for example <b>HNUS42</b>.</div>
+      <input type="text" class="code-input" id="codeInput" placeholder="e.g. HNUS42" autocomplete="off"
+        oninput="onCodeInput(this.value)" onkeydown="if(event.key==='Enter')doLogin()">
+      <div class="field-error" id="codeError"></div>
+      <button class="primary-btn" onclick="doLogin()">Log in</button>
+      <div class="remember-row">
+        <input type="checkbox" id="rememberMe" checked>
+        <label for="rememberMe">Remember me on this device — skip login next time</label>
+      </div>
     </div>
-  </div>
 
-  <a class="browse-link" href="overview.html">Don't have a code? Browse all conferences →</a>
+    <div class="divider">or</div>
+
+    <div class="card organizer-card">
+      <h2>Organizer</h2>
+      <div class="card-sub">Create a new conference, or manage one you already run.</div>
+      <button class="organizer-btn" onclick="toggleOrganizerChoice()">Organizer</button>
+
+      <div class="organizer-choice" id="organizerChoice">
+        <a href="create.html" style="text-decoration:none;">
+          <button class="primary-btn" style="margin-top:12px;">Create a new conference</button>
+        </a>
+        <div class="field-hint" style="margin-top:14px;margin-bottom:0;">Already have a conference? Enter its code to manage it:</div>
+        <input type="text" id="manageCodeInput" placeholder="e.g. HNUS" autocomplete="off" style="margin-top:8px;">
+        <button class="secondary-btn" onclick="doManage()">Manage this conference</button>
+        <div class="field-error" id="manageError"></div>
+        <a href="admin.html" style="text-decoration:none;"><button class="secondary-btn" style="margin-top:12px;">Log in as platform admin</button></a>
+      </div>
+    </div>
+
+    <a class="browse-link" href="overview.html">Don't have a code? Browse all conferences →</a>
+  </div>
 </div>
 
 <script>
@@ -170,8 +193,10 @@ const PLATFORM_WORKER_URL = "https://cm-worker.conferenceplanner.workers.dev";
 
 // "Remember me" — mirrors the same localStorage keys used in index.html.
 // Scanning a conference's QR code (which only encodes ?conf=slug, no
-// personal number) or just typing confdesign.com logs you straight back
-// in if this browser has logged in before, instead of asking again.
+// personal number) or just typing confdesign.com brings up a visible
+// "Welcome back" confirmation instead of silently logging in — so it's
+// obvious *why* you ended up logged in, and there's always an easy way
+// to say "that's not me" and log in as someone else instead.
 function getRememberedNr(slug) {
   try { return localStorage.getItem('cd_login_' + slug) || null; } catch (e) { return null; }
 }
@@ -183,6 +208,34 @@ function getLastRememberedLogin() {
     return nr ? { slug, nr } : null;
   } catch (e) { return null; }
 }
+function escHtmlLite(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let pendingRememberedLogin = null;
+
+function showWelcomeBack(slug, nr) {
+  pendingRememberedLogin = { slug, nr };
+  document.getElementById('welcomeBackName').innerHTML = `${escHtmlLite(slug.toUpperCase())}${escHtmlLite(nr)}`;
+  document.getElementById('welcomeBackSub').textContent = `This device is remembered as this number in ${slug.toUpperCase()} — continue, or log in as someone else.`;
+  document.getElementById('welcomeBackCard').style.display = 'block';
+  document.getElementById('normalLoginFlow').style.display = 'none';
+}
+function continueRememberedLogin() {
+  if (!pendingRememberedLogin) return;
+  location.href = `index.html?conf=${encodeURIComponent(pendingRememberedLogin.slug)}&nr=${encodeURIComponent(pendingRememberedLogin.nr)}`;
+}
+function clearRememberedAndShowForm() {
+  try {
+    if (pendingRememberedLogin) {
+      localStorage.removeItem('cd_login_' + pendingRememberedLogin.slug);
+      if (localStorage.getItem('cd_last_slug') === pendingRememberedLogin.slug) localStorage.removeItem('cd_last_slug');
+    }
+  } catch (e) {}
+  pendingRememberedLogin = null;
+  document.getElementById('welcomeBackCard').style.display = 'none';
+  document.getElementById('normalLoginFlow').style.display = '';
+}
 
 (function tryAutoLogin() {
   const params = new URLSearchParams(location.search);
@@ -190,10 +243,7 @@ function getLastRememberedLogin() {
 
   if (qrSlug) {
     const nr = getRememberedNr(qrSlug);
-    if (nr) {
-      location.replace(`index.html?conf=${encodeURIComponent(qrSlug)}&nr=${encodeURIComponent(nr)}`);
-      return;
-    }
+    if (nr) { showWelcomeBack(qrSlug, nr); return; }
     // Known conference (from a QR code) but no remembered number yet —
     // pre-fill the code so the person only has to type their own number.
     const input = document.getElementById('codeInput');
@@ -206,7 +256,7 @@ function getLastRememberedLogin() {
 
   const last = getLastRememberedLogin();
   if (last) {
-    location.replace(`index.html?conf=${encodeURIComponent(last.slug)}&nr=${encodeURIComponent(last.nr)}`);
+    showWelcomeBack(last.slug, last.nr);
   }
 })();
 
@@ -249,7 +299,8 @@ async function doLogin() {
     return;
   }
   errEl.textContent = "";
-  location.href = `index.html?conf=${encodeURIComponent(parsed.slug)}&nr=${encodeURIComponent(parsed.nr)}`;
+  const remember = document.getElementById("rememberMe").checked ? 1 : 0;
+  location.href = `index.html?conf=${encodeURIComponent(parsed.slug)}&nr=${encodeURIComponent(parsed.nr)}&remember=${remember}`;
 }
 
 function toggleOrganizerChoice() {
