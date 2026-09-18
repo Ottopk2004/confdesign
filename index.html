@@ -128,9 +128,9 @@
     font-weight: bold; cursor: pointer;
   }
 
-  .tab-bar-wrap { position: relative; padding: 0 26px; }
+  .tab-bar-wrap { position: relative; padding: 0 30px; }
   .tab-bar {
-    display: flex; border-bottom: 2px solid var(--pf-border); overflow-x:auto; background-color:#fff;
+    display: flex; border-bottom: 2px solid var(--pf-border); overflow-x:auto; overflow-y:hidden; background-color:#fff;
     scroll-behavior: smooth;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
@@ -144,13 +144,13 @@
   .tab-btn.active { color: var(--pf-theme); border-bottom-color: var(--pf-theme); background:var(--pf-theme-light); }
   .tab-bar-arrow {
     position: absolute; top: 50%; transform: translateY(-50%);
-    width: 24px; height: 24px; border: none; background: none;
-    color: #1a1a1a; font-size: 20px; font-weight: bold; line-height: 1;
+    width: 28px; height: 28px; border: none; background: none;
+    color: #1a1a1a; font-size: 26px; font-weight: bold; line-height: 1;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     z-index: 2; padding: 0;
   }
-  .tab-bar-arrow.prev { left: 0; justify-content: flex-start; }
-  .tab-bar-arrow.next { right: 0; justify-content: flex-end; }
+  .tab-bar-arrow.prev { left: 3px; justify-content: flex-start; }
+  .tab-bar-arrow.next { right: 3px; justify-content: flex-end; }
   .tab-bar-arrow.hidden { display: none; }
 
 
@@ -246,7 +246,18 @@
   .faculty-card > summary::after { content:'▾'; position:absolute; right:16px; top:50%; transform:translateY(-50%); color:var(--pf-theme); font-size:13px; transition:transform .15s; }
   .faculty-card[open] > summary::after { transform:translateY(-50%) rotate(180deg); }
   .faculty-summary-name { display:block; color:var(--pf-theme); font-weight:bold; font-size:15px; }
-  .faculty-summary-role { display:block; font-size:12.5px; font-weight:bold; color:var(--pf-ink); margin-top:2px; }
+  .faculty-summary-role { display:block; font-size:12.5px; font-weight:normal; font-style:italic; color:var(--pf-muted); margin-top:2px; }
+
+  .breakout-session-card { border:2px solid #cfdae3; border-radius:14px; background:#f7f8f9; overflow:hidden; margin-top:14px; }
+  .breakout-session-card > summary { cursor:pointer; padding:14px 40px 14px 16px; list-style:none; position:relative; }
+  .breakout-session-card > summary::-webkit-details-marker { display:none; }
+  .breakout-session-card > summary::after { content:'▾'; position:absolute; right:16px; top:50%; transform:translateY(-50%); color:var(--pf-theme); font-size:13px; transition:transform .15s; }
+  .breakout-session-card[open] > summary::after { transform:translateY(-50%) rotate(180deg); }
+  .session-summary-date { display:block; color:var(--pf-theme); font-weight:bold; font-size:14px; }
+  .session-summary-sub { display:block; font-size:12.5px; color:var(--pf-muted); margin-top:2px; font-style:italic; }
+  .breakout-session-card-body { padding:0 16px 16px; }
+  .breakout-session-card-body .content-intro { margin-top:0 !important; }
+  .breakout-session-card-body .info-card { margin-top:12px; }
   .faculty-card-body { padding:0 16px 16px; }
   .faculty-card .faculty-workplace { font-size:12px; color:var(--pf-muted); margin-top:-4px; margin-bottom:6px; }
   .faculty-card .faculty-photo { width:100%; max-width:220px; border-radius:10px; margin:6px 0 10px; display:block; }
@@ -357,8 +368,10 @@
   .toolbar { padding:11px 16px; }
   .tab-bar { scrollbar-width:thin; -webkit-overflow-scrolling:touch; }
   .tab-btn { min-width:104px; padding:14px 10px; font-size:13px; }
-  .tab-bar-wrap { padding: 0 22px; }
-  .tab-bar-arrow { width: 20px; height: 20px; font-size: 18px; }
+  .tab-bar-wrap { padding: 0 26px; }
+  .tab-bar-arrow { width: 24px; height: 24px; font-size: 23px; }
+  .tab-bar-arrow.prev { left: 2px; }
+  .tab-bar-arrow.next { right: 2px; }
   .panel-scroll { padding:18px 14px 32px; max-height:none; }
   .field-row { flex-direction:column; gap:0; }
   .field-group input, .field-group textarea { min-height:46px; font-size:16px; }
@@ -1269,7 +1282,7 @@ function normalizeDisplayHandsOn(c){const sessions=Array.isArray(c.sessions)?c.s
 function sessionDates(hs){const base=hs.date?new Date(`${hs.date}T00:00:00`):null;if(!base||isNaN(base))return null;const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),from=new Date(base),to=new Date(base);from.setHours(Math.floor(start/60),start%60,0,0);to.setHours(Math.floor(end/60),end%60,0,0);return {base,from,to,start,end};}
 
 
-function renderFacultyHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const facultyPosition=Number(loginNr)-999,total=Number(confData.meta.facultyCount)||0,baseBucket=balancedBucket(facultyPosition,total,n),stationIndex=(baseBucket+sessionIndex)%n,s=stations[stationIndex]||{};const originalBucket=(stationIndex-sessionIndex+n)%n,colleagues=bucketMembers(originalBucket,total,n,999);const names=namesLookup(confData.moduleContent&&confData.moduleContent.handsOn);return `<div class="day-label" style="margin-top:16px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your station: ${escHtml(s.name||`Station ${stationIndex+1}`)}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(s.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(s.stand||'TBA')}</strong></div></div><p style="margin-top:14px"><strong>Faculty at this station:</strong> ${colleagues.map(x=>personLabel(x,names)).join(', ')}</p></div>`;}
+function renderFacultyHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const facultyPosition=Number(loginNr)-999,total=Number(confData.meta.facultyCount)||0,baseBucket=balancedBucket(facultyPosition,total,n),stationIndex=(baseBucket+sessionIndex)%n,s=stations[stationIndex]||{};const originalBucket=(stationIndex-sessionIndex+n)%n,colleagues=bucketMembers(originalBucket,total,n,999);const names=namesLookup(confData.moduleContent&&confData.moduleContent.handsOn);return `<details class="breakout-session-card" open><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">Your station: ${escHtml(s.name||`Station ${stationIndex+1}`)}</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your station: ${escHtml(s.name||`Station ${stationIndex+1}`)}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(s.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(s.stand||'TBA')}</strong></div></div><p style="margin-top:14px"><strong>Faculty at this station:</strong> ${colleagues.map(x=>personLabel(x,names)).join(', ')}</p></div></div></details>`;}
 
 // Breakout groups: everyone gets ONE group for the whole session (no
 // rotation), so this is much simpler than the station renderer above —
@@ -1282,7 +1295,7 @@ function renderParticipantBreakoutSession(hs,sessionIndex){
   const names=namesLookup(confData.moduleContent&&confData.moduleContent.handsOn);
   const groupIdx=effectiveBreakoutGroupIndex(Number(loginNr),total,n,hs.groupSeed,0,overrides);
   const members=effectiveBreakoutGroupMembers(groupIdx,total,n,hs.groupSeed,0,overrides).filter(x=>x!==Number(loginNr));
-  return `<div class="day-label" style="margin-top:18px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${members.length?`<p style="margin-top:14px"><strong>With you:</strong> ${members.map(x=>personLabel(x,names)).join(', ')}</p>`:''}</div>`;
+  return `<details class="breakout-session-card" open><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">Your group: Group ${groupIdx+1}</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${members.length?`<p style="margin-top:14px"><strong>With you:</strong> ${members.map(x=>personLabel(x,names)).join(', ')}</p>`:''}</div></div></details>`;
 }
 function renderFacultyBreakoutSession(hs,sessionIndex){
   const n=Number(hs.groupCount)||0; if(!n||!hs.groupSeed) return '';
@@ -1294,9 +1307,9 @@ function renderFacultyBreakoutSession(hs,sessionIndex){
   const colleagues=effectiveBreakoutGroupMembers(groupIdx,total,n,hs.groupSeed,999,overrides).filter(x=>x!==facultyPosition);
   const pTotal=Number(confData.meta.participantCount)||0;
   const participants=effectiveBreakoutGroupMembers(groupIdx,pTotal,n,hs.groupSeed,0,overrides);
-  return `<div class="day-label" style="margin-top:16px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${colleagues.length?`<p style="margin-top:14px"><strong>Faculty with you:</strong> ${colleagues.map(x=>personLabel(x,names)).join(', ')}</p>`:''}${participants.length?`<p style="margin-top:8px"><strong>Participants in this group:</strong> ${participants.map(x=>personLabel(x,names)).join(', ')}</p>`:''}</div>`;
+  return `<details class="breakout-session-card" open><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">Your group: Group ${groupIdx+1}</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${colleagues.length?`<p style="margin-top:14px"><strong>Faculty with you:</strong> ${colleagues.map(x=>personLabel(x,names)).join(', ')}</p>`:''}${participants.length?`<p style="margin-top:8px"><strong>Participants in this group:</strong> ${participants.map(x=>personLabel(x,names)).join(', ')}</p>`:''}</div></div></details>`;
 }
-function renderParticipantHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=balancedBucket(Number(loginNr),total,n);let cards='';for(let r=0;r<n;r++){const from=start+r*step,to=Math.min(from+step,end),station=stations[(group+sessionIndex+r)%n]||{};if(from>=end)break;cards+=`<div class="info-card"><h3>${escHtml(station.name||'Station')}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${timeOf(from)}–${timeOf(to)}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(station.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(station.stand||'TBA')}</strong></div></div></div>`;}return `<div class="day-label" style="margin-top:18px">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</div>${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}${cards}`;}
+function renderParticipantHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=balancedBucket(Number(loginNr),total,n);let cards='';for(let r=0;r<n;r++){const from=start+r*step,to=Math.min(from+step,end),station=stations[(group+sessionIndex+r)%n]||{};if(from>=end)break;cards+=`<div class="info-card"><h3>${escHtml(station.name||'Station')}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${timeOf(from)}–${timeOf(to)}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(station.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(station.stand||'TBA')}</strong></div></div></div>`;}return `<details class="breakout-session-card" open><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">Rotation schedule</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}${cards}</div></details>`;}
 function renderNextUpAcrossSessions(sessions){const now=new Date();let chosen=null;for(let si=0;si<sessions.length;si++){const d=sessionDates(sessions[si]);if(!d)continue;if(now<d.to){chosen={hs:sessions[si],si,d};break;}}if(!chosen)return `<div class="next-up-card" style="background:#41708f"><div class="next-label">BREAKOUT SESSIONS</div><h2>All rotations completed</h2></div>`;const hs=chosen.hs,stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length,step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=balancedBucket(Number(loginNr),total,n);return renderNextUpCard(hs,stations,group,n,chosen.d.start,chosen.d.end,step,chosen.si);}
 function renderNextUpCard(c,stations,group,n,start,end,step,sessionIndex=0){
   const now=new Date(), base=c.date?new Date(`${c.date}T00:00:00`):null;
