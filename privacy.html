@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Privatlivspolitik — Conf Design</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --pf-ink:        #1E2233;
+    --pf-indigo:      #3E4C9C;
+    --pf-indigo-light:#EEF0FA;
+    --pf-white:       #FFFFFF;
+    --pf-gray:        #F5F6FA;
+    --pf-border:      #DADFF0;
+    --pf-muted:       #656B85;
+    --pf-red:         #B3261E;
+    --pf-red-light:   #FBECEA;
+    --pf-amber:       #8A5A00;
+    --pf-amber-light: #FFF6E5;
+    --pf-amber-border:#F0D08A;
+  }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #eef0f6;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 24px 12px 60px;
+    color: var(--pf-ink);
+    line-height: 1.55;
+  }
+
+  .shell { width: 100%; max-width: 700px; }
+
+  .top-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .top-brand .mark {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: var(--pf-indigo); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 15px; flex-shrink: 0;
+  }
+  .top-brand h1 { font-size: 16px; color: var(--pf-ink); }
+  .top-brand p { font-size: 11.5px; color: var(--pf-muted); }
+
+  .card {
+    background: var(--pf-white);
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(30,34,51,0.08);
+    padding: 26px 24px;
+    margin-bottom: 16px;
+  }
+
+  .draft-notice {
+    background: var(--pf-amber-light);
+    border: 1px solid var(--pf-amber-border);
+    color: var(--pf-amber);
+    border-radius: 12px;
+    padding: 16px 18px;
+    font-size: 13px;
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+  .draft-notice b { display: block; margin-bottom: 4px; font-size: 13.5px; }
+
+  h2.page-title { font-size: 20px; color: var(--pf-ink); margin-bottom: 4px; }
+  .updated { font-size: 12px; color: var(--pf-muted); margin-bottom: 20px; }
+
+  h3 {
+    font-size: 15px;
+    color: var(--pf-indigo);
+    margin: 26px 0 8px;
+    padding-top: 16px;
+    border-top: 1px solid var(--pf-border);
+  }
+  h3:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+
+  p { font-size: 13.5px; margin-bottom: 10px; color: var(--pf-ink); }
+  ul { font-size: 13.5px; margin: 8px 0 12px 20px; }
+  li { margin-bottom: 6px; }
+
+  a { color: var(--pf-indigo); }
+
+  .fill {
+    background: var(--pf-red-light);
+    color: var(--pf-red);
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 10px 0 16px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--pf-border);
+    vertical-align: top;
+  }
+  th { color: var(--pf-muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; }
+
+  .back-link { display: inline-block; font-size: 12.5px; color: var(--pf-muted); text-decoration: none; margin-bottom: 16px; }
+  .back-link:hover { color: var(--pf-indigo); }
+</style>
+<style>
+@media (max-width: 600px) {
+  body { padding:0 12px 40px; background:#fff; }
+  .shell { max-width:none; }
+  .top-brand { padding:16px 4px; margin-bottom:8px; }
+  .card { padding:20px 16px; border-radius:12px; box-shadow:none; border:1px solid var(--pf-border); }
+  table { font-size: 12px; }
+  th, td { padding: 6px 6px; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="top-brand">
+    <a href="login.html" style="text-decoration:none;"><div class="mark">CD</div></a>
+    <div>
+      <h1>Conf Design</h1>
+      <p>Privatlivspolitik</p>
+    </div>
+  </div>
+
+  <a class="back-link" href="login.html">← Tilbage til login</a>
+
+  <div class="card">
+
+    <div class="draft-notice">
+      <b>Til arrangøren — læs dette før offentliggørelse</b>
+      Dette er et udkast, ikke juridisk rådgivning. Teksten beskriver, hvad platformen rent teknisk gør med data,
+      men felter markeret <span class="fill">[UDFYLD]</span> skal I selv udfylde, og hele dokumentet bør gennemgås
+      af en person med indsigt i GDPR — særligt fordi konferencen er tilknyttet et hospital/afdeling. Fjern denne boks,
+      når siden er klar til brug.
+    </div>
+
+    <h2 class="page-title">Privatlivspolitik for Conf Design</h2>
+    <div class="updated">Senest opdateret: <span class="fill">[UDFYLD DATO]</span></div>
+
+    <p>
+      Denne privatlivspolitik beskriver, hvordan vi behandler personoplysninger, når du bruger denne konferences
+      hjemmeside på Conf Design-platformen — som deltager, faculty (foredragsholder) eller arrangør.
+    </p>
+
+    <h3>1. Dataansvarlig</h3>
+    <p id="controllerText">Dataansvarlig for behandlingen af dine personoplysninger i forbindelse med denne konference er arrangøren af den konference, du er logget ind på.</p>
+    <p id="controllerDetails">
+      Navn: <span class="fill" id="controllerName">[UDFYLD: konferencens navn]</span><br>
+      Kontakt-e-mail: <span class="fill" id="controllerEmail">[UDFYLD: kontakt-e-mail]</span>
+    </p>
+    <p id="controllerFallback" style="display:none;font-size:12.5px;color:var(--pf-muted);">
+      Du besøger denne side uden at være logget ind på en bestemt konference, så vi kan ikke vise arrangørens
+      kontaktoplysninger her automatisk. Log ind på din konference, og find linket til privatlivspolitikken
+      derfra, for at se de rigtige kontaktoplysninger — eller kontakt den, der har sendt dig login-koden.
+    </p>
+
+    <h3>2. Hvilke oplysninger indsamler vi?</h3>
+    <p>Når du bruger konferencesiden, behandler vi følgende oplysninger om dig:</p>
+    <table>
+      <tr><th>Oplysning</th><th>Hvorfra</th></tr>
+      <tr><td>Deltagernummer (login-kode)</td><td>Tildelt af arrangøren ved tilmelding</td></tr>
+      <tr><td>Navn</td><td>Indtastet af dig eller arrangøren</td></tr>
+      <tr><td>E-mailadresse</td><td>Indtastet af dig, hvis du tilmelder dig med e-mail</td></tr>
+      <tr><td>Svar på quizzer/spørgsmål</td><td>Dine besvarelser under konferencen</td></tr>
+      <tr><td>Evalueringer af faculty/foredrag</td><td>Dine besvarelser af evalueringsskemaer</td></tr>
+      <tr><td>Konferencefeedback</td><td>Din feedback til arrangøren</td></tr>
+      <tr><td>Op- og downloadede filer (fx præsentationer)</td><td>Filer faculty uploader, og som deltagere downloader</td></tr>
+      <tr><td>Tekniske data (IP-adresse, browsertype)</td><td>Automatisk via hosting-leverandøren (Cloudflare)</td></tr>
+    </table>
+
+    <h3>3. Hvorfor behandler vi dine oplysninger?</h3>
+    <p>Vi behandler oplysningerne for at:</p>
+    <ul>
+      <li>give dig adgang til konferencens program, materialer og funktioner</li>
+      <li>vise dit navn i forbindelse med gruppeopdelinger (fx breakout-sessioner), så deltagere og faculty kan se, hvem der er i hvilken gruppe</li>
+      <li>udstede kursus-/deltagerbeviser (certifikater) med dit navn</li>
+      <li>opgøre og vise resultater af quizzer og evalueringer</li>
+      <li>kunne kontakte dig om praktiske forhold vedrørende konferencen</li>
+    </ul>
+    <p>
+      Retsgrundlaget er databeskyttelsesforordningens art. 6, stk. 1, litra b (opfyldelse af en aftale/tilmelding til
+      konferencen) samt litra f (legitim interesse i at kunne administrere og gennemføre konferencen). Registrering
+      med e-mail sker frivilligt ved tilmelding.
+    </p>
+
+    <h3>4. Hvem kan se dine oplysninger på platformen?</h3>
+    <ul>
+      <li><b>Arrangøren</b> kan se alle oplysninger for alle deltagere.</li>
+      <li><b>Faculty</b> kan se deltagernummer og navn for deltagere i de grupper/sessioner, de er tilknyttet.</li>
+      <li><b>Andre deltagere</b> kan se deltagernummer og navn på personer i deres egen breakout-gruppe.</li>
+    </ul>
+    <p>Vi sælger, udlejer eller videregiver ikke dine oplysninger til markedsføringsformål.</p>
+
+    <h3>5. Databehandlere og hosting</h3>
+    <p>Platformen driftes ved hjælp af følgende leverandører, som behandler data på vores vegne:</p>
+    <ul>
+      <li><b>Cloudflare, Inc.</b> — hosting, datalagring og drift af hjemmesiden. Data kan blive behandlet uden for EU/EØS, hvilket er dækket af standardkontraktbestemmelser (SCC).</li>
+      <li><b>Resend</b> — afsendelse af e-mails (fx certifikater, adgangskoder).</li>
+      <li><span class="fill">[UDFYLD: eventuelle øvrige tjenester, fx SMS-udbyder]</span></li>
+    </ul>
+
+    <h3>6. Hvor længe opbevarer vi dine oplysninger?</h3>
+    <p>
+      Vi opbevarer dine oplysninger, så længe det er nødvendigt af hensyn til formålet:
+      <span class="fill">[UDFYLD: fx "op til 3 måneder efter konferencens afslutning" eller "op til 2 år af hensyn til dokumentation for udstedte kursusbeviser"]</span>.
+      Herefter slettes konferencen og de tilhørende data. Sletning af konferencen sker efter anmodning til
+      arrangøren — platformen sletter ikke automatisk.
+    </p>
+
+    <h3>7. Lokal lagring i din browser ("husk mig")</h3>
+    <p>
+      Hvis du bruger funktionen "husk mig" ved login, gemmes din adgangskode lokalt i din browser (localStorage)
+      på den enhed, du bruger. Denne oplysning sendes ikke til vores servere og deles ikke med tredjeparter.
+      Den slettes, hvis du logger ud, rydder din browserdata, eller bruger en anden enhed/browser. Vi anvender
+      ikke marketing- eller sporingscookies på siden.
+    </p>
+
+    <h3>8. Dine rettigheder</h3>
+    <p>Efter databeskyttelsesforordningen har du blandt andet ret til at:</p>
+    <ul>
+      <li>få indsigt i, hvilke oplysninger vi behandler om dig</li>
+      <li>få urigtige oplysninger rettet</li>
+      <li>få dine oplysninger slettet</li>
+      <li>gøre indsigelse mod behandlingen</li>
+      <li>klage til Datatilsynet, se <a href="https://www.datatilsynet.dk" target="_blank" rel="noopener">datatilsynet.dk</a></li>
+    </ul>
+    <p>Henvendelser om dine rettigheder kan sendes til: <span class="fill">[UDFYLD: kontakt-e-mail]</span></p>
+
+    <h3>9. Sikkerhed</h3>
+    <p>
+      Adgang til konferencesiden er beskyttet med et deltagernummer, og arrangørens administrationsside er
+      beskyttet med en separat PIN-kode. Vi anbefaler, at du logger ud, hvis du bruger en delt computer eller tablet.
+    </p>
+
+    <h3>10. Kontakt</h3>
+    <p>
+      Har du spørgsmål til denne privatlivspolitik eller vores behandling af dine oplysninger, kan du kontakte:<br>
+      <span class="fill">[UDFYLD: navn]</span><br>
+      <span class="fill">[UDFYLD: e-mail]</span><br>
+      <span class="fill">[UDFYLD: telefon]</span>
+    </p>
+
+  </div>
+</div>
+
+<script>
+// This page is shared by every conference on the platform. When it's opened
+// with ?conf=<slug> (the normal case — linked from a specific conference's
+// login/consent flow), we fetch that conference's name and contact email
+// from the same public endpoint index.html/login.html already use, and fill
+// in the "Dataansvarlig" section automatically — so this file never needs to
+// be edited by hand when a new conference is created.
+const PLATFORM_WORKER_URL = "https://cm-worker.conferenceplanner.workers.dev";
+
+function escHtml(str) {
+  return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+async function loadControllerInfo() {
+  const params = new URLSearchParams(location.search);
+  const slug = (params.get("conf") || "").trim().toLowerCase();
+
+  if (!slug) {
+    document.getElementById("controllerDetails").style.display = "none";
+    document.getElementById("controllerFallback").style.display = "block";
+    return;
+  }
+
+  try {
+    const res = await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(slug)}`);
+    if (!res.ok) throw new Error("not found");
+    const data = await res.json();
+    const meta = data.meta || data;
+    document.getElementById("controllerName").textContent = meta.name || slug.toUpperCase();
+    document.getElementById("controllerName").classList.remove("fill");
+    if (meta.contactEmail) {
+      document.getElementById("controllerEmail").textContent = meta.contactEmail;
+      document.getElementById("controllerEmail").classList.remove("fill");
+    } else {
+      document.getElementById("controllerEmail").textContent = "[Ingen kontakt-e-mail angivet af arrangøren — kontakt den, der sendte dig login-koden]";
+    }
+  } catch (_) {
+    document.getElementById("controllerDetails").style.display = "none";
+    document.getElementById("controllerFallback").style.display = "block";
+  }
+}
+
+loadControllerInfo();
+</script>
+
+</body>
+</html>

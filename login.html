@@ -119,6 +119,23 @@
   .welcome-back-name { font-size:19px; font-weight:bold; color:var(--pf-ink); margin-bottom:2px; }
   .secondary-btn-wide { width:100%; padding:13px; border:2px solid var(--pf-border); border-radius:10px; background:#fff; color:var(--pf-muted); font-size:13.5px; font-weight:bold; cursor:pointer; margin-top:10px; }
   .secondary-btn-wide:hover { background:var(--pf-gray); }
+
+  .privacy-consent {
+    background: var(--pf-white);
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(30,34,51,0.08);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+  .privacy-check {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 12.5px; color: var(--pf-muted); line-height: 1.5; cursor: pointer;
+  }
+  .privacy-check input {
+    margin-top: 2px; width: 18px; height: 18px; flex-shrink: 0;
+    accent-color: var(--pf-indigo); cursor: pointer;
+  }
+  .privacy-check a { color: var(--pf-indigo); font-weight: bold; }
 </style>
 <style>
 @media (max-width: 600px) {
@@ -129,6 +146,7 @@
   input[type="text"] { min-height:50px; font-size:16px; }
   button { min-height:50px; font-size:15px !important; }
   .browse-link { padding:10px; display:block; }
+  .privacy-check input { width:20px; height:20px; }
 }
 </style>
 </head>
@@ -141,6 +159,13 @@
       <h1>Conf Design</h1>
       <p>Log in to a conference</p>
     </div>
+  </div>
+
+  <div class="privacy-consent" id="privacyConsent">
+    <label class="privacy-check">
+      <input type="checkbox" id="privacyCheckbox" onchange="onPrivacyToggle(this.checked)">
+      <span>Jeg har læst og forstået <a href="privacy.html" id="privacyLink" target="_blank" rel="noopener">privatlivspolitikken</a> for brugen af denne side.</span>
+    </label>
   </div>
 
   <div class="card" id="welcomeBackCard" style="display:none;">
@@ -191,6 +216,29 @@
 <script>
 const PLATFORM_WORKER_URL = "https://cm-worker.conferenceplanner.workers.dev";
 
+const PRIVACY_KEY = "cd_privacy_accepted";
+function privacyAccepted() {
+  try { return localStorage.getItem(PRIVACY_KEY) === "1"; } catch (_) { return false; }
+}
+function onPrivacyToggle(checked) {
+  try {
+    if (checked) localStorage.setItem(PRIVACY_KEY, "1");
+    else localStorage.removeItem(PRIVACY_KEY);
+  } catch (_) {}
+}
+function initPrivacyConsent() {
+  const el = document.getElementById("privacyConsent");
+  if (privacyAccepted() && el) el.style.display = "none";
+}
+// Point the privacy-policy link at the specific conference being logged
+// into, if the code parses cleanly, so the "Dataansvarlig" section on that
+// page can show the right organizer contact rather than a generic fallback.
+function updatePrivacyLink(slug) {
+  const link = document.getElementById("privacyLink");
+  if (!link) return;
+  link.href = slug ? `privacy.html?conf=${encodeURIComponent(slug)}` : "privacy.html";
+}
+
 // "Remember me" — mirrors the same localStorage keys used in index.html.
 // Scanning a conference's QR code (which only encodes ?conf=slug, no
 // personal number) or just typing confdesign.com brings up a visible
@@ -220,9 +268,14 @@ function showWelcomeBack(slug, nr) {
   document.getElementById('welcomeBackSub').textContent = `This device is remembered as this number in ${slug.toUpperCase()} — continue, or log in as someone else.`;
   document.getElementById('welcomeBackCard').style.display = 'block';
   document.getElementById('normalLoginFlow').style.display = 'none';
+  updatePrivacyLink(slug);
 }
 function continueRememberedLogin() {
   if (!pendingRememberedLogin) return;
+  if (!privacyAccepted()) {
+    document.getElementById('welcomeBackSub').textContent = 'Du skal først acceptere privatlivspolitikken ovenfor.';
+    return;
+  }
   location.href = `index.html?conf=${encodeURIComponent(pendingRememberedLogin.slug)}&nr=${encodeURIComponent(pendingRememberedLogin.nr)}`;
 }
 function clearRememberedAndShowForm() {
@@ -262,6 +315,8 @@ function clearRememberedAndShowForm() {
 
 function onCodeInput(v) {
   document.getElementById("codeError").textContent = "";
+  const parsed = parseCode(v);
+  updatePrivacyLink(parsed ? parsed.slug : "");
 }
 
 function parseCode(raw) {
@@ -284,6 +339,10 @@ async function doLogin() {
   const raw = document.getElementById("codeInput").value;
   const parsed = parseCode(raw);
   const errEl = document.getElementById("codeError");
+  if (!privacyAccepted()) {
+    errEl.textContent = "Du skal først acceptere privatlivspolitikken ovenfor.";
+    return;
+  }
   if (!parsed) {
     errEl.textContent = "Enter a code followed by your number, e.g. HNUS42.";
     return;
@@ -310,6 +369,10 @@ function toggleOrganizerChoice() {
 async function doManage() {
   const raw = document.getElementById("manageCodeInput").value.trim().toLowerCase();
   const errEl = document.getElementById("manageError");
+  if (!privacyAccepted()) {
+    errEl.textContent = "Du skal først acceptere privatlivspolitikken ovenfor.";
+    return;
+  }
   if (!/^[a-z]{2,12}$/.test(raw)) {
     errEl.textContent = "Enter just the conference code, e.g. HNUS (letters only).";
     return;
@@ -327,6 +390,8 @@ async function doManage() {
   errEl.textContent = "";
   location.href = `index.html?conf=${encodeURIComponent(raw)}&admin=1`;
 }
+
+initPrivacyConsent();
 </script>
 
 </body>

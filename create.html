@@ -51,6 +51,23 @@
   .top-brand h1 { font-size: 16px; color: var(--pf-ink); }
   .top-brand p { font-size: 11.5px; color: var(--pf-muted); }
 
+  .privacy-consent {
+    background: var(--pf-white);
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(30,34,51,0.08);
+    padding: 16px 18px;
+    margin-bottom: 18px;
+  }
+  .privacy-check {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 12.5px; color: var(--pf-muted); line-height: 1.5; cursor: pointer;
+  }
+  .privacy-check input {
+    margin-top: 2px; width: 18px; height: 18px; flex-shrink: 0;
+    accent-color: var(--pf-indigo); cursor: pointer;
+  }
+  .privacy-check a { color: var(--pf-indigo); font-weight: bold; }
+
   .card {
     background: var(--pf-white);
     border-radius: 14px;
@@ -332,6 +349,8 @@
   .shell { max-width:none; }
   .top-brand { padding:16px; margin:0; border-bottom:2px solid var(--pf-border); }
   #wizard { padding:12px; }
+  .privacy-consent { border-radius:12px; box-shadow:none; border:1px solid var(--pf-border); }
+  .privacy-check input { width:20px; height:20px; }
   .card { border-radius:12px; margin-bottom:12px; box-shadow:none; border:1px solid var(--pf-border); }
   details.card > summary { padding:16px; font-size:16px; }
   .create-section-body { padding:0 14px 16px; }
@@ -510,6 +529,20 @@ let openCreateSection = 'details';
 let openSessions = {};
 let openListItems = {};
 
+const PRIVACY_KEY = "cd_privacy_accepted";
+function privacyAccepted() {
+  try { return localStorage.getItem(PRIVACY_KEY) === "1"; } catch (_) { return false; }
+}
+let privacyChecked = privacyAccepted();
+function onPrivacyToggle(checked) {
+  privacyChecked = checked;
+  try {
+    if (checked) localStorage.setItem(PRIVACY_KEY, "1");
+    else localStorage.removeItem(PRIVACY_KEY);
+  } catch (_) {}
+  updateCreateReadiness();
+}
+
 function cleanCode(str) {
   return str.toLowerCase().replace(/[^a-z]/g, "").slice(0, 12);
 }
@@ -576,9 +609,17 @@ function render() {
   const datesValid = form.startDate && form.endDate && form.startDate <= form.endDate;
   const sessionsValid = scheduleDays.some(d => d.items.some(it => it.title.trim().length > 0));
   const handsOnValid = !form.modules.handsOn || validateHandsOn(form.moduleContent.handsOn);
-  const ready = slugValid && pinValid && nameValid && datesValid && sessionsValid && handsOnValid && !creating;
+  const ready = slugValid && pinValid && nameValid && datesValid && sessionsValid && handsOnValid && privacyChecked && !creating;
 
   setHtmlPreservingFocus(el, `
+    ${!privacyChecked ? `
+    <div class="privacy-consent" id="privacyConsent">
+      <label class="privacy-check">
+        <input type="checkbox" onchange="onPrivacyToggle(this.checked)">
+        <span>Jeg har læst og forstået <a href="privacy.html" target="_blank" rel="noopener">privatlivspolitikken</a>, og opretter denne konference i overensstemmelse med den.</span>
+      </label>
+    </div>
+    ` : ""}
     <details class="card" ${openCreateSection==='details'?'open':''} ontoggle="trackCreateSection(this,'details')">
       <summary>1. Conference details</summary><div class="create-section-body">
       <div class="card-sub">This is the basic information attendees will see.</div>
@@ -1079,7 +1120,7 @@ function updateCreateReadiness(){
   const datesValid=!!form.startDate&&!!form.endDate&&form.startDate<=form.endDate;
   const sessionsValid=scheduleDays.some(d=>d.items.some(it=>it.title.trim().length>0));
   const handsOnValid=!form.modules.handsOn||validateHandsOn(form.moduleContent.handsOn);
-  const ready=/^[a-z]{2,12}$/.test(form.slug)&&/^\d{4,6}$/.test(form.adminPin)&&form.name.trim().length>=3&&datesValid&&sessionsValid&&handsOnValid&&!creating;
+  const ready=/^[a-z]{2,12}$/.test(form.slug)&&/^\d{4,6}$/.test(form.adminPin)&&form.name.trim().length>=3&&datesValid&&sessionsValid&&handsOnValid&&privacyChecked&&!creating;
   const btn=document.getElementById('createConferenceBtn');if(btn){btn.disabled=!ready;btn.classList.toggle('ready',ready);}
   const dateMsg=document.getElementById('dateValidation');if(dateMsg)dateMsg.textContent=!datesValid&&form.startDate&&form.endDate?'End date must be on or after the start date.':'';
   const handsMsg=document.getElementById('handsOnValidation');if(handsMsg){handsMsg.classList.toggle('error',!handsOnValid);handsMsg.textContent=handsOnValid?'Each session is long enough for all rotations.':'Each session must fit stations × minutes per rotation.';}
