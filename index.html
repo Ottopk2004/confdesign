@@ -8,6 +8,12 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
+  --fs-title: 22px;  /* page / conference title */
+  --fs-h2: 17px;     /* section & card headings */
+  --fs-h3: 15px;     /* sub-headings, list titles */
+  --fs-body: 14px;   /* normal text, inputs, buttons */
+  --fs-small: 12px;  /* hints, captions, badges */
+
     --pf-theme:       #07558F; /* overridden per-conference via JS */
     --pf-theme-light: #EEF0FA; /* overridden per-conference via JS */
     --pf-ink:         #1E2233;
@@ -47,9 +53,9 @@
     padding: 60px 24px;
     text-align: center;
     color: var(--pf-muted);
-    font-size: 13.5px;
+    font-size:var(--fs-body);
   }
-  .state-screen h2 { color: var(--pf-ink); font-size: 16px; margin-bottom: 8px; }
+  .state-screen h2 { color: var(--pf-ink); font-size:var(--fs-h2); margin-bottom: 8px; }
 
   /* ── Header ──────────────────────────────────────────────────────── */
   .conf-header {
@@ -59,10 +65,10 @@
     border-bottom:4px solid var(--pf-theme);
   }
   .conf-header .eyebrow {
-    font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em;
+    font-size:var(--fs-small); text-transform: uppercase; letter-spacing: .08em;
     opacity: .85; margin-bottom: 6px; display:flex; align-items:center; justify-content:space-between;
   }
-  .conf-header h1 { font-size: 19px; margin-bottom: 4px; }
+  .conf-header h1 { font-size:var(--fs-title); margin-bottom: 4px; }
   .conference-logo-wrap { margin-bottom:12px; }
   .conference-logo { max-width:100%; object-fit:contain; display:block; border-radius:8px; }
   .color-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -70,27 +76,27 @@
     width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
     cursor: pointer; border: 3px solid transparent;
     display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 14px;
+    color: #fff; font-size:var(--fs-body);
   }
   .color-swatch.selected { border-color: var(--pf-ink); }
 
   .segmented { display:flex; border:2px solid var(--pf-border); border-radius:8px; overflow:hidden; }
-  .segmented-btn { flex:1; text-align:center; padding:8px 6px; font-size:12px; font-weight:bold; color:var(--pf-muted); cursor:pointer; }
+  .segmented-btn { flex:1; text-align:center; padding:8px 6px; font-size:var(--fs-small); font-weight:bold; color:var(--pf-muted); cursor:pointer; }
   .segmented-btn + .segmented-btn { border-left:2px solid var(--pf-border); }
   .segmented-btn.selected { background:var(--pf-theme); color:#fff; }
-  .conf-header .dates { font-size: 14px; color:var(--pf-muted); }
+  .conf-header .dates { font-size:var(--fs-body); color:var(--pf-muted); }
   .mode-badge {
     background: rgba(255,255,255,0.2);
     padding: 3px 8px;
     border-radius: 999px;
-    font-size: 10px;
+    font-size:var(--fs-small);
     font-weight: bold;
   }
 
   /* ── Login screen ────────────────────────────────────────────────── */
   .login-body { padding: 28px 24px; }
   .login-body .login-label {
-    font-size: 11px; font-weight: bold; color: var(--pf-theme);
+    font-size:var(--fs-small); font-weight: bold; color: var(--pf-theme);
     text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px;
   }
   .login-body input[type="text"] {
@@ -99,21 +105,21 @@
     letter-spacing: .08em; color: var(--pf-ink); font-family: inherit;
   }
   .login-body input[type="text"]:focus { border-color: var(--pf-theme); outline: none; }
-  .login-hint { font-size: 11px; color: var(--pf-muted); margin-top: 8px; text-align: center; }
-  .login-error { font-size: 12px; color: var(--pf-red); margin-top: 8px; text-align: center; min-height: 16px; }
+  .login-hint { font-size:var(--fs-small); color: var(--pf-muted); margin-top: 8px; text-align: center; }
+  .login-error { font-size:var(--fs-small); color: var(--pf-red); margin-top: 8px; text-align: center; min-height: 16px; }
   .login-btn {
     width: 100%; margin-top: 16px; padding: 15px; border: none; border-radius: 10px;
-    font-size: 15px; font-weight: bold; background: var(--pf-theme); color: #fff; cursor: pointer;
+    font-size:var(--fs-h3); font-weight: bold; background: var(--pf-theme); color: #fff; cursor: pointer;
   }
   .login-btn:hover { filter: brightness(0.92); }
   .login-divider {
     display: flex; align-items: center; gap: 10px; margin: 20px 0;
-    color: var(--pf-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--pf-muted); font-size:var(--fs-small); text-transform: uppercase; letter-spacing: .05em;
   }
   .login-divider::before, .login-divider::after { content: ""; flex: 1; height: 1px; background: var(--pf-border); }
   .pin-btn {
     width: 100%; padding: 12px; border: 2px solid var(--pf-border); border-radius: 10px;
-    background: #fff; color: var(--pf-ink); font-size: 13px; font-weight: bold; cursor: pointer;
+    background: #fff; color: var(--pf-ink); font-size:var(--fs-body); font-weight: bold; cursor: pointer;
   }
   .pin-btn:hover { border-color: var(--pf-theme); }
 
@@ -122,9 +128,9 @@
     display: flex; justify-content: space-between; align-items: center;
     padding: 12px 20px; border-bottom: 2px solid var(--pf-border);
   }
-  .toolbar .who { font-size: 12px; color: var(--pf-muted); }
+  .toolbar .who { font-size:var(--fs-small); color: var(--pf-muted); }
   .toolbar button {
-    background: none; border: none; color: var(--pf-theme); font-size: 12px;
+    background: none; border: none; color: var(--pf-theme); font-size:var(--fs-small);
     font-weight: bold; cursor: pointer;
   }
 
@@ -136,7 +142,7 @@
     -webkit-overflow-scrolling: touch;
   }
   .tab-btn {
-    flex: 0 0 auto; min-width:112px; text-align: center; padding: 15px 12px; font-size: 14px; font-weight: bold;
+    flex: 0 0 auto; min-width:112px; text-align: center; padding: 15px 12px; font-size:var(--fs-body); font-weight: bold;
     color: var(--pf-muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;
     scroll-snap-align: start;
     scroll-snap-stop: always;
@@ -164,68 +170,68 @@
   .info-card { border:2px solid #cfdae3; border-radius:14px; background:#f7f8f9; padding:18px 20px; margin-bottom:14px; }
   .info-card h3 { color:var(--pf-theme); margin-bottom:8px; }
   .info-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-top:12px; }
-  .info-cell span { display:block; font-size:10px; color:var(--pf-muted); text-transform:uppercase; font-weight:bold; }
+  .info-cell span { display:block; font-size:var(--fs-small); color:var(--pf-muted); text-transform:uppercase; font-weight:bold; }
   .info-cell strong { display:block; margin-top:3px; }
   .organizer-module { border:2px solid #cfdae3; border-radius:12px; margin-bottom:12px; overflow:hidden; }
   .organizer-module summary { cursor:pointer; padding:14px 16px; background:var(--pf-theme-light); color:var(--pf-theme); font-weight:bold; }
   .organizer-module-body { padding:16px; }
   .group-overview { border:2px solid #cfdae3; border-radius:10px; overflow:hidden; margin-bottom:16px; }
-  .group-overview-row { display:flex; justify-content:space-between; gap:10px; padding:9px 12px; font-size:12.5px; border-bottom:1px solid #e1e6eb; background:#fff; }
+  .group-overview-row { display:flex; justify-content:space-between; gap:10px; padding:9px 12px; font-size:var(--fs-small); border-bottom:1px solid #e1e6eb; background:#fff; }
   .group-overview-row:last-child { border-bottom:none; }
   .group-overview-station { font-weight:bold; color:var(--pf-theme); flex-shrink:0; }
   .group-overview-range { color:var(--pf-muted); text-align:right; }
   .next-up-card { color:#fff; border-radius:18px; padding:26px 28px; margin-bottom:22px; background:#c4145a; }
-  .next-up-card .next-label { font-size:12px; font-weight:bold; letter-spacing:.14em; margin-bottom:12px; opacity:.9; }
+  .next-up-card .next-label { font-size:var(--fs-small); font-weight:bold; letter-spacing:.14em; margin-bottom:12px; opacity:.9; }
   .next-up-card h2 { font-size:26px; line-height:1.15; margin-bottom:8px; color:#fff; }
-  .next-up-card .next-time { font-size:15px; font-weight:bold; line-height:1.45; }
+  .next-up-card .next-time { font-size:var(--fs-h3); font-weight:bold; line-height:1.45; }
   .next-up-meta { display:flex; flex-wrap:wrap; gap:24px; margin-top:18px; }
-  .next-up-meta span { display:block; font-size:10px; font-weight:bold; letter-spacing:.06em; opacity:.75; }
-  .next-up-meta strong { display:block; font-size:16px; margin-top:2px; }
+  .next-up-meta span { display:block; font-size:var(--fs-small); font-weight:bold; letter-spacing:.06em; opacity:.75; }
+  .next-up-meta strong { display:block; font-size:var(--fs-h3); margin-top:2px; }
 
   .day-group { margin-bottom: 16px; }
   .day-label {
     background: var(--pf-theme); color: #fff; padding: 8px 12px;
-    border-radius: 8px 8px 0 0; font-size: 12.5px; font-weight: bold;
+    border-radius: 8px 8px 0 0; font-size:var(--fs-small); font-weight: bold;
   }
   .session-card {
     border: 2px solid var(--pf-border); border-top: none;
-    padding: 14px 18px; font-size: 14px;
+    padding: 14px 18px; font-size:var(--fs-body);
   }
   .day-group .session-card:last-child { border-radius: 0 0 8px 8px; }
-  .session-card .time { font-size: 11px; color: var(--pf-theme); font-weight: bold; }
+  .session-card .time { font-size:var(--fs-small); color: var(--pf-theme); font-weight: bold; }
   .session-card .title { font-weight: bold; margin: 2px 0; }
-  .session-card .speaker { font-size: 11.5px; color: var(--pf-muted); }
-  .level-badge { display:inline-block; margin-left:6px; padding:2px 8px; border-radius:999px; background:var(--pf-theme); color:#fff; font-size:10px; font-weight:bold; vertical-align:middle; }
-  .level-banner { background:#fff; border:2px solid var(--pf-border); border-radius:12px; padding:10px 14px; margin:0 0 14px; font-size:13px; color:var(--pf-muted); }
+  .session-card .speaker { font-size:var(--fs-small); color: var(--pf-muted); }
+  .level-badge { display:inline-block; margin-left:6px; padding:2px 8px; border-radius:999px; background:var(--pf-theme); color:#fff; font-size:var(--fs-small); font-weight:bold; vertical-align:middle; }
+  .level-banner { background:#fff; border:2px solid var(--pf-border); border-radius:12px; padding:10px 14px; margin:0 0 14px; font-size:var(--fs-body); color:var(--pf-muted); }
   .level-banner b { color:var(--pf-theme); }
   .level-banner.level-warn { border-color:#e0a82e; background:#fff8e6; color:#8a5a00; }
   .level-chips { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
-  .level-chip { border:2px solid var(--pf-border); background:#fff; border-radius:999px; padding:7px 14px; font-size:12.5px; font-weight:bold; cursor:pointer; color:var(--pf-muted); font-family:inherit; }
+  .level-chip { border:2px solid var(--pf-border); background:#fff; border-radius:999px; padding:7px 14px; font-size:var(--fs-small); font-weight:bold; cursor:pointer; color:var(--pf-muted); font-family:inherit; }
   .level-chip.active { background:var(--pf-theme); border-color:var(--pf-theme); color:#fff; }
-  .reg-badge { display:inline-block; min-width:18px; padding:0 6px; border-radius:9px; background:#B3261E; color:#fff; font-size:11px; line-height:18px; text-align:center; }
+  .reg-badge { display:inline-block; min-width:18px; padding:0 6px; border-radius:9px; background:#B3261E; color:#fff; font-size:var(--fs-small); line-height:18px; text-align:center; }
   .reg-card { border:2px solid var(--pf-border); border-radius:12px; padding:14px 16px; margin-bottom:10px; background:#fff; }
-  .reg-card h3 { font-size:14px; margin:0 0 2px; }
-  .reg-meta { font-size:12px; color:var(--pf-muted); line-height:1.6; }
+  .reg-card h3 { font-size:var(--fs-h3); margin:0 0 2px; }
+  .reg-meta { font-size:var(--fs-small); color:var(--pf-muted); line-height:1.6; }
   .reg-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; }
-  .reg-actions select { padding:7px 8px; border:1px solid var(--pf-border); border-radius:8px; font-size:13px; }
-  .reg-btn { padding:8px 14px; border:none; border-radius:8px; font-weight:bold; font-size:13px; cursor:pointer; background:var(--pf-theme); color:#fff; }
+  .reg-actions select { padding:7px 8px; border:1px solid var(--pf-border); border-radius:8px; font-size:var(--fs-body); }
+  .reg-btn { padding:8px 14px; border:none; border-radius:8px; font-weight:bold; font-size:var(--fs-body); cursor:pointer; background:var(--pf-theme); color:#fff; }
   .reg-btn.ghost { background:#fff; color:var(--pf-ink); border:1px solid var(--pf-border); }
   .reg-btn.danger { background:#fff; color:#B3261E; border:1px solid #B3261E; }
   .reg-btn:disabled { opacity:.5; cursor:default; }
-  .reg-nr { display:inline-block; background:var(--pf-theme); color:#fff; border-radius:8px; padding:2px 10px; font-weight:bold; font-size:13px; margin-right:6px; }
+  .reg-nr { display:inline-block; background:var(--pf-theme); color:#fff; border-radius:8px; padding:2px 10px; font-weight:bold; font-size:var(--fs-body); margin-right:6px; }
   .level-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
   .level-row input { flex:1; min-width:0; }
-  .level-count { font-size:11.5px; color:var(--pf-muted); white-space:nowrap; }
-  .names-grid-item select { flex:1; min-width:0; padding:6px 8px; font-size:12.5px; border:2px solid var(--pf-border); border-radius:6px; background:#fff; font-family:inherit; }
+  .level-count { font-size:var(--fs-small); color:var(--pf-muted); white-space:nowrap; }
+  .names-grid-item select { flex:1; min-width:0; padding:6px 8px; font-size:var(--fs-small); border:2px solid var(--pf-border); border-radius:6px; background:#fff; font-family:inherit; }
 
-  .empty-note { text-align:center; color: var(--pf-muted); font-size: 13px; padding: 30px 10px; }
+  .empty-note { text-align:center; color: var(--pf-muted); font-size:var(--fs-body); padding: 30px 10px; }
 
   /* ── Organizer edit mode ─────────────────────────────────────────── */
   .field-group { margin-bottom: 14px; }
-  .field-group label { display:block; font-size:11.5px; font-weight:bold; color:var(--pf-muted); margin-bottom:5px; }
+  .field-group label { display:block; font-size:var(--fs-small); font-weight:bold; color:var(--pf-muted); margin-bottom:5px; }
   .field-group input, .field-group textarea {
     width: 100%; padding: 9px 11px; border: 2px solid var(--pf-border); border-radius: 8px;
-    font-size: 13.5px; font-family: inherit; color: var(--pf-ink);
+    font-size:var(--fs-body); font-family: inherit; color: var(--pf-ink);
   }
   .field-group input:focus, .field-group textarea:focus { border-color: var(--pf-theme); outline: none; }
   .field-row { display:flex; gap:10px; }
@@ -236,28 +242,28 @@
   }
   .session-edit-row .remove-btn {
     position:absolute; top:6px; right:6px; width:22px; height:22px; border-radius:50%;
-    border:none; background:var(--pf-red-light); color:var(--pf-red); font-size:12px; font-weight:bold; cursor:pointer;
+    border:none; background:var(--pf-red-light); color:var(--pf-red); font-size:var(--fs-small); font-weight:bold; cursor:pointer;
   }
-  .mini-label { font-size:10px; font-weight:bold; color:var(--pf-muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:3px; display:block; }
+  .mini-label { font-size:var(--fs-small); font-weight:bold; color:var(--pf-muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:3px; display:block; }
 
   .add-btn {
     width:100%; padding:10px; border:2px dashed var(--pf-border); border-radius:10px;
-    background: var(--pf-gray); color: var(--pf-theme); font-size:12.5px; font-weight:bold; cursor:pointer; margin-bottom: 14px;
+    background: var(--pf-gray); color: var(--pf-theme); font-size:var(--fs-small); font-weight:bold; cursor:pointer; margin-bottom: 14px;
   }
   .row-actions { position:absolute; top:6px; right:6px; display:flex; gap:4px; align-items:center; }
   .row-actions .remove-btn { position:static !important; top:auto !important; right:auto !important; }
   .move-btn {
     width:22px; height:22px; border-radius:50%; border:none;
-    background:var(--pf-theme-light); color:var(--pf-theme); font-size:11px; font-weight:bold; cursor:pointer; line-height:1;
+    background:var(--pf-theme-light); color:var(--pf-theme); font-size:var(--fs-small); font-weight:bold; cursor:pointer; line-height:1;
   }
   .move-btn:disabled { opacity:.35; cursor:default; }
 
   .topic-toggle { border:1px dashed var(--pf-border); border-radius:8px; margin-top:10px; overflow:hidden; }
-  .topic-toggle summary { cursor:pointer; padding:8px 10px; font-size:11.5px; font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
+  .topic-toggle summary { cursor:pointer; padding:8px 10px; font-size:var(--fs-small); font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
   .topic-toggle .topic-body { padding:10px; }
   .topic-preview { margin-top:10px; padding-top:10px; border-top:1px dashed var(--pf-border); }
-  .topic-preview-label { font-size:10px; text-transform:uppercase; letter-spacing:.03em; color:var(--pf-muted); font-weight:bold; margin-bottom:4px; }
-  .topic-preview-text { font-size:13px; color:var(--pf-ink); line-height:1.55; margin:0; min-height:18px; white-space:pre-wrap; }
+  .topic-preview-label { font-size:var(--fs-small); text-transform:uppercase; letter-spacing:.03em; color:var(--pf-muted); font-weight:bold; margin-bottom:4px; }
+  .topic-preview-text { font-size:var(--fs-body); color:var(--pf-ink); line-height:1.55; margin:0; min-height:18px; white-space:pre-wrap; }
   .topic-preview-text:empty::before { content:'Nothing typed yet — participants won\'t see anything here.'; color:var(--pf-muted); font-style:italic; }
   .topic-toggle textarea { width:100%; min-height:70px; }
 
@@ -267,51 +273,51 @@
   .faculty-card > summary::-webkit-details-marker { display:none; }
   .faculty-card > summary::after { content:'▾'; position:absolute; right:16px; top:50%; transform:translateY(-50%); color:var(--pf-theme); font-size:13px; transition:transform .15s; }
   .faculty-card[open] > summary::after { transform:translateY(-50%) rotate(180deg); }
-  .faculty-summary-name { display:block; color:var(--pf-theme); font-weight:bold; font-size:15px; }
-  .faculty-summary-role { display:block; font-size:12.5px; font-weight:normal; font-style:italic; color:var(--pf-muted); margin-top:2px; }
+  .faculty-summary-name { display:block; color:var(--pf-theme); font-weight:bold; font-size:var(--fs-h3); }
+  .faculty-summary-role { display:block; font-size:var(--fs-small); font-weight:normal; font-style:italic; color:var(--pf-muted); margin-top:2px; }
 
   .breakout-session-card { border:2px solid #cfdae3; border-radius:14px; background:#f7f8f9; overflow:hidden; margin-top:14px; }
   .breakout-session-card > summary { cursor:pointer; padding:14px 40px 14px 16px; list-style:none; position:relative; }
   .breakout-session-card > summary::-webkit-details-marker { display:none; }
   .breakout-session-card > summary::after { content:'▾'; position:absolute; right:16px; top:50%; transform:translateY(-50%); color:var(--pf-theme); font-size:13px; transition:transform .15s; }
   .breakout-session-card[open] > summary::after { transform:translateY(-50%) rotate(180deg); }
-  .session-summary-date { display:block; color:var(--pf-theme); font-weight:bold; font-size:14px; }
-  .session-summary-sub { display:block; font-size:12.5px; color:var(--pf-muted); margin-top:2px; font-style:italic; }
+  .session-summary-date { display:block; color:var(--pf-theme); font-weight:bold; font-size:var(--fs-body); }
+  .session-summary-sub { display:block; font-size:var(--fs-small); color:var(--pf-muted); margin-top:2px; font-style:italic; }
   .breakout-session-card-body { padding:0 16px 16px; }
   .breakout-session-card-body .content-intro { margin-top:0 !important; }
   .breakout-session-card-body .info-card { margin-top:12px; }
   .faculty-card-body { padding:0 16px 16px; }
-  .faculty-card .faculty-workplace { font-size:12px; color:var(--pf-muted); margin-top:-4px; margin-bottom:6px; }
+  .faculty-card .faculty-workplace { font-size:var(--fs-small); color:var(--pf-muted); margin-top:-4px; margin-bottom:6px; }
   .faculty-card .faculty-photo { width:100%; max-width:220px; border-radius:10px; margin:6px 0 10px; display:block; }
-  .faculty-card .faculty-bio { font-size:13px; color:var(--pf-ink); line-height:1.55; white-space:pre-wrap; }
+  .faculty-card .faculty-bio { font-size:var(--fs-body); color:var(--pf-ink); line-height:1.55; white-space:pre-wrap; }
 
   .presentations-grid { display:flex; flex-direction:column; gap:10px; }
   .presentation-card { display:flex; align-items:center; gap:12px; border:2px solid #cfdae3; border-radius:12px; background:#f7f8f9; padding:14px 16px; }
   .presentation-icon { font-size:20px; color:var(--pf-theme); flex-shrink:0; }
   .presentation-info { flex:1; min-width:0; }
   .presentation-title { font-weight:bold; color:var(--pf-ink); }
-  .presentation-presenter { font-size:12.5px; color:var(--pf-theme); font-weight:bold; margin-top:1px; }
-  .presentation-meta { font-size:11.5px; color:var(--pf-muted); margin-top:2px; }
-  .presentation-download { flex-shrink:0; font-size:13px; font-weight:bold; color:var(--pf-theme); text-decoration:none; border:2px solid var(--pf-theme); border-radius:8px; padding:6px 12px; white-space:nowrap; }
+  .presentation-presenter { font-size:var(--fs-small); color:var(--pf-theme); font-weight:bold; margin-top:1px; }
+  .presentation-meta { font-size:var(--fs-small); color:var(--pf-muted); margin-top:2px; }
+  .presentation-download { flex-shrink:0; font-size:var(--fs-body); font-weight:bold; color:var(--pf-theme); text-decoration:none; border:2px solid var(--pf-theme); border-radius:8px; padding:6px 12px; white-space:nowrap; }
   .presentation-download:hover { background:var(--pf-theme-light); }
 
   .group-manager-block { border:1px solid var(--pf-border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
-  .group-manager-title { padding:8px 10px; font-size:11.5px; font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
+  .group-manager-title { padding:8px 10px; font-size:var(--fs-small); font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
   .group-manager-members { padding:6px 10px; }
-  .group-member-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px solid var(--pf-border); font-size:12.5px; }
+  .group-member-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px solid var(--pf-border); font-size:var(--fs-small); }
   .group-member-row:last-child { border-bottom:none; }
-  .group-member-row select { font-size:12px; padding:4px 6px; border:2px solid var(--pf-border); border-radius:6px; }
+  .group-member-row select { font-size:var(--fs-small); padding:4px 6px; border:2px solid var(--pf-border); border-radius:6px; }
 
   .names-role-group { border:1px solid var(--pf-border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
-  .names-role-group summary { cursor:pointer; padding:8px 10px; font-size:11.5px; font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
+  .names-role-group summary { cursor:pointer; padding:8px 10px; font-size:var(--fs-small); font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
   .names-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:6px 10px; padding:10px; }
   .names-grid-item { display:flex; align-items:center; gap:6px; }
-  .names-grid-nr { font-size:11.5px; color:var(--pf-muted); font-weight:bold; min-width:40px; flex-shrink:0; }
-  .names-grid-item input { flex:1; min-width:0; padding:6px 8px; font-size:12.5px; border:2px solid var(--pf-border); border-radius:6px; }
+  .names-grid-nr { font-size:var(--fs-small); color:var(--pf-muted); font-weight:bold; min-width:40px; flex-shrink:0; }
+  .names-grid-item input { flex:1; min-width:0; padding:6px 8px; font-size:var(--fs-small); border:2px solid var(--pf-border); border-radius:6px; }
   .names-grid-item input:focus { border-color:var(--pf-theme); outline:none; }
 
   .session-collapsible { border:2px solid var(--pf-border); border-radius:10px; margin-bottom:10px; position:relative; overflow:hidden; }
-  .session-collapsible > summary { cursor:pointer; padding:12px 44px 12px 14px; background:var(--pf-gray); color:var(--pf-theme); font-weight:bold; font-size:13px; list-style:none; }
+  .session-collapsible > summary { cursor:pointer; padding:12px 44px 12px 14px; background:var(--pf-gray); color:var(--pf-theme); font-weight:bold; font-size:var(--fs-body); list-style:none; }
   .session-collapsible > summary::-webkit-details-marker { display:none; }
   .session-collapsible > summary::before { content:'▸'; display:inline-block; width:12px; font-size:11px; }
   .session-collapsible[open] > summary::before { content:'▾'; }
@@ -319,25 +325,25 @@
   .session-collapsible-body { padding:14px; }
 
   .save-btn {
-    width:100%; padding:14px; border:none; border-radius:10px; font-size:14.5px; font-weight:bold;
+    width:100%; padding:14px; border:none; border-radius:10px; font-size:var(--fs-body); font-weight:bold;
     background: var(--pf-theme); color:#fff; cursor:pointer;
   }
   .save-btn:hover { filter: brightness(0.92); }
-  .save-status { font-size:12px; text-align:center; margin-top:8px; color: var(--pf-muted); }
+  .save-status { font-size:var(--fs-small); text-align:center; margin-top:8px; color: var(--pf-muted); }
   .save-status.error { color: var(--pf-red); }
   .save-status.ok { color: var(--pf-green); }
 
   /* ── Quiz module ─────────────────────────────────────────────────── */
-  .quiz-intro { font-size: 12.5px; color: var(--pf-muted); margin-bottom: 16px; line-height: 1.5; }
+  .quiz-intro { font-size:var(--fs-small); color: var(--pf-muted); margin-bottom: 16px; line-height: 1.5; }
   .quiz-question-card {
     border: 2px solid var(--pf-border); border-radius: 10px; padding: 12px; margin-bottom: 12px;
   }
   .quiz-question-card.answered { border-color: var(--pf-theme); }
   .quiz-question-card .qnum {
-    font-size: 10.5px; font-weight: bold; color: var(--pf-theme); text-transform: uppercase;
+    font-size:var(--fs-small); font-weight: bold; color: var(--pf-theme); text-transform: uppercase;
     letter-spacing: .05em; margin-bottom: 5px;
   }
-  .quiz-question-card .qtext { font-weight: bold; font-size: 13.5px; margin-bottom: 8px; }
+  .quiz-question-card .qtext { font-weight: bold; font-size:var(--fs-body); margin-bottom: 8px; }
   .quiz-option-row {
     display: flex; align-items: center; gap: 9px; padding: 8px 10px;
     border: 2px solid var(--pf-border); border-radius: 8px; margin-bottom: 5px; cursor: pointer;
@@ -345,10 +351,10 @@
   .quiz-option-row:last-child { margin-bottom: 0; }
   .quiz-option-row.checked { border-color: var(--pf-theme); background: var(--pf-theme-light); }
   .quiz-option-row input { accent-color: var(--pf-theme); width: 15px; height: 15px; flex-shrink: 0; }
-  .quiz-option-row span { font-size: 13px; }
+  .quiz-option-row span { font-size:var(--fs-body); }
   .quiz-submit-btn {
     width: 100%; margin-top: 8px; padding: 13px; border: none; border-radius: 10px;
-    font-size: 14px; font-weight: bold; background: var(--pf-border); color: #8a8a8a; cursor: not-allowed;
+    font-size:var(--fs-body); font-weight: bold; background: var(--pf-border); color: #8a8a8a; cursor: not-allowed;
   }
   .quiz-submit-btn.ready { background: var(--pf-theme); color: #fff; cursor: pointer; }
   .quiz-result-card {
@@ -359,7 +365,7 @@
   .quiz-result-card .big-score { font-size: 30px; font-weight: bold; margin: 6px 0; }
   .quiz-result-card.pass .big-score { color: var(--pf-green); }
   .quiz-result-card.fail .big-score { color: var(--pf-red); }
-  .quiz-result-card .verdict { font-size: 15px; font-weight: bold; }
+  .quiz-result-card .verdict { font-size:var(--fs-h3); font-weight: bold; }
   .quiz-result-card.pass .verdict { color: var(--pf-green); }
   .quiz-result-card.fail .verdict { color: var(--pf-red); }
   .evaluation-form { max-width: 720px; }
@@ -375,21 +381,26 @@
   }
   .quiz-edit-row .remove-btn {
     position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:50%;
-    border:none; background:var(--pf-red-light); color:var(--pf-red); font-size:12px; font-weight:bold; cursor:pointer;
+    border:none; background:var(--pf-red-light); color:var(--pf-red); font-size:var(--fs-small); font-weight:bold; cursor:pointer;
   }
   .quiz-opt-edit-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .quiz-opt-edit-row input[type="radio"] { accent-color: var(--pf-theme); flex-shrink: 0; }
-  .quiz-opt-edit-row input[type="text"] { flex: 1; padding: 7px 9px; font-size: 12.5px; }
+  .quiz-opt-edit-row input[type="text"] { flex: 1; padding: 7px 9px; font-size:var(--fs-small); }
+  body { font-size: var(--fs-body); }
+  input, select, textarea, button { font-size: inherit; font-family: inherit; }
+  h1 { font-size: var(--fs-title); }
+  h2 { font-size: var(--fs-h2); }
+  h3 { font-size: var(--fs-h3); }
 </style>
 <style>
 @media (max-width: 600px) {
   body { padding:0; background:#fff; }
   .shell { max-width:none; min-height:100vh; border-radius:0; box-shadow:none; }
   .conf-header { padding:20px 16px; }
-  .conf-header h1 { font-size:21px; }
+  .conf-header h1 { font-size:var(--fs-title); }
   .toolbar { padding:11px 16px; }
   .tab-bar { scrollbar-width:thin; -webkit-overflow-scrolling:touch; }
-  .tab-btn { min-width:104px; padding:14px 10px; font-size:13px; }
+  .tab-btn { min-width:104px; padding:14px 10px; font-size:var(--fs-body); }
   .tab-bar-wrap { padding: 0 26px; }
   .tab-bar-arrow { width: 24px; height: 24px; font-size: 23px; }
   .tab-bar-arrow.prev { left: 2px; }
@@ -398,7 +409,7 @@
   .field-row { flex-direction:column; gap:0; }
   .field-group input, .field-group textarea { min-height:46px; font-size:16px; }
   .next-up-card { padding:22px 18px; border-radius:15px; }
-  .next-up-card h2 { font-size:23px; }
+  .next-up-card h2 { font-size:var(--fs-title); }
   .next-up-meta { gap:16px; }
   .next-up-meta > div { min-width:72px; flex:1; }
   .info-card { padding:15px; border-radius:12px; }
@@ -994,6 +1005,7 @@ function render() {
           <div class="tab-btn ${organizerTab==='general'?'active':''}" data-organizer-tab="general" onclick="setOrganizerTab('general')">General</div>
           <div class="tab-btn ${organizerTab==='schedule'?'active':''}" data-organizer-tab="schedule" onclick="setOrganizerTab('schedule')">Schedule</div>
           <div class="tab-btn ${organizerTab==='addons'?'active':''}" data-organizer-tab="addons" onclick="setOrganizerTab('addons')">Add-ons</div>
+          <div class="tab-btn ${organizerTab==='quizeval'?'active':''}" data-organizer-tab="quizeval" onclick="setOrganizerTab('quizeval')">Quiz and evaluation</div>
           ${regOn() ? `<div class="tab-btn ${organizerTab==='registrations'?'active':''}" data-organizer-tab="registrations" onclick="setOrganizerTab('registrations')">Registrations${signupData && signupData.summary && signupData.summary.pending ? ` <span class="reg-badge">${signupData.summary.pending}</span>` : ''}</div>` : ''}
           <div class="tab-btn ${organizerTab==='certificates'?'active':''}" data-organizer-tab="certificates" onclick="setOrganizerTab('certificates')">Certificates</div>
           <div class="tab-btn ${organizerTab==='administration'?'active':''}" data-organizer-tab="administration" onclick="setOrganizerTab('administration')">Administration</div>
@@ -1079,7 +1091,7 @@ function setEvaluationItemAnswer(id,a,b){
   }
   rerenderParticipantScroll();
 }
-function renderEvaluationTab(){if(evaluationLoading)return `<div class="empty-note">Loading evaluation posts…</div>`;if(!evaluationConfig)return `<div class="save-status error">${escHtml(evaluationState.message||"Faculty evaluations are not available.")}</div>`;const posts=evaluationConfig.posts||[];const responses=evaluationConfig.responses||[];const extraItems=Array.isArray(evaluationConfig.items)?evaluationConfig.items:[];const extraFields=renderFeedbackAnswerFields(extraItems,evaluationState.answers||{},'setEvaluationItemAnswer');return `<div class="evaluation-form"><h2 style="color:var(--pf-theme)">${escHtml(evaluationConfig.title||"Faculty evaluation")}</h2>${evaluationConfig.intro?`<p class="content-intro">${escHtml(evaluationConfig.intro)}</p>`:""}<div class="field-group"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(evaluationState.participantNr)}" placeholder="e.g. 42" oninput="evaluationState.participantNr=this.value.replace(/\D/g,'')"></div><div class="field-group"><label>Post</label><select onchange="evaluationState.postId=this.value;rerenderParticipantScroll()" style="width:100%;padding:12px;border:2px solid var(--pf-border);border-radius:8px;font-size:14px"><option value="">Select a post…</option>${posts.map(p=>`<option value="${escHtml(p.id)}" ${evaluationState.postId===p.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}</select></div><div class="field-group"><label>Result</label><select onchange="evaluationState.response=this.value;rerenderParticipantScroll()" style="width:100%;padding:12px;border:2px solid var(--pf-border);border-radius:8px;font-size:14px"><option value="">Select a response…</option>${responses.map(r=>`<option value="${escHtml(r.id)}" ${evaluationState.response===r.id?'selected':''}>${escHtml(r.label)}</option>`).join('')}</select></div><div class="field-group"><label>Comment</label><textarea maxlength="5000" placeholder="Feedback for the participant…" oninput="evaluationState.comment=this.value">${escHtml(evaluationState.comment)}</textarea></div>${extraFields}<button class="save-btn" onclick="submitEvaluation()" ${evaluationState.submitting?'disabled':''}>${evaluationState.submitting?'Sending…':'Submit evaluation'}</button>${evaluationState.message?`<div class="save-status ${evaluationState.error?'error':'ok'} evaluation-status">${escHtml(evaluationState.message)}</div>`:""}</div>`;}
+function renderEvaluationTab(){if(evaluationLoading)return `<div class="empty-note">Loading evaluation posts…</div>`;if(!evaluationConfig)return `<div class="save-status error">${escHtml(evaluationState.message||"Faculty evaluations are not available.")}</div>`;const posts=evaluationConfig.posts||[];const responses=evaluationConfig.responses||[];const extraItems=Array.isArray(evaluationConfig.items)?evaluationConfig.items:[];const extraFields=renderFeedbackAnswerFields(extraItems,evaluationState.answers||{},'setEvaluationItemAnswer');return `<div class="evaluation-form"><h2 style="color:var(--pf-theme)">${escHtml(evaluationConfig.title||"Faculty evaluation")}</h2>${evaluationConfig.intro?`<p class="content-intro">${escHtml(evaluationConfig.intro)}</p>`:""}<div class="field-group"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(evaluationState.participantNr)}" placeholder="e.g. 42" oninput="evaluationState.participantNr=this.value.replace(/\D/g,'')"></div><div class="field-group"><label>Post</label><select onchange="evaluationState.postId=this.value;rerenderParticipantScroll()" style="width:100%;padding:12px;border:2px solid var(--pf-border);border-radius:8px;font-size:var(--fs-body)"><option value="">Select a post…</option>${posts.map(p=>`<option value="${escHtml(p.id)}" ${evaluationState.postId===p.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}</select></div><div class="field-group"><label>Result</label><select onchange="evaluationState.response=this.value;rerenderParticipantScroll()" style="width:100%;padding:12px;border:2px solid var(--pf-border);border-radius:8px;font-size:var(--fs-body)"><option value="">Select a response…</option>${responses.map(r=>`<option value="${escHtml(r.id)}" ${evaluationState.response===r.id?'selected':''}>${escHtml(r.label)}</option>`).join('')}</select></div><div class="field-group"><label>Comment</label><textarea maxlength="5000" placeholder="Feedback for the participant…" oninput="evaluationState.comment=this.value">${escHtml(evaluationState.comment)}</textarea></div>${extraFields}<button class="save-btn" onclick="submitEvaluation()" ${evaluationState.submitting?'disabled':''}>${evaluationState.submitting?'Sending…':'Submit evaluation'}</button>${evaluationState.message?`<div class="save-status ${evaluationState.error?'error':'ok'} evaluation-status">${escHtml(evaluationState.message)}</div>`:""}</div>`;}
 function submitEvaluation(){const e=evaluationState;if(!/^\d+$/.test(e.participantNr)||Number(e.participantNr)<1||Number(e.participantNr)>Number(confData.meta.participantCount||0)){e.error=true;e.message="Enter a valid participant number.";rerenderParticipantScroll();return;}if(!e.postId||!e.response){e.error=true;e.message="Select a post and a response.";rerenderParticipantScroll();return;}
   const extraItems=Array.isArray(evaluationConfig&&evaluationConfig.items)?evaluationConfig.items:[];
   const answers={};
@@ -1760,14 +1772,14 @@ function renderQuizTab() {
     return `
       <div class="quiz-result-card pass">
         <div class="verdict">Test submitted</div>
-        <div style="font-size:12.5px;color:var(--pf-muted);">${quizResult.emailSent ? `Your result has been sent by email.` : "Your test was submitted, but the result email could not be sent. Please contact the organizer."}</div>
+        <div style="font-size:var(--fs-small);color:var(--pf-muted);">${quizResult.emailSent ? `Your result has been sent by email.` : "Your test was submitted, but the result email could not be sent. Please contact the organizer."}</div>
       </div>`;
   }
   if (quizStatus && quizStatus.locked) {
     return `
       <div class="quiz-result-card pass">
         <div class="verdict">Test already submitted</div>
-        <div style="font-size:12.5px;color:var(--pf-muted);">This test was already submitted${quizStatus.submittedAt ? " on " + new Date(quizStatus.submittedAt).toLocaleString("en-GB") : ""}. Your result was sent by email.</div>
+        <div style="font-size:var(--fs-small);color:var(--pf-muted);">This test was already submitted${quizStatus.submittedAt ? " on " + new Date(quizStatus.submittedAt).toLocaleString("en-GB") : ""}. Your result was sent by email.</div>
       </div>`;
   }
   if (!quizQuestions || quizQuestions.length === 0) return `<div class="empty-note">The test hasn't been set up yet — check back soon.</div>`;
@@ -1844,11 +1856,11 @@ function submitQuiz() {
 function addEvaluationPost(){if(!editModuleContent.evaluations)editModuleContent.evaluations={title:'Faculty evaluation',intro:'',posts:[]};editModuleContent.evaluations.posts.push({id:`P${editModuleContent.evaluations.posts.length+1}`,name:''});rerenderOrganizerScroll();}
 function removeEvaluationPost(i){editModuleContent.evaluations.posts.splice(i,1);rerenderOrganizerScroll();}
 function onEvaluationPost(i,val){editModuleContent.evaluations.posts[i].name=val;}
-function renderEvaluationEditor(){const c=editModuleContent.evaluations||{title:'Faculty evaluation',intro:'',posts:[],responses:[]};if(!Array.isArray(c.responses))c.responses=[];return `<div class="field-group"><label>Title</label><input value="${escHtml(c.title||'Faculty evaluation')}" oninput="onEditModuleContent('evaluations','title',this.value)"></div><div class="field-group"><label>Introduction</label><textarea oninput="onEditModuleContent('evaluations','intro',this.value)">${escHtml(c.intro||'')}</textarea></div><div class="mini-label" style="margin:18px 0 4px;font-size:11px;">Response options</div><div class="field-hint" style="margin:0 0 10px;">What faculty can choose from when evaluating a participant, shown as a dropdown. Add as many as you need — e.g. "Pass" / "Fail", or a scale like "Excellent" / "Satisfactory" / "Needs improvement".</div>${c.responses.map((r,i)=>`<div class="session-row">${c.responses.length>1?`<button class="remove-btn" onclick="removeEvaluationResponse(${i})">✕</button>`:''}<span class="mini-label">Option ${i+1}</span><input value="${escHtml(r.label||'')}" placeholder="e.g. Pass" oninput="onEvaluationResponse(${i},this.value)"></div>`).join('')}<button class="add-btn" onclick="addEvaluationResponse()">+ Add response option</button>${renderFeedbackItemsEditor('evaluations')}`;}
+function renderEvaluationEditor(){const c=editModuleContent.evaluations||{title:'Faculty evaluation',intro:'',posts:[],responses:[]};if(!Array.isArray(c.responses))c.responses=[];return `<div class="field-group"><label>Title</label><input value="${escHtml(c.title||'Faculty evaluation')}" oninput="onEditModuleContent('evaluations','title',this.value)"></div><div class="field-group"><label>Introduction</label><textarea oninput="onEditModuleContent('evaluations','intro',this.value)">${escHtml(c.intro||'')}</textarea></div><div class="mini-label" style="margin:18px 0 4px;font-size:var(--fs-small);">Response options</div><div class="field-hint" style="margin:0 0 10px;">What faculty can choose from when evaluating a participant, shown as a dropdown. Add as many as you need — e.g. "Pass" / "Fail", or a scale like "Excellent" / "Satisfactory" / "Needs improvement".</div>${c.responses.map((r,i)=>`<div class="session-row">${c.responses.length>1?`<button class="remove-btn" onclick="removeEvaluationResponse(${i})">✕</button>`:''}<span class="mini-label">Option ${i+1}</span><input value="${escHtml(r.label||'')}" placeholder="e.g. Pass" oninput="onEvaluationResponse(${i},this.value)"></div>`).join('')}<button class="add-btn" onclick="addEvaluationResponse()">+ Add response option</button>${renderFeedbackItemsEditor('evaluations')}`;}
 function addEvaluationResponse(){if(!editModuleContent.evaluations)editModuleContent.evaluations={title:'Faculty evaluation',intro:'',posts:[],responses:[]};if(!Array.isArray(editModuleContent.evaluations.responses))editModuleContent.evaluations.responses=[];editModuleContent.evaluations.responses.push({id:`R${editModuleContent.evaluations.responses.length+1}`,label:''});rerenderOrganizerScroll();}
 function removeEvaluationResponse(i){editModuleContent.evaluations.responses.splice(i,1);rerenderOrganizerScroll();}
 function onEvaluationResponse(i,value){editModuleContent.evaluations.responses[i].label=value;}
-function renderRegistrationResetTool(){return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Reset participant registration</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">Use this if a participant registered an email on the wrong participant number. This removes only the registration; it does not move or delete quiz/evaluation records.</p><div class="field-row" style="align-items:flex-end;"><div class="field-group" style="margin-bottom:0;"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(registrationResetNr)}" oninput="registrationResetNr=this.value.replace(/\D/g,'')"></div><button class="save-btn" style="width:auto;padding:9px 16px;margin-top:0;" onclick="doRegistrationReset()">Reset registration</button></div>${registrationResetResult?`<div class="save-status ${registrationResetResult.error?'error':'ok'}">${escHtml(registrationResetResult.message)}</div>`:''}`;}
+function renderRegistrationResetTool(){return `<div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Reset participant registration</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">Use this if a participant registered an email on the wrong participant number. This removes only the registration; it does not move or delete quiz/evaluation records.</p><div class="field-row" style="align-items:flex-end;"><div class="field-group" style="margin-bottom:0;"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(registrationResetNr)}" oninput="registrationResetNr=this.value.replace(/\D/g,'')"></div><button class="save-btn" style="width:auto;padding:9px 16px;margin-top:0;" onclick="doRegistrationReset()">Reset registration</button></div>${registrationResetResult?`<div class="save-status ${registrationResetResult.error?'error':'ok'}">${escHtml(registrationResetResult.message)}</div>`:''}`;}
 function doRegistrationReset(){if(!registrationResetNr)return;if(!confirm(`Reset registration for participant ${registrationResetNr}?`))return;fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/registration/reset`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nr:registrationResetNr,adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not reset registration.');registrationResetResult={message:`Registration for participant ${registrationResetNr} was reset.`};rerenderOrganizerScroll();}).catch(e=>{registrationResetResult={error:true,message:e.message};rerenderOrganizerScroll();});}
 function loadEvaluationResults(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations/results`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load evaluations.');evaluationResults=d;evaluationResultsError='';rerenderOrganizerScroll();}).catch(e=>{evaluationResultsError=e.message;rerenderOrganizerScroll();});}
 async function downloadEvaluationExport(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-faculty-evaluations.xlsx`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
@@ -1856,12 +1868,12 @@ function renderItemStatsSummary(itemStats){
   const stats=(itemStats||[]).filter(s=>s.responses>0);
   if(!stats.length) return '';
   return `<div class="info-card" style="margin-bottom:10px;"><h3>Add-on summary</h3>${stats.map(s=>{
-    if(s.type==='score') return `<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(s.question||'Score')}</strong><div style="font-size:11px;color:var(--pf-muted)">Average ${s.average}/5 · ${s.responses} response${s.responses===1?'':'s'}</div></div>`;
-    if(s.type==='mc') return `<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(s.question||'Multiple choice')}</strong>${(s.options||[]).map(o=>`<div style="font-size:11px;color:var(--pf-muted)">${escHtml(o.label)}: ${o.count}</div>`).join('')}</div>`;
-    return `<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(s.question||'Comment')}</strong><div style="font-size:11px;color:var(--pf-muted)">${s.responses} response${s.responses===1?'':'s'}</div></div>`;
+    if(s.type==='score') return `<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(s.question||'Score')}</strong><div style="font-size:var(--fs-small);color:var(--pf-muted)">Average ${s.average}/5 · ${s.responses} response${s.responses===1?'':'s'}</div></div>`;
+    if(s.type==='mc') return `<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(s.question||'Multiple choice')}</strong>${(s.options||[]).map(o=>`<div style="font-size:var(--fs-small);color:var(--pf-muted)">${escHtml(o.label)}: ${o.count}</div>`).join('')}</div>`;
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(s.question||'Comment')}</strong><div style="font-size:var(--fs-small);color:var(--pf-muted)">${s.responses} response${s.responses===1?'':'s'}</div></div>`;
   }).join('')}</div>`;
 }
-function renderEvaluationAnalytics(){if(!evaluationResults)return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">See evaluation totals and download the evaluation data.</p><button class="save-btn" onclick="loadEvaluationResults()">Load faculty evaluations</button>${evaluationResultsError?`<div class="save-status error">${escHtml(evaluationResultsError)}</div>`:''}`;const s=evaluationResults.summary||{};const responseStats=evaluationResults.responseStats||[];return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><div class="info-grid"><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">EVALUATIONS</span><strong>${s.evaluations||0}</strong></div></div><div class="info-card"><h3>By response</h3>${responseStats.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(r.label)}</strong><div style="font-size:11px;color:var(--pf-muted)">${r.count} · ${r.pct}%</div></div>`).join('')||'<div class="empty-note">No evaluations yet.</div>'}</div>${renderItemStatsSummary(evaluationResults.itemStats)}<button class="save-btn" onclick="downloadEvaluationExport()">Download evaluations (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="evaluationResults=null;evaluationResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
+function renderEvaluationAnalytics(){if(!evaluationResults)return `<div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Faculty evaluations</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">See evaluation totals and download the evaluation data.</p><button class="save-btn" onclick="loadEvaluationResults()">Load faculty evaluations</button>${evaluationResultsError?`<div class="save-status error">${escHtml(evaluationResultsError)}</div>`:''}`;const s=evaluationResults.summary||{};const responseStats=evaluationResults.responseStats||[];return `<div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Faculty evaluations</div><div class="info-grid"><div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">EVALUATIONS</span><strong>${s.evaluations||0}</strong></div></div><div class="info-card"><h3>By response</h3>${responseStats.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(r.label)}</strong><div style="font-size:var(--fs-small);color:var(--pf-muted)">${r.count} · ${r.pct}%</div></div>`).join('')||'<div class="empty-note">No evaluations yet.</div>'}</div>${renderItemStatsSummary(evaluationResults.itemStats)}<button class="save-btn" onclick="downloadEvaluationExport()">Download evaluations (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="evaluationResults=null;evaluationResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
 
 // ── Registration add-on (organizer side) ─────────────────────────────
 function regOn() { return !!(editMeta && editMeta.modules && editMeta.modules.registration); }
@@ -1888,24 +1900,24 @@ function renderRegistrationAddon() {
   const on = regOn();
   const toggle = `<label class="module-toggle" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;display:flex;margin-bottom:8px;">
       <input type="checkbox" ${on ? 'checked' : ''} onchange="onToggleModule('registration',this.checked)" style="width:18px;height:18px;margin-top:2px;accent-color:var(--pf-theme);flex-shrink:0;">
-      <div><div style="font-size:13.5px;font-weight:bold;">Registration</div><div style="font-size:11.5px;color:var(--pf-muted);">${on ? 'Registration is required: people sign up, you approve them, and they receive their number by e-mail.' : 'Off = open conference: anyone can browse the content without registering.'}</div></div>
+      <div><div style="font-size:var(--fs-body);font-weight:bold;">Registration</div><div style="font-size:var(--fs-body);color:var(--pf-muted);">${on ? 'Registration is required: people sign up, you approve them, and they receive their number by e-mail.' : 'Off = open conference: anyone can browse the content without registering.'}</div></div>
     </label>`;
   if (!on) return toggle;
   const s = ensureSignupCfg(), levels = (editMeta.levels || []);
   const fieldRow = (f, label) => `<div class="field-group" style="flex:1;min-width:150px;"><label>${label}</label>
       <select onchange="onSignupField('${f}',this.value)">${[['off', 'Not asked'], ['optional', 'Optional'], ['required', 'Required']].map(([v, t]) => `<option value="${v}" ${s.fields[f] === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
-  const levelBoxes = levels.length ? `<div class="field-group"><label>Levels people can choose (none ticked = all)</label>${levels.map(l => `<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0;"><input type="checkbox" ${s.groups.levelIds.includes(l.id) ? 'checked' : ''} onchange="onSignupLevel('${escHtml(l.id)}',this.checked)"> ${escHtml(l.name)}</label>`).join('')}</div>` : '';
+  const levelBoxes = levels.length ? `<div class="field-group"><label>Levels people can choose (none ticked = all)</label>${levels.map(l => `<label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-body);margin:4px 0;"><input type="checkbox" ${s.groups.levelIds.includes(l.id) ? 'checked' : ''} onchange="onSignupLevel('${escHtml(l.id)}',this.checked)"> ${escHtml(l.name)}</label>`).join('')}</div>` : '';
   return toggle + `<div class="info-card" style="margin:0 0 14px;">
-      <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Registration form</div>
+      <div class="mini-label" style="margin:0 0 8px;font-size:var(--fs-small);">Registration form</div>
       <div class="field-hint" style="margin:0 0 10px;">Name and e-mail are always required. Choose what else to ask for.</div>
       <div class="field-group"><label>Text above the form (optional)</label><textarea rows="2" maxlength="1000" oninput="onSignupCfg('intro',this.value)">${escHtml(s.intro)}</textarea></div>
       <div class="field-row">${fieldRow('workplace', 'Workplace')}${fieldRow('jobTitle', 'Job title')}</div>
       <div class="field-row">${fieldRow('phone', 'Phone number')}${fieldRow('notes', 'About themselves')}</div>
-      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:10px 0 4px;"><input type="checkbox" ${s.chooseGroup ? 'checked' : ''} onchange="onSignupCfg('chooseGroup',this.checked)"> Let people choose their group (you can always change it afterwards)</label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-body);margin:10px 0 4px;"><input type="checkbox" ${s.chooseGroup ? 'checked' : ''} onchange="onSignupCfg('chooseGroup',this.checked)"> Let people choose their group (you can always change it afterwards)</label>
       ${levelBoxes}
-      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0;"><input type="checkbox" ${s.groups.faculty ? 'checked' : ''} onchange="onSignupGroupFlag('faculty',this.checked)"> Faculty can register in this form</label>
-      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0;"><input type="checkbox" ${s.groups.observer ? 'checked' : ''} onchange="onSignupGroupFlag('observer',this.checked)"> Observers can register in this form</label>
-      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:10px 0 0;"><input type="checkbox" ${s.closed ? 'checked' : ''} onchange="onSignupCfg('closed',this.checked)"> Close registration (no new sign-ups)</label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-body);margin:4px 0;"><input type="checkbox" ${s.groups.faculty ? 'checked' : ''} onchange="onSignupGroupFlag('faculty',this.checked)"> Faculty can register in this form</label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-body);margin:4px 0;"><input type="checkbox" ${s.groups.observer ? 'checked' : ''} onchange="onSignupGroupFlag('observer',this.checked)"> Observers can register in this form</label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-body);margin:10px 0 0;"><input type="checkbox" ${s.closed ? 'checked' : ''} onchange="onSignupCfg('closed',this.checked)"> Close registration (no new sign-ups)</label>
       <div class="field-hint" style="margin-top:10px;">Faculty and observers get numbers from their own ranges (faculty 1000+, observers 2000+) — set how many under General. Save changes to publish the form.</div>
     </div>`;
 }
@@ -1982,7 +1994,7 @@ function renderRegistrationsTab() {
       <div class="reg-actions">${actions}${busy ? '<span class="reg-meta">Working…</span>' : ''}</div></div>`;
   };
   return `
-    <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Registrations</div>
+    <div class="mini-label" style="margin:0 0 8px;font-size:var(--fs-small);">Registrations</div>
     <div class="field-hint" style="margin:0 0 10px;">${capLine || 'Set participant numbers under General.'}</div>
     <div class="level-chips">${chip('pending', 'Pending', sm.pending)}${chip('approved', 'Approved', sm.approved)}${chip('rejected', 'Rejected', sm.rejected)}${chip('all', 'All', sm.pending + sm.approved + sm.rejected)}</div>
     <div style="display:flex;gap:8px;margin:10px 0;"><button class="reg-btn ghost" onclick="loadSignups()">Refresh</button><button class="reg-btn ghost" onclick="exportSignups()">Download Excel</button></div>
@@ -2005,7 +2017,7 @@ function renderOrganizerEditor() {
   if (organizerTab === 'general') {
     return `
       <div class="editor-tab-content">
-        <div class="mini-label" style="margin:0 0 12px;font-size:12px;">Conference details</div>
+        <div class="mini-label" style="margin:0 0 12px;font-size:var(--fs-small);">Conference details</div>
 
         <div class="field-group">
           <label>Conference name</label>
@@ -2094,7 +2106,7 @@ function renderOrganizerEditor() {
   if (organizerTab === 'schedule') {
     return `
       <div class="editor-tab-content">
-        <div class="mini-label" style="margin:0 0 12px;font-size:12px;">Schedule</div>
+        <div class="mini-label" style="margin:0 0 12px;font-size:var(--fs-small);">Schedule</div>
         <div class="field-hint" style="margin:0 0 14px;">Add a day, then add the activities that happen on it. Schedule can be changed at any time after the conference has been created.${hasLevels() ? ' With levels in use, give every activity a level — participants only see their own level\'s schedule.' : ''}</div>
         ${renderScheduleLevelFilter()}
         ${editScheduleDays.map((day, di) => `
@@ -2146,7 +2158,7 @@ function renderOrganizerEditor() {
   if (organizerTab === 'addons') {
     return `
       <div class="editor-tab-content">
-        <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Modules and add-ons</div>
+        <div class="mini-label" style="margin:0 0 8px;font-size:var(--fs-small);">Modules and add-ons</div>
         <div class="field-hint" style="margin:0 0 12px;">You can add or remove modules at any time, even after the conference has been created. Turn a module on, edit its content, then save changes.</div>
 
         ${renderRegistrationAddon()}
@@ -2154,13 +2166,30 @@ function renderOrganizerEditor() {
         ${[['handsOn','Breakout sessions'],['map','Map'],['industry','Industry'],['quiz','Quiz'],['evaluations','Faculty evaluation'],['conferenceFeedback','Conference evaluation'],['contact','Contact'],['facultyInfo','Faculty'],['presentations','Presentations']].map(([key,label]) => `
           <label class="module-toggle" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;display:flex;margin-bottom:8px;">
             <input type="checkbox" ${editMeta.modules && editMeta.modules[key] ? "checked" : ""} onchange="onToggleModule('${key}',this.checked)" style="width:18px;height:18px;margin-top:2px;accent-color:var(--pf-theme);flex-shrink:0;">
-            <div><div style="font-size:13.5px;font-weight:bold;">${label}</div><div style="font-size:11.5px;color:var(--pf-muted);">${key==='evaluations'?'Enable faculty evaluation for this conference.':'Show this module to participants.'}</div></div>
+            <div><div style="font-size:var(--fs-body);font-weight:bold;">${label}</div><div style="font-size:var(--fs-body);color:var(--pf-muted);">${key==='evaluations'?'Enable faculty evaluation for this conference.':'Show this module to participants.'}</div></div>
           </label>`).join('')}
 
         ${['handsOn','map','industry'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
-        ${hasQuiz ? `<details class="organizer-module" ${editOpenModule==='quiz'?'open':''} ontoggle="if(this.open)editOpenModule='quiz';else if(editOpenModule==='quiz')editOpenModule='' "><summary>Edit quiz questions</summary><div class="organizer-module-body">${renderQuizEditor()}</div></details>` : ''}
-        ${hasEvaluations ? `<details class="organizer-module" ${editOpenModule==='evaluations'?'open':''} ontoggle="if(this.open)editOpenModule='evaluations';else if(editOpenModule==='evaluations')editOpenModule='' "><summary>Edit ${escHtml((editModuleContent.evaluations&&editModuleContent.evaluations.title)||'Faculty evaluation')}</summary><div class="organizer-module-body">${renderEvaluationEditor()}</div></details>` : ''}
-        ${['conferenceFeedback','contact','facultyInfo','presentations'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
+        ${(hasQuiz||hasEvaluations||hasFeedback) ? `<div class="field-hint" style="margin:6px 0 14px;">Quiz, faculty evaluation and conference evaluation content and results are edited under <b>Quiz and evaluation</b>.</div>` : ''}
+        ${['contact','facultyInfo','presentations'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
+      </div>
+      ${saveButton}`;
+  }
+
+  if (organizerTab === 'quizeval') {
+    const sec = (key, title, body) => `<details class="organizer-module" ${editOpenModule===key?'open':''} ontoggle="if(this.open)editOpenModule='${key}';else if(editOpenModule==='${key}')editOpenModule='' "><summary>${title}</summary><div class="organizer-module-body">${body}</div></details>`;
+    const off = (what) => `<div class="info-card"><strong>${what}</strong><div class="field-hint" style="margin-top:5px;">Not enabled for this conference. Turn it on under <b>Add-ons</b> and save.</div></div>`;
+    const evTitle = escHtml((editModuleContent.evaluations && editModuleContent.evaluations.title) || 'Faculty evaluation');
+    return `
+      <div class="editor-tab-content">
+        <div class="mini-label" style="margin:0 0 8px;">Quiz</div>
+        ${hasQuiz ? sec('quiz', 'Edit quiz questions', renderQuizEditor()) + sec('quiz-results', 'Quiz results', renderQuizAnalytics() + renderQuizTextResponsesTab()) : off('Quiz')}
+
+        <div class="mini-label" style="margin:22px 0 8px;">Faculty evaluation</div>
+        ${hasEvaluations ? sec('evaluations', 'Edit ' + evTitle, renderEvaluationEditor()) + sec('eval-results', evTitle + ' results', renderEvaluationAnalytics()) : off('Faculty evaluation')}
+
+        <div class="mini-label" style="margin:22px 0 8px;">Conference evaluation</div>
+        ${hasFeedback ? renderOrganizerModuleContent('conferenceFeedback') + sec('fb-results', 'Conference evaluation results', renderConferenceFeedbackResponses()) : off('Conference evaluation')}
       </div>
       ${saveButton}`;
   }
@@ -2177,34 +2206,27 @@ function renderOrganizerEditor() {
   // Administration
   return `
     <div class="editor-tab-content">
-      <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Participant administration</div>
+      <div class="mini-label" style="margin:0 0 8px;font-size:var(--fs-small);">Participant administration</div>
       ${hasQuiz ? renderQuizResetTool() : `
         <div class="info-card"><strong>Reset a participant's quiz</strong><div class="field-hint" style="margin-top:5px;">Quiz is not enabled for this conference.</div></div>`}
       ${hasFeedback ? renderFeedbackResetTool() : `
         <div class="info-card" style="margin-top:14px;"><strong>Reset a conference evaluation</strong><div class="field-hint" style="margin-top:5px;">Conference evaluation is not enabled for this conference.</div></div>`}
       ${renderRegistrationResetTool()}
 
-      ${hasQuiz ? renderQuizAnalytics() : `
-        <div class="info-card" style="margin-top:18px;"><strong>Test results and data</strong><div class="field-hint" style="margin-top:5px;">Quiz is not enabled for this conference.</div></div>`}
-
-      ${hasEvaluations ? renderEvaluationAnalytics() : `
-        <div class="info-card" style="margin-top:18px;"><strong>Faculty evaluations</strong><div class="field-hint" style="margin-top:5px;">Faculty evaluation is not enabled for this conference.</div></div>`}
-
-      ${(hasQuiz || hasFeedback) ? renderOrganizerTextResponsesTab(hasQuiz,hasFeedback) : `
-        <div class="info-card" style="margin-top:18px;"><strong>Text responses</strong><div class="field-hint" style="margin-top:5px;">No text-response module is enabled for this conference.</div></div>`}
+      <div class="field-hint" style="margin-top:18px;">Quiz, faculty evaluation and conference evaluation results are under <b>Quiz and evaluation</b>.</div>
     </div>
     ${saveButton}`;
 }
 
 function renderOrganizerTextResponsesTab(hasQuiz,hasFeedback){return `${hasFeedback?renderConferenceFeedbackResponses():''}${hasQuiz?renderQuizTextResponsesTab():''}`;}
-function renderConferenceFeedbackResponses(){if(!conferenceFeedbackResults)return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Conference evaluation responses</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">See a summary of the comments, scores and multiple-choice answers submitted by participants and faculty. Download the .xlsx file to see what each individual person answered.</p><button class="save-btn" onclick="loadConferenceFeedbackResults()">Load conference feedback</button>${conferenceFeedbackResultsError?`<div class="save-status error">${escHtml(conferenceFeedbackResultsError)}</div>`:''}`;const rows=conferenceFeedbackResults.records||[];return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Conference evaluation responses (${rows.length})</div>${renderItemStatsSummary(conferenceFeedbackResults.itemStats)||'<div class="empty-note">No conference feedback yet.</div>'}<button class="save-btn" onclick="downloadConferenceFeedback()">Download conference feedback (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="conferenceFeedbackResults=null;conferenceFeedbackResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
+function renderConferenceFeedbackResponses(){if(!conferenceFeedbackResults)return `<div class="mini-label" style="margin:8px 0;font-size:var(--fs-small);">Conference evaluation responses</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">See a summary of the comments, scores and multiple-choice answers submitted by participants and faculty. Download the .xlsx file to see what each individual person answered.</p><button class="save-btn" onclick="loadConferenceFeedbackResults()">Load conference feedback</button>${conferenceFeedbackResultsError?`<div class="save-status error">${escHtml(conferenceFeedbackResultsError)}</div>`:''}`;const rows=conferenceFeedbackResults.records||[];return `<div class="mini-label" style="margin:8px 0;font-size:var(--fs-small);">Conference evaluation responses (${rows.length})</div>${renderItemStatsSummary(conferenceFeedbackResults.itemStats)||'<div class="empty-note">No conference feedback yet.</div>'}<button class="save-btn" onclick="downloadConferenceFeedback()">Download conference feedback (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="conferenceFeedbackResults=null;conferenceFeedbackResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
 function loadConferenceFeedbackResults(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/results`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load conference feedback.');conferenceFeedbackResults=d;conferenceFeedbackResultsError='';rerenderOrganizerScroll();}).catch(e=>{conferenceFeedbackResultsError=e.message;rerenderOrganizerScroll();});}
 async function downloadConferenceFeedback(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-conference-feedback.xlsx`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
 
 function renderQuizTextResponsesTab() {
-  if (!quizTextResponses) return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Open-text responses</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">Responses from questions where the organizer enabled a text field.</p><button class="save-btn" onclick="loadQuizTextResponses()">Load text responses</button>${quizTextResponsesError?`<div class="save-status error">${escHtml(quizTextResponsesError)}</div>`:''}`;
+  if (!quizTextResponses) return `<div class="mini-label" style="margin:8px 0;font-size:var(--fs-small);">Open-text responses</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">Responses from questions where the organizer enabled a text field.</p><button class="save-btn" onclick="loadQuizTextResponses()">Load text responses</button>${quizTextResponsesError?`<div class="save-status error">${escHtml(quizTextResponsesError)}</div>`:''}`;
   const rows=quizTextResponses.responses||[];
-  return `<div class="mini-label" style="margin:8px 0;font-size:12px;">Open-text responses</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:12px;">${rows.length} response${rows.length===1?'':'s'} received.</p>${rows.map(r=>`<div class="info-card" style="margin-bottom:10px;"><div style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PARTICIPANT ${escHtml(r.nr)} · ${escHtml(r.email)}</div><div style="font-size:12px;font-weight:bold;margin-top:5px;">${escHtml(r.questionId)} — ${escHtml(r.questionText)}</div><div style="margin-top:8px;white-space:pre-wrap;line-height:1.5;">${escHtml(r.response)}</div><div style="font-size:10px;color:var(--pf-muted);margin-top:8px;">${escHtml(new Date(r.submittedAt).toLocaleString('en-GB'))}</div></div>`).join('') || '<div class="empty-note">No text responses yet.</div>'}<button class="save-btn" onclick="downloadQuizTextResponses()">Download text responses (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="quizTextResponses=null;quizTextResponsesError='';rerenderOrganizerScroll()">Refresh</button>`;
+  return `<div class="mini-label" style="margin:8px 0;font-size:var(--fs-small);">Open-text responses</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:12px;">${rows.length} response${rows.length===1?'':'s'} received.</p>${rows.map(r=>`<div class="info-card" style="margin-bottom:10px;"><div style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">PARTICIPANT ${escHtml(r.nr)} · ${escHtml(r.email)}</div><div style="font-size:var(--fs-small);font-weight:bold;margin-top:5px;">${escHtml(r.questionId)} — ${escHtml(r.questionText)}</div><div style="margin-top:8px;white-space:pre-wrap;line-height:1.5;">${escHtml(r.response)}</div><div style="font-size:var(--fs-small);color:var(--pf-muted);margin-top:8px;">${escHtml(new Date(r.submittedAt).toLocaleString('en-GB'))}</div></div>`).join('') || '<div class="empty-note">No text responses yet.</div>'}<button class="save-btn" onclick="downloadQuizTextResponses()">Download text responses (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="quizTextResponses=null;quizTextResponsesError='';rerenderOrganizerScroll()">Refresh</button>`;
 }
 function loadQuizTextResponses(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/text-responses`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load text responses.');quizTextResponses=d;quizTextResponsesError='';rerenderOrganizerScroll();}).catch(e=>{quizTextResponsesError=e.message;rerenderOrganizerScroll();});}
 async function downloadQuizTextResponses(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/text-responses/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-text-responses.xlsx`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
@@ -2230,15 +2252,15 @@ function renderQuizEditor() {
           <span class="mini-label">Image / short video (optional)</span>
           ${q.media ? `<div style="margin:8px 0;"><${q.media.type === 'video' ? 'video controls playsinline' : 'img'} src="${escHtml(q.media.data)}" ${q.media.type === 'video' ? 'style="width:100%;max-height:260px;border-radius:8px;background:#000;"' : 'style="max-width:100%;max-height:260px;border-radius:8px;object-fit:contain;"'}></${q.media.type === 'video' ? 'video' : 'img'}></div>` : ''}
           <input type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" onchange="onQuizQuestionMedia(${i},this.files[0])">
-          <div style="font-size:10.5px;color:var(--pf-muted);margin-top:5px;">Images up to 1 MB. Short MP4/WebM videos up to 8 MB.</div>
+          <div style="font-size:var(--fs-small);color:var(--pf-muted);margin-top:5px;">Images up to 1 MB. Short MP4/WebM videos up to 8 MB.</div>
           ${q.media ? `<button type="button" class="remove-btn" style="position:static;margin-top:6px;" onclick="removeQuizQuestionMedia(${i})">Remove media</button>` : ''}
         </div>
-        <label style="display:flex;gap:8px;align-items:center;margin:10px 0;font-size:12px;"><input type="checkbox" ${q.textResponse ? 'checked' : ''} onchange="onEditQuizTextResponse(${i},this.checked)"> Text response instead of multiple choice</label>
+        <label style="display:flex;gap:8px;align-items:center;margin:10px 0;font-size:var(--fs-small);"><input type="checkbox" ${q.textResponse ? 'checked' : ''} onchange="onEditQuizTextResponse(${i},this.checked)"> Text response instead of multiple choice</label>
         ${q.textResponse ? `
         <div class="field-hint" style="margin-bottom:4px;">Participants will only see a free-text field for this question, and it's scored as a survey question (no correct answer). Uncheck to bring back the multiple-choice answers.</div>` : `
         <div class="field-group" style="margin:10px 0;">
           <label>Question type</label>
-          <select onchange="onEditQuizMode(${i},this.value)" style="width:100%;padding:9px;border:2px solid var(--pf-border);border-radius:8px;font-size:13px;">
+          <select onchange="onEditQuizMode(${i},this.value)" style="width:100%;padding:9px;border:2px solid var(--pf-border);border-radius:8px;font-size:var(--fs-body);">
             <option value="graded" ${q.mode !== 'survey' ? 'selected' : ''}>Graded — has a correct answer</option>
             <option value="survey" ${q.mode === 'survey' ? 'selected' : ''}>Survey — no correct answer</option>
           </select>
@@ -2258,21 +2280,21 @@ function renderQuizEditor() {
 
 function renderQuizAnalytics() {
   if (!quizAnalytics) return `
-    <div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Test results & data</div>
-    <p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">View aggregate results and download the complete participant answer file.</p>
+    <div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Test results & data</div>
+    <p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">View aggregate results and download the complete participant answer file.</p>
     <button class="save-btn" onclick="loadQuizAnalytics()">Load test results</button>
     ${quizAnalyticsError ? `<div class="save-status error">${escHtml(quizAnalyticsError)}</div>` : ""}`;
   const s = quizAnalytics.summary || {};
   return `
-    <div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Test results & data</div>
+    <div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Test results & data</div>
     <div class="info-grid" style="margin-bottom:14px;">
-      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PARTICIPANTS</span><strong>${s.expectedParticipants||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">SUBMISSIONS</span><strong>${s.submissions||0}</strong></div><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">NOT SUBMITTED</span><strong>${s.notSubmitted||0}</strong></div>
-      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PASSED</span><strong>${s.passed||0}</strong></div>
-      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">FAILED</span><strong>${s.failed||0}</strong></div>
-      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">PASS RATE</span><strong>${s.passPct||0}%</strong></div>
-      <div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">AVERAGE SCORE</span><strong>${s.averageScorePct||0}%</strong></div>
+      <div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">PARTICIPANTS</span><strong>${s.expectedParticipants||0}</strong></div><div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">SUBMISSIONS</span><strong>${s.submissions||0}</strong></div><div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">NOT SUBMITTED</span><strong>${s.notSubmitted||0}</strong></div>
+      <div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">PASSED</span><strong>${s.passed||0}</strong></div>
+      <div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">FAILED</span><strong>${s.failed||0}</strong></div>
+      <div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">PASS RATE</span><strong>${s.passPct||0}%</strong></div>
+      <div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">AVERAGE SCORE</span><strong>${s.averageScorePct||0}%</strong></div>
     </div>
-    <div class="info-card"><h3>Question statistics</h3>${(quizAnalytics.questionStats||[]).map(q=>`<div style="padding:9px 0;border-bottom:1px solid var(--pf-border);"><strong>${escHtml(q.id)}</strong> — ${escHtml(q.text)}<div style="font-size:11px;color:var(--pf-muted);margin-top:3px;">${q.mode==='survey' ? `${q.total} responses · No correct answer` : `${q.correct} correct · ${q.incorrect} incorrect · ${q.correctPct}% correct`}</div></div>`).join('') || '<div class="empty-note">No questions.</div>'}</div>
+    <div class="info-card"><h3>Question statistics</h3>${(quizAnalytics.questionStats||[]).map(q=>`<div style="padding:9px 0;border-bottom:1px solid var(--pf-border);"><strong>${escHtml(q.id)}</strong> — ${escHtml(q.text)}<div style="font-size:var(--fs-h3);color:var(--pf-muted);margin-top:3px;">${q.mode==='survey' ? `${q.total} responses · No correct answer` : `${q.correct} correct · ${q.incorrect} incorrect · ${q.correctPct}% correct`}</div></div>`).join('') || '<div class="empty-note">No questions.</div>'}</div>
     <button class="save-btn" onclick="downloadQuizExport()">Download participant answers (.xlsx)</button>
     <button class="pin-btn" style="width:100%;margin-top:8px;" onclick="quizAnalytics=null;quizAnalyticsError='';rerenderOrganizerScroll()">Refresh results</button>
     ${quizAnalyticsError ? `<div class="save-status error">${escHtml(quizAnalyticsError)}</div>` : ""}`;
@@ -2296,7 +2318,7 @@ async function downloadQuizExport() {
 
 function renderQuizResetTool() {
   return `
-    <div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Reset a participant's quiz</div>
+    <div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Reset a participant's quiz</div>
     <div class="field-row" style="align-items:flex-end;">
       <div class="field-group" style="margin-bottom:0;">
         <label>Participant number</label>
@@ -2327,7 +2349,7 @@ function renderResetLookupResult() {
 // observer), since all three can submit conference feedback.
 function renderFeedbackResetTool() {
   return `
-    <div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Reset a conference evaluation</div>
+    <div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Reset a conference evaluation</div>
     <div class="field-row" style="align-items:flex-end;">
       <div class="field-group" style="margin-bottom:0;">
         <label>Participant / faculty / observer number</label>
@@ -2443,7 +2465,7 @@ function renderFeedbackItemsEditor(module){
   const items=c.items||[];
   const labelFor={comment:'Comment field',score:'Score (1–5)',mc:'Multiple choice'};
   return `
-    <div class="mini-label" style="margin:18px 0 4px;font-size:11px;">Add-ons</div>
+    <div class="mini-label" style="margin:18px 0 4px;font-size:var(--fs-small);">Add-ons</div>
     <div class="field-hint" style="margin:0 0 10px;">Add as many comment fields, scores or multiple-choice questions as you need.</div>
     ${items.map((it,i)=>`
     <div class="session-edit-row">
@@ -2606,7 +2628,7 @@ function renderHandsOnGroupOverview(stationCount, stations) {
       </div>`);
   }
   return `
-    <div class="mini-label" style="margin:14px 0 6px;font-size:11px;">Who's in which group</div>
+    <div class="mini-label" style="margin:14px 0 6px;font-size:var(--fs-small);">Who's in which group</div>
     <div class="field-hint" style="margin:0 0 8px;">Based on the current participant/faculty counts and station count. Updates automatically as you change them above.</div>
     <div class="group-overview">${rows.join('')}</div>`;
 }
@@ -2640,7 +2662,7 @@ function renderBreakoutGroupManager(si) {
       </div>`);
   }
   return `
-    <div class="mini-label" style="margin:14px 0 6px;font-size:11px;">Who's in which group</div>
+    <div class="mini-label" style="margin:14px 0 6px;font-size:var(--fs-small);">Who's in which group</div>
     <div class="field-hint" style="margin:0 0 8px;">Groups are randomly balanced by default. Use the dropdown next to a name to move that person into a different group — this only affects this one session.</div>
     ${blocks.join('')}`;
 }
@@ -2743,7 +2765,7 @@ function renderOrgPresentationsManager(){
       </div>`).join('')}</div>` : `<div class="empty-note">No presentations have been uploaded yet.</div>`;
   }
   return `
-    <div class="mini-label" style="margin:14px 0 6px;font-size:11px;">Uploaded files</div>
+    <div class="mini-label" style="margin:14px 0 6px;font-size:var(--fs-small);">Uploaded files</div>
     ${listHtml}
     <div class="field-group" style="margin-top:14px;"><label>Title</label><input type="text" value="${escHtml(orgPresentationsUpload.title)}" placeholder="e.g. Airway management essentials" oninput="onOrgPresentationUploadField('title',this.value)"></div>
     <div class="field-group"><label>Presenter name</label><input type="text" value="${escHtml(orgPresentationsUpload.presenterName)}" placeholder="e.g. Dr. Jane Smith" oninput="onOrgPresentationUploadField('presenterName',this.value)"></div>
@@ -2823,7 +2845,7 @@ function renderCertificatesTab(){
   if(certTemplateError) return `<div class="save-status error">${escHtml(certTemplateError)}</div>`;
   const t=certTemplate||{};
   return `
-    <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Certificate template</div>
+    <div class="mini-label" style="margin:0 0 8px;font-size:var(--fs-small);">Certificate template</div>
     <div class="field-hint" style="margin-bottom:12px;">Use the built-in design below, or upload your own background image and we'll add the participant's name and date on top. In the body text you can use <code>{name}</code>, <code>{date}</code> and <code>{conference}</code> — they'll be filled in automatically.</div>
 
     <div class="field-group"><label>Title</label><input type="text" value="${escHtml(t.title||'')}" oninput="onCertTemplateField('title',this.value)"></div>
@@ -2850,7 +2872,7 @@ function renderCertificatesTab(){
     ${certPreviewError?`<div class="save-status error">${escHtml(certPreviewError)}</div>`:''}
     <div class="save-status ${certTemplateSaveStatusIsError?'error':'ok'}">${escHtml(certTemplateSaveStatus)}</div>
 
-    <div class="mini-label" style="margin:26px 0 8px;font-size:12px;">Send to one person</div>
+    <div class="mini-label" style="margin:26px 0 8px;font-size:var(--fs-small);">Send to one person</div>
     <div class="field-row">
       <div class="field-group"><label>Number</label><input type="text" inputmode="numeric" value="${escHtml(certSendState.nr)}" oninput="onCertSendField('nr',this.value.replace(/\\D/g,''))"></div>
       <div class="field-group"><label>Name (optional — taken from registration / names if empty)</label><input type="text" value="${escHtml(certSendState.name)}" placeholder="e.g. Jane Doe" oninput="onCertSendField('name',this.value)"></div>
@@ -2863,7 +2885,7 @@ function renderCertificatesTab(){
     ${certSendState.message?`<div class="save-status ok">${escHtml(certSendState.message)}</div>`:''}
     ${certSendState.error?`<div class="save-status error">${escHtml(certSendState.error)}</div>`:''}
 
-    <div class="mini-label" style="margin:26px 0 8px;font-size:12px;">Send to everyone</div>
+    <div class="mini-label" style="margin:26px 0 8px;font-size:var(--fs-small);">Send to everyone</div>
     <div class="field-hint" style="margin-bottom:8px;">Sends to every participant who has registered an email address (from the quiz or faculty evaluation registration). Anyone without one on file is skipped — you'll see how many.</div>
     <div class="field-group"><label>Date</label><input type="text" value="${escHtml(certBulkState.date||'')}" placeholder="e.g. 10 June 2026" oninput="onCertBulkField('date',this.value)"></div>
     <button class="save-btn" style="width:auto;padding:10px 18px;background:var(--pf-red);" onclick="sendBulkCertificates()" ${certBulkState.sending?'disabled':''}>${certBulkState.sending?'Sending…':'Send to all participants'}</button>
@@ -3083,7 +3105,7 @@ function renderLevelsEditor() {
       <details class="names-role-group"><summary>Set level per participant (${total})</summary><div class="names-grid">${grid}</div></details>`;
   }
   return `
-    <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Levels (optional)</div>
+    <div class="mini-label" style="margin:0 0 8px;font-size:var(--fs-small);">Levels (optional)</div>
     <div class="field-hint" style="margin:0 0 10px;">Split participants into levels, e.g. Advanced / Medium / Basic. Each level gets its own schedule and its own breakout groups — participants only see and meet their own level. Faculty and observers can switch between all levels. Leave empty to run one common programme.</div>
     ${rows}
     <button class="add-btn" onclick="addEditLevel()">+ Add level</button>
