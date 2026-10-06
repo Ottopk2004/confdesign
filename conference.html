@@ -239,7 +239,7 @@ function storeDel(k) { try { localStorage.removeItem(k); } catch (_) {} }
 function baseUrl() { return location.origin + location.pathname.replace(/[^/]*$/, ""); }
 
 let conf = null, signupStatus = null, formError = "", formBusy = false, formDone = false;
-const regForm = { name: "", email: "", workplace: "", jobTitle: "", phone: "", notes: "", groupKey: "" };
+const regForm = { name: "", email: "", workplace: "", jobTitle: "", phone: "", notes: "", groupKey: "", privacy: false };
 let loginError = "";
 let attachFile = null, attachNote = "";
 const ATTACH_MAX = 10 * 1024 * 1024;
@@ -393,6 +393,7 @@ function renderRegisterCard() {
     + field("workplace", "Workplace", "text") + field("jobTitle", "Job title", "text") + field("phone", "Phone number", "tel") + field("notes", "About you", "text")
     + attachField()
     + groupHtml
+    + '<label class="privacy-check" style="margin:6px 0 10px;"><input type="checkbox" id="regPrivacy" ' + ((regForm.privacy || privacyAccepted()) ? "checked" : "") + ' onchange="regForm.privacy=this.checked;onPrivacyToggle(this.checked)"><span>Jeg har læst og forstået <a href="privacy.html?conf=' + encodeURIComponent(slug) + '" target="_blank" rel="noopener">privatlivspolitikken</a> og accepterer, at mine oplysninger behandles som beskrevet i den.</span></label>'
     + '<div class="field-error privacy-err" id="regErr">' + esc(formError) + '</div>'
     + '<button class="primary-btn" id="regBtn" onclick="submitRegistration()" ' + (formBusy ? "disabled" : "") + '>' + (formBusy ? "Sending…" : "Register") + '</button></div>';
 }
@@ -418,7 +419,10 @@ function renderLoginCard() {
 
 async function submitRegistration() {
   formError = "";
-  if (!privacyAccepted()) { formError = "Du skal først acceptere privatlivspolitikken ovenfor."; document.getElementById("regErr").textContent = formError; return; }
+  const pc = document.getElementById("regPrivacy");
+  if (pc) regForm.privacy = pc.checked;
+  if (!regForm.privacy && !privacyAccepted()) { formError = "Du skal acceptere privatlivspolitikken for at kunne tilmelde dig."; document.getElementById("regErr").textContent = formError; return; }
+  regForm.privacy = true;
   const cfg = signupCfg(), groups = selectableGroups();
   const need = (k, l) => cfg.fields[k] === "required" && !String(regForm[k]).trim() ? "Please fill in " + l + "." : "";
   formError = (regForm.name.trim().length < 2 ? "Please enter your name." : "")
@@ -429,7 +433,7 @@ async function submitRegistration() {
   if (formError) { document.getElementById("regErr").textContent = formError; return; }
   formBusy = true; render();
   try {
-    const body = Object.assign({}, regForm, { baseUrl: baseUrl() });
+    const body = Object.assign({}, regForm, { baseUrl: baseUrl(), privacyAccepted: true });
     if (!(cfg.chooseGroup && groups.length > 1)) body.groupKey = groups.length === 1 ? groups[0].key : "";
     const r = await fetch(PLATFORM_WORKER_URL + "/conf/" + encodeURIComponent(slug) + "/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const d = await r.json().catch(() => ({}));
