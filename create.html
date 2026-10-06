@@ -355,6 +355,13 @@
   h3 { font-size: var(--fs-h3); }
   h1, h2, h3 { font-weight:800; }
   details.card > summary { font-size: var(--fs-h2); font-weight:800; color: var(--pf-ink); border-left:4px solid var(--pf-indigo); }
+  .draft-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:18px; padding-top:14px; border-top:1px solid var(--pf-border); }
+  .draft-btn { padding:10px 18px; border:2px solid var(--pf-indigo); border-radius:10px; background:#fff; color:var(--pf-indigo); font-weight:bold; font-size:var(--fs-body); cursor:pointer; }
+  .draft-btn:hover { background:var(--pf-indigo-light); }
+  .draft-btn.ghost { border-color:var(--pf-border); color:var(--pf-muted); }
+  .draft-status { font-size:var(--fs-small); color:#1E6B3A; }
+  .draft-status.err { color:#B3261E; }
+  .draft-banner { border:2px solid var(--pf-indigo); }
 </style>
 <style>
 @media (max-width: 600px) {
@@ -534,6 +541,48 @@ let scheduleDays = [
   { date: "", items: [{ startTime: "", endTime: "", title: "", speaker: "" }] },
 ];
 
+// ── Draft saving ───────────────────────────────────────────────────
+// "Save progress" keeps everything entered so far on THIS device, so the
+// form survives a reload or closing the tab. The admin PIN is deliberately
+// not stored. The conference itself is only created by "Create conference".
+const DRAFT_KEY = "cd_create_draft_v1";
+let draftStatus = "", draftError = false, savedDraft = null;
+try { const raw = localStorage.getItem(DRAFT_KEY); if (raw) savedDraft = JSON.parse(raw); } catch (_) { savedDraft = null; }
+function saveDraft() {
+  try {
+    const f = Object.assign({}, form, { adminPin: "" });
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ savedAt: new Date().toISOString(), form: f, scheduleDays, quizQuestions }));
+    const t = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    draftStatus = "Progress saved at " + t + " on this device."; draftError = false;
+  } catch (e) {
+    draftStatus = "Couldn't save — the browser storage is full (large images or videos?). Remove a large file and try again."; draftError = true;
+  }
+  render();
+}
+function restoreDraft() {
+  if (!savedDraft) return;
+  const s = savedDraft.form || {};
+  const mc = Object.assign({}, form.moduleContent);
+  Object.keys(s.moduleContent || {}).forEach(k => { mc[k] = Object.assign({}, mc[k] || {}, s.moduleContent[k]); });
+  form = Object.assign({}, form, s, { moduleContent: mc, modules: Object.assign({}, form.modules, s.modules || {}), branding: Object.assign({}, form.branding, s.branding || {}), adminPin: "" });
+  if (Array.isArray(savedDraft.scheduleDays) && savedDraft.scheduleDays.length) scheduleDays = savedDraft.scheduleDays;
+  if (Array.isArray(savedDraft.quizQuestions)) quizQuestions = savedDraft.quizQuestions;
+  draftStatus = "Draft restored — enter your admin PIN again."; draftError = false; savedDraft = null;
+  render();
+}
+function discardDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
+  savedDraft = null; draftStatus = ""; render();
+}
+function draftButton() {
+  return `<div class="draft-row"><button type="button" class="draft-btn" onclick="saveDraft()">Save progress</button>${draftStatus ? `<span class="draft-status ${draftError ? 'err' : ''}">${escHtml(draftStatus)}</span>` : ''}</div>`;
+}
+function draftBanner() {
+  if (!savedDraft) return '';
+  const when = savedDraft.savedAt ? new Date(savedDraft.savedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : '';
+  return `<div class="card draft-banner"><div style="font-weight:800;margin-bottom:4px;">You have a saved draft${when ? ' from ' + escHtml(when) : ''}</div><div class="field-hint" style="margin-bottom:10px;">Continue where you left off, or start over.</div><button type="button" class="draft-btn" onclick="restoreDraft()">Continue draft</button> <button type="button" class="draft-btn ghost" onclick="discardDraft()">Discard</button></div>`;
+}
+
 let created = false;
 let creating = false;
 let createResult = null;
@@ -633,6 +682,7 @@ function render() {
       </label>
     </div>
     ` : ""}
+    ${draftBanner()}
     <details class="card" ${openCreateSection==='details'?'open':''} ontoggle="trackCreateSection(this,'details')">
       <summary>1. Conference details</summary><div class="create-section-body">
       <div class="card-sub">This is the basic information attendees will see.</div>
@@ -708,7 +758,7 @@ function render() {
             </div>
           </div>` : ""}
       </div>
-      </div></details>
+      ${draftButton()}</div></details>
 
     <details class="card" ${openCreateSection==='access'?'open':''} ontoggle="trackCreateSection(this,'access')">
       <summary>2. Access</summary><div class="create-section-body">
@@ -731,7 +781,7 @@ function render() {
         <input type="number" id="fObserverCount" min="0" max="999" value="${form.observerCount}" oninput="onField('observerCount', parseInt(this.value)||0)">
         <div class="field-hint">Log in with 2000–${2000 + (form.observerCount||0) - 1}. Observers get the same add-ons as faculty (including evaluations, if enabled), but never see breakout sessions and are never placed in a breakout group.</div>
       </div>
-      </div></details>
+      ${draftButton()}</div></details>
 
     <details class="card" ${openCreateSection==='modules'?'open':''} ontoggle="trackCreateSection(this,'modules')">
       <summary>3. Modules</summary><div class="create-section-body">
@@ -773,7 +823,7 @@ function render() {
       ${form.modules.contact ? renderModuleEditor('contact') : ''}
       ${form.modules.facultyInfo ? renderModuleEditor('facultyInfo') : ''}
       ${form.modules.presentations ? renderModuleEditor('presentations') : ''}
-      </div></details>
+      ${draftButton()}</div></details>
 
     <details class="card" ${openCreateSection==='schedule'?'open':''} ontoggle="trackCreateSection(this,'schedule')">
       <summary>4. Schedule</summary><div class="create-section-body">
@@ -821,7 +871,7 @@ function render() {
       `).join("")}
 
       <button class="add-session-btn" onclick="addScheduleDay()">+ Add day</button>
-      </div></details>
+      ${draftButton()}</div></details>
 
     <button id="createConferenceBtn" class="submit-btn ${ready ? "ready" : ""}" ${ready ? "" : "disabled"} onclick="submitConference()">
       ${creating ? "Creating..." : "Create conference"}
@@ -1195,6 +1245,7 @@ function submitConference() {
     setTimeout(() => {
       creating = false;
       created = true;
+      try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
       createResult = { ok: true };
       render();
     }, 300);
@@ -1211,6 +1262,7 @@ function submitConference() {
       if (!res.ok) throw new Error(data.error || ("Server error (" + res.status + ")"));
       creating = false;
       created = true;
+      try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
       createResult = data;
       render();
     })
