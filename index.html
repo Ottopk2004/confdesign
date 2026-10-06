@@ -202,6 +202,17 @@
   .level-chips { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
   .level-chip { border:2px solid var(--pf-border); background:#fff; border-radius:999px; padding:7px 14px; font-size:12.5px; font-weight:bold; cursor:pointer; color:var(--pf-muted); font-family:inherit; }
   .level-chip.active { background:var(--pf-theme); border-color:var(--pf-theme); color:#fff; }
+  .reg-badge { display:inline-block; min-width:18px; padding:0 6px; border-radius:9px; background:#B3261E; color:#fff; font-size:11px; line-height:18px; text-align:center; }
+  .reg-card { border:2px solid var(--pf-border); border-radius:12px; padding:14px 16px; margin-bottom:10px; background:#fff; }
+  .reg-card h3 { font-size:14px; margin:0 0 2px; }
+  .reg-meta { font-size:12px; color:var(--pf-muted); line-height:1.6; }
+  .reg-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; }
+  .reg-actions select { padding:7px 8px; border:1px solid var(--pf-border); border-radius:8px; font-size:13px; }
+  .reg-btn { padding:8px 14px; border:none; border-radius:8px; font-weight:bold; font-size:13px; cursor:pointer; background:var(--pf-theme); color:#fff; }
+  .reg-btn.ghost { background:#fff; color:var(--pf-ink); border:1px solid var(--pf-border); }
+  .reg-btn.danger { background:#fff; color:#B3261E; border:1px solid #B3261E; }
+  .reg-btn:disabled { opacity:.5; cursor:default; }
+  .reg-nr { display:inline-block; background:var(--pf-theme); color:#fff; border-radius:8px; padding:2px 10px; font-weight:bold; font-size:13px; margin-right:6px; }
   .level-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
   .level-row input { flex:1; min-width:0; }
   .level-count { font-size:11.5px; color:var(--pf-muted); white-space:nowrap; }
@@ -501,6 +512,7 @@ const params = new URLSearchParams(location.search);
 const confSlug = params.get("conf");
 const wantsAdmin = params.get("admin") === "1";
 const nrParam = params.get("nr");
+const guestParam = params.get("guest") === "1";
 const rememberParam = params.get("remember"); // "0" opts out; missing/"1" opts in (default on)
 
 // Number blocks for the login system — mirrors platform-worker.js.
@@ -552,6 +564,7 @@ let saveStatusIsError = false;
 
 // ── Quiz module state (participant side) ─────────────────────────────
 let participantTab = "schedule"; // "schedule" | "quiz"
+let signupData = null, signupLoading = false, signupError = '', signupFilter = 'pending', signupBusy = '', signupMsg = '', signupGroupPick = {};
 let organizerTab = "general"; // "general" | "schedule" | "addons" | "administration"
 let quizTextResponses = null;
 let quizTextResponsesError = "";
@@ -694,11 +707,31 @@ function emailRegistrationNeeded() {
   return !!(modules.quiz || modules.evaluations);
 }
 
-function afterConfLoaded() {
+function registrationRequired() { return !!(confData && confData.meta && confData.meta.modules && confData.meta.modules.registration); }
+
+async function afterConfLoaded() {
   if (wantsAdmin) {
     mode = "organizer-login";
     render();
     return;
+  }
+  // Open conference: anyone may browse all content as a guest.
+  if (guestParam && !nrParam) {
+    if (registrationRequired()) { location.replace(`conference.html?conf=${encodeURIComponent(confSlug)}`); return; }
+    mode = "guest";
+    participantTab = "schedule";
+    render();
+    return;
+  }
+  if (nrParam && registrationRequired() && PLATFORM_WORKER_URL) {
+    // Registration conferences: only approved numbers may log in.
+    let verified = null;
+    try {
+      const vr = await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/signup/verify?nr=${encodeURIComponent(nrParam)}`, { cache: "no-store" });
+      verified = vr.ok ? !!(await vr.json()).ok : null;
+    } catch (e) { verified = null; }
+    if (verified === null) { mode = "error-network"; render(); return; }
+    if (!verified) { try { localStorage.removeItem('cd_login_' + confSlug); } catch (e) {} mode = "error-notapproved"; render(); return; }
   }
   if (nrParam) {
     const role = deriveRole(nrParam, confData.meta);
@@ -728,13 +761,7 @@ function afterConfLoaded() {
   // QR code that only encodes the conference (no personal number baked in).
   // Route through login.html's visible "Welcome back" confirmation instead
   // of silently logging straight in, so it's always obvious what's happening.
-  const remembered = getRememberedNr(confSlug);
-  if (remembered) {
-    location.replace(`login.html?conf=${encodeURIComponent(confSlug)}`);
-    return;
-  }
-  mode = "error-nonumber";
-  render();
+  location.replace(`conference.html?conf=${encodeURIComponent(confSlug)}`);
 }
 
 function applyConferenceBranding(meta){
@@ -816,6 +843,13 @@ function render() {
   if (mode === "error-badnumber") {
     shell.innerHTML = `<div class="state-screen"><h2>Number not recognised</h2>That number doesn't match a participant or faculty range for this conference.
       <div style="margin-top:16px;"><a class="login-btn" style="display:inline-block;text-decoration:none;padding:12px 22px;" href="login.html">Back to login</a></div>
+    </div>`;
+    return;
+  }
+  if (mode === "error-notapproved") {
+    const back = confSlug ? `conference.html?conf=${encodeURIComponent(confSlug)}` : "login.html";
+    shell.innerHTML = `<div class="state-screen"><h2>Not registered</h2>This number has not been approved for this conference. If you have registered, you will receive your number by e-mail once the organizer approves your registration.
+      <div style="margin-top:16px;"><a class="login-btn" style="display:inline-block;text-decoration:none;padding:12px 22px;" href="${back}">Back</a></div>
     </div>`;
     return;
   }
@@ -920,6 +954,29 @@ function render() {
     return;
   }
 
+  if (mode === "guest") {
+    const tabs = getParticipantTabs(meta);
+    if (!tabs.some(t => t.key === participantTab)) participantTab = "schedule";
+    setHtmlPreservingFocus(shell, `
+      <div class="conf-header">
+        ${conferenceLogoHtml(meta)}
+        <div class="eyebrow"><span>Programme</span><span class="mode-badge">Guest</span></div>
+        <h1>${escHtml(meta.name)}</h1>
+        <div class="dates">${formatDateRange(meta.startDate, meta.endDate)}</div>
+      </div>
+      <div class="toolbar">
+        <div class="who">Browsing as a guest</div>
+        <a href="conference.html?conf=${encodeURIComponent(confSlug)}" style="text-decoration:none;"><button>Log in</button></a>
+      </div>
+      ${renderTabBar(tabs)}
+      <div class="panel-scroll" id="participantScroll">
+        ${renderParticipantScrollContent()}
+      </div>
+    `);
+    requestAnimationFrame(checkTabBarOverflow);
+    return;
+  }
+
   if (mode === "organizer") {
     setHtmlPreservingFocus(shell, `
       <div class="conf-header">
@@ -937,6 +994,7 @@ function render() {
           <div class="tab-btn ${organizerTab==='general'?'active':''}" data-organizer-tab="general" onclick="setOrganizerTab('general')">General</div>
           <div class="tab-btn ${organizerTab==='schedule'?'active':''}" data-organizer-tab="schedule" onclick="setOrganizerTab('schedule')">Schedule</div>
           <div class="tab-btn ${organizerTab==='addons'?'active':''}" data-organizer-tab="addons" onclick="setOrganizerTab('addons')">Add-ons</div>
+          ${regOn() ? `<div class="tab-btn ${organizerTab==='registrations'?'active':''}" data-organizer-tab="registrations" onclick="setOrganizerTab('registrations')">Registrations${signupData && signupData.summary && signupData.summary.pending ? ` <span class="reg-badge">${signupData.summary.pending}</span>` : ''}</div>` : ''}
           <div class="tab-btn ${organizerTab==='certificates'?'active':''}" data-organizer-tab="certificates" onclick="setOrganizerTab('certificates')">Certificates</div>
           <div class="tab-btn ${organizerTab==='administration'?'active':''}" data-organizer-tab="administration" onclick="setOrganizerTab('administration')">Administration</div>
         </div>
@@ -1154,12 +1212,12 @@ function getParticipantTabs(meta) {
   const modules = meta.modules || {};
   return [
     { key: "schedule", icon: "◷", label: "Schedule", enabled: true },
-    { key: "handsOn", icon: "▣", label: "Breakout sessions", enabled: !!modules.handsOn && mode !== "observer" },
+    { key: "handsOn", icon: "▣", label: "Breakout sessions", enabled: !!modules.handsOn && mode !== "observer" && mode !== "guest" },
     { key: "map", icon: "◇", label: "Map", enabled: !!modules.map },
     { key: "industry", icon: "▱", label: "Industry", enabled: !!modules.industry },
     { key: "quiz", icon: "☑", label: "Test", enabled: mode === "participant" && !!modules.quiz },
     { key: "evaluations", icon: "✓", label: "Evaluate", enabled: (mode === "faculty" || mode === "observer") && !!modules.evaluations },
-    { key: "conferenceFeedback", icon: "✎", label: "Feedback", enabled: !!modules.conferenceFeedback },
+    { key: "conferenceFeedback", icon: "✎", label: "Feedback", enabled: !!modules.conferenceFeedback && mode !== "guest" },
     { key: "contact", icon: "⌕", label: "Contact", enabled: !!modules.contact },
     { key: "facultyInfo", icon: "☺", label: "Faculty", enabled: !!modules.facultyInfo },
     { key: "presentations", icon: "▤", label: "Presentations", enabled: !!modules.presentations },
@@ -1448,6 +1506,8 @@ function enterOrganizerMode() {
   editMeta = Object.assign({}, confData.meta);
   editMeta.levels = JSON.parse(JSON.stringify(confData.meta.levels || []));
   editMeta.levelAssignments = Object.assign({}, confData.meta.levelAssignments || {});
+  editMeta.signup = JSON.parse(JSON.stringify(confData.meta.signup || {}));
+  signupData = null; signupLoading = false; signupError = ''; signupMsg = ''; signupBusy = ''; signupGroupPick = {};
   editScheduleLevelFilter = ''; levelBulk = { levelId: '', text: '', message: '' };
   editOpenSessions = {};
   editOpenListItems = {};
@@ -1506,6 +1566,7 @@ function blankQuizQuestion() {
 }
 function setOrganizerTab(tab) {
   organizerTab = tab;
+  if (tab === 'registrations' && !signupData && !signupLoading) loadSignups();
   document.querySelectorAll('.tab-btn[data-organizer-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.organizerTab === organizerTab);
   });
@@ -1682,6 +1743,7 @@ function loadQuiz() {
 // Without this, a background refresh (e.g. after checking registration
 // status) could silently skip straight past the email-registration step.
 function renderParticipantScrollContent() {
+  if (mode === "guest") return `<div class="level-banner">You are viewing the conference as a guest. Log in with your number to use the test, evaluations and your personal breakout group.</div>${renderParticipantModule(participantTab)}`;
   return mode === "participant" && emailRegistrationNeeded() && (!registrationChecked || !registrationRegistered)
     ? renderRegistrationGate()
     : renderParticipantModule(participantTab);
@@ -1800,6 +1862,130 @@ function renderItemStatsSummary(itemStats){
   }).join('')}</div>`;
 }
 function renderEvaluationAnalytics(){if(!evaluationResults)return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><p style="font-size:11.5px;color:var(--pf-muted);margin-bottom:10px;">See evaluation totals and download the evaluation data.</p><button class="save-btn" onclick="loadEvaluationResults()">Load faculty evaluations</button>${evaluationResultsError?`<div class="save-status error">${escHtml(evaluationResultsError)}</div>`:''}`;const s=evaluationResults.summary||{};const responseStats=evaluationResults.responseStats||[];return `<div class="mini-label" style="margin:24px 0 8px;font-size:12px;">Faculty evaluations</div><div class="info-grid"><div class="info-card"><span style="font-size:10px;color:var(--pf-muted);font-weight:bold;">EVALUATIONS</span><strong>${s.evaluations||0}</strong></div></div><div class="info-card"><h3>By response</h3>${responseStats.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(r.label)}</strong><div style="font-size:11px;color:var(--pf-muted)">${r.count} · ${r.pct}%</div></div>`).join('')||'<div class="empty-note">No evaluations yet.</div>'}</div>${renderItemStatsSummary(evaluationResults.itemStats)}<button class="save-btn" onclick="downloadEvaluationExport()">Download evaluations (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="evaluationResults=null;evaluationResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
+
+// ── Registration add-on (organizer side) ─────────────────────────────
+function regOn() { return !!(editMeta && editMeta.modules && editMeta.modules.registration); }
+function ensureSignupCfg() {
+  if (!editMeta.signup || typeof editMeta.signup !== 'object') editMeta.signup = {};
+  const s = editMeta.signup;
+  s.fields = Object.assign({ workplace: 'off', jobTitle: 'off', phone: 'off', notes: 'off' }, s.fields || {});
+  s.groups = Object.assign({ levelIds: [], faculty: false, observer: false }, s.groups || {});
+  if (!Array.isArray(s.groups.levelIds)) s.groups.levelIds = [];
+  if (s.chooseGroup === undefined) s.chooseGroup = true;
+  if (s.intro === undefined) s.intro = '';
+  if (s.closed === undefined) s.closed = false;
+  return s;
+}
+function onSignupCfg(key, val) { ensureSignupCfg()[key] = val; saveStatus = ''; }
+function onSignupField(f, val) { ensureSignupCfg().fields[f] = val; saveStatus = ''; }
+function onSignupGroupFlag(kind, checked) { ensureSignupCfg().groups[kind] = !!checked; saveStatus = ''; }
+function onSignupLevel(id, checked) {
+  const g = ensureSignupCfg().groups, set = new Set(g.levelIds);
+  if (checked) set.add(id); else set.delete(id);
+  g.levelIds = Array.from(set); saveStatus = '';
+}
+function renderRegistrationAddon() {
+  const on = regOn();
+  const toggle = `<label class="module-toggle" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;display:flex;margin-bottom:8px;">
+      <input type="checkbox" ${on ? 'checked' : ''} onchange="onToggleModule('registration',this.checked)" style="width:18px;height:18px;margin-top:2px;accent-color:var(--pf-theme);flex-shrink:0;">
+      <div><div style="font-size:13.5px;font-weight:bold;">Registration</div><div style="font-size:11.5px;color:var(--pf-muted);">${on ? 'Registration is required: people sign up, you approve them, and they receive their number by e-mail.' : 'Off = open conference: anyone can browse the content without registering.'}</div></div>
+    </label>`;
+  if (!on) return toggle;
+  const s = ensureSignupCfg(), levels = (editMeta.levels || []);
+  const fieldRow = (f, label) => `<div class="field-group" style="flex:1;min-width:150px;"><label>${label}</label>
+      <select onchange="onSignupField('${f}',this.value)">${[['off', 'Not asked'], ['optional', 'Optional'], ['required', 'Required']].map(([v, t]) => `<option value="${v}" ${s.fields[f] === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
+  const levelBoxes = levels.length ? `<div class="field-group"><label>Levels people can choose (none ticked = all)</label>${levels.map(l => `<label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0;"><input type="checkbox" ${s.groups.levelIds.includes(l.id) ? 'checked' : ''} onchange="onSignupLevel('${escHtml(l.id)}',this.checked)"> ${escHtml(l.name)}</label>`).join('')}</div>` : '';
+  return toggle + `<div class="info-card" style="margin:0 0 14px;">
+      <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Registration form</div>
+      <div class="field-hint" style="margin:0 0 10px;">Name and e-mail are always required. Choose what else to ask for.</div>
+      <div class="field-group"><label>Text above the form (optional)</label><textarea rows="2" maxlength="1000" oninput="onSignupCfg('intro',this.value)">${escHtml(s.intro)}</textarea></div>
+      <div class="field-row">${fieldRow('workplace', 'Workplace')}${fieldRow('jobTitle', 'Job title')}</div>
+      <div class="field-row">${fieldRow('phone', 'Phone number')}${fieldRow('notes', 'About themselves')}</div>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:10px 0 4px;"><input type="checkbox" ${s.chooseGroup ? 'checked' : ''} onchange="onSignupCfg('chooseGroup',this.checked)"> Let people choose their group (you can always change it afterwards)</label>
+      ${levelBoxes}
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0;"><input type="checkbox" ${s.groups.faculty ? 'checked' : ''} onchange="onSignupGroupFlag('faculty',this.checked)"> Faculty can register in this form</label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:4px 0;"><input type="checkbox" ${s.groups.observer ? 'checked' : ''} onchange="onSignupGroupFlag('observer',this.checked)"> Observers can register in this form</label>
+      <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin:10px 0 0;"><input type="checkbox" ${s.closed ? 'checked' : ''} onchange="onSignupCfg('closed',this.checked)"> Close registration (no new sign-ups)</label>
+      <div class="field-hint" style="margin-top:10px;">Faculty and observers get numbers from their own ranges (faculty 1000+, observers 2000+) — set how many under General. Save changes to publish the form.</div>
+    </div>`;
+}
+function signupBaseUrl() { return location.origin + location.pathname.replace(/[^/]*$/, ''); }
+function loadSignups() {
+  signupLoading = true; signupError = '';
+  rerenderOrganizerScroll();
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/signup/list`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminPin: pinInput }) })
+    .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Server error'); signupData = d; })
+    .catch(e => { signupError = e.message; })
+    .finally(() => { signupLoading = false; rerenderOrganizerScroll(); const b = document.querySelector('[data-organizer-tab="registrations"]'); if (b) b.innerHTML = 'Registrations' + (signupData && signupData.summary.pending ? ` <span class="reg-badge">${signupData.summary.pending}</span>` : ''); });
+}
+function decideSignup(id, action) {
+  const sel = document.getElementById('regGroup_' + id);
+  const groupKey = sel ? sel.value : '';
+  if (action === 'delete' && !confirm('Delete this registration permanently? If approved, the number is freed.')) return;
+  if (action === 'revoke' && !confirm('Withdraw approval? The number is freed and the person can no longer log in.')) return;
+  signupBusy = id; signupMsg = '';
+  rerenderOrganizerScroll();
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/signup/decide`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminPin: pinInput, id, action, groupKey, baseUrl: signupBaseUrl() }) })
+    .then(async r => {
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Server error');
+      // Keep the editor in step with what the server just changed.
+      if (d.levelAssignments) { editMeta.levelAssignments = Object.assign({}, d.levelAssignments); confData.meta.levelAssignments = Object.assign({}, d.levelAssignments); }
+      const hs = editModuleContent && editModuleContent.handsOn && editModuleContent.handsOn.sessions;
+      if (d.breakoutState && hs && hs.length === d.breakoutState.length) {
+        d.breakoutState.forEach((st, i) => { hs[i].overrides = st.overrides; hs[i].locked = st.locked; });
+        const cs = confData.moduleContent && confData.moduleContent.handsOn && confData.moduleContent.handsOn.sessions;
+        if (cs && cs.length === d.breakoutState.length) d.breakoutState.forEach((st, i) => { cs[i].overrides = st.overrides; cs[i].locked = st.locked; });
+      }
+      signupMsg = action === 'approve' && d.email && d.email.sent === false ? `Approved as #${d.nr}, but the e-mail could not be sent (${d.email.error}). Tell the person their number: ${confSlug.toUpperCase()}${d.nr}.`
+        : action === 'approve' ? `Approved as #${d.nr}${d.email && d.email.sent ? ' — number sent by e-mail.' : '.'}` : '';
+    })
+    .catch(e => { signupMsg = 'Error: ' + e.message; })
+    .finally(() => { signupBusy = ''; loadSignups(); });
+}
+async function exportSignups() {
+  try {
+    const r = await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/signup/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminPin: pinInput }) });
+    if (!r.ok) throw new Error('export failed');
+    const blob = await r.blob(), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `${confSlug}-registrations.xlsx`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  } catch (e) { alert("Couldn't download the registrations — try again."); }
+}
+function setSignupFilter(f) { signupFilter = f; rerenderOrganizerScroll(); }
+function renderRegistrationsTab() {
+  if (!regOn()) return `<div class="info-card"><strong>Registration is off</strong><div class="field-hint" style="margin-top:5px;">Turn on <b>Registration</b> under Add-ons to collect sign-ups.</div></div>`;
+  if (signupLoading && !signupData) return `<div class="empty-note">Loading registrations…</div>`;
+  if (signupError && !signupData) return `<div class="save-status error">${escHtml(signupError)}</div><button class="reg-btn ghost" onclick="loadSignups()">Try again</button>`;
+  if (!signupData) return `<div class="empty-note">Loading registrations…</div>`;
+  const sm = signupData.summary, cap = sm.capacity;
+  const capLine = [['participant', 'Participants'], ['faculty', 'Faculty'], ['observer', 'Observers']].filter(([k]) => cap[k].total > 0).map(([k, t]) => `${t}: <b>${cap[k].used}/${cap[k].total}</b>`).join(' &nbsp;·&nbsp; ');
+  const chip = (key, label, n) => `<button class="level-chip ${signupFilter === key ? 'active' : ''}" onclick="setSignupFilter('${key}')">${label} (${n})</button>`;
+  const list = signupData.requests.filter(r => signupFilter === 'all' || r.status === signupFilter);
+  const groups = signupData.groups || [];
+  const card = r => {
+    const busy = signupBusy === r.id;
+    const opts = `<option value="">${r.groupKey ? '' : '— choose group —'}</option>` + groups.map(g => `<option value="${escHtml(g.key)}" ${g.key === r.groupKey ? 'selected' : ''}>${escHtml(g.label)}</option>`).join('');
+    const details = [r.workplace, r.jobTitle, r.phone].filter(Boolean).map(escHtml).join(' · ');
+    const badge = r.status === 'approved' ? `<span class="reg-nr">#${r.nr}</span>` : '';
+    const actions = r.status === 'pending'
+      ? `<select id="regGroup_${r.id}" ${busy ? 'disabled' : ''}>${opts}</select><button class="reg-btn" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','approve')">Approve</button><button class="reg-btn danger" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','reject')">Reject</button>`
+      : r.status === 'approved'
+        ? `<select id="regGroup_${r.id}" ${busy ? 'disabled' : ''}>${opts}</select><button class="reg-btn ghost" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','regroup')">Change group</button><button class="reg-btn danger" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','revoke')">Withdraw</button>`
+        : `<select id="regGroup_${r.id}" ${busy ? 'disabled' : ''}>${opts}</select><button class="reg-btn" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','approve')">Approve anyway</button><button class="reg-btn danger" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','delete')">Delete</button>`;
+    return `<div class="reg-card"><h3>${badge}${escHtml(r.name)}</h3>
+      <div class="reg-meta">${escHtml(r.email)}${details ? ' · ' + details : ''}<br>Group: <b>${escHtml(r.groupLabel || 'not chosen')}</b> · Registered ${escHtml(String(r.createdAt || '').slice(0, 10))}${r.notes ? `<br><i>${escHtml(r.notes)}</i>` : ''}</div>
+      <div class="reg-actions">${actions}${busy ? '<span class="reg-meta">Working…</span>' : ''}</div></div>`;
+  };
+  return `
+    <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Registrations</div>
+    <div class="field-hint" style="margin:0 0 10px;">${capLine || 'Set participant numbers under General.'}</div>
+    <div class="level-chips">${chip('pending', 'Pending', sm.pending)}${chip('approved', 'Approved', sm.approved)}${chip('rejected', 'Rejected', sm.rejected)}${chip('all', 'All', sm.pending + sm.approved + sm.rejected)}</div>
+    <div style="display:flex;gap:8px;margin:10px 0;"><button class="reg-btn ghost" onclick="loadSignups()">Refresh</button><button class="reg-btn ghost" onclick="exportSignups()">Download Excel</button></div>
+    ${signupMsg ? `<div class="save-status ${signupMsg.startsWith('Error') || signupMsg.includes('could not') ? 'error' : 'ok'}" style="margin-bottom:10px;">${escHtml(signupMsg)}</div>` : ''}
+    ${list.length ? list.map(card).join('') : `<div class="empty-note">No ${signupFilter === 'all' ? '' : signupFilter + ' '}registrations.</div>`}
+    <div class="field-hint" style="margin-top:12px;">Approving gives the person the next free number in their group's range, assigns their level, places them in the smallest breakout group of that level and e-mails them the number. Existing breakout groups are kept as they are. Changing a person's group moves them to the smallest group of their new level.</div>`;
+}
 
 function renderOrganizerEditor() {
   const hasQuiz = !!(editMeta.modules && editMeta.modules.quiz);
@@ -1956,6 +2142,8 @@ function renderOrganizerEditor() {
         <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Modules and add-ons</div>
         <div class="field-hint" style="margin:0 0 12px;">You can add or remove modules at any time, even after the conference has been created. Turn a module on, edit its content, then save changes.</div>
 
+        ${renderRegistrationAddon()}
+
         ${[['handsOn','Breakout sessions'],['map','Map'],['industry','Industry'],['quiz','Quiz'],['evaluations','Faculty evaluation'],['conferenceFeedback','Conference evaluation'],['contact','Contact'],['facultyInfo','Faculty'],['presentations','Presentations']].map(([key,label]) => `
           <label class="module-toggle" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;display:flex;margin-bottom:8px;">
             <input type="checkbox" ${editMeta.modules && editMeta.modules[key] ? "checked" : ""} onchange="onToggleModule('${key}',this.checked)" style="width:18px;height:18px;margin-top:2px;accent-color:var(--pf-theme);flex-shrink:0;">
@@ -1968,6 +2156,10 @@ function renderOrganizerEditor() {
         ${['conferenceFeedback','contact','facultyInfo','presentations'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
       </div>
       ${saveButton}`;
+  }
+
+  if (organizerTab === 'registrations') {
+    return `<div class="editor-tab-content">${renderRegistrationsTab()}</div>`;
   }
 
   // Certificates
@@ -2339,6 +2531,7 @@ function onEditBreakoutAssignment(si,value){
   const s = sessions[si];
   s.groupAssignment = value;
   s.groupSeed = value === 'keep' && si > 0 ? sessions[si-1].groupSeed : newBreakoutSeed();
+  s.locked = value === 'keep' && si > 0 ? !!sessions[si-1].locked : false;
   s.overrides = value === 'keep' && si > 0 ? Object.assign({}, sessions[si-1].overrides || {}) : {};
   rerenderOrganizerScroll();
 }
@@ -2352,7 +2545,7 @@ function onMoveBreakoutMember(si, nr, groupIdxRaw){
   const groupIdx = parseInt(groupIdxRaw, 10);
   const n = Number(s.groupCount) || 0;
   const baseIdx = groupIndexInPool(nr, breakoutPool(s, nr > 999 ? 'faculty' : 'participant'), n, s.groupSeed);
-  if (groupIdx === baseIdx) delete s.overrides[String(nr)];
+  if (groupIdx === baseIdx && !s.locked) delete s.overrides[String(nr)];
   else s.overrides[String(nr)] = groupIdx;
   rerenderOrganizerScroll();
 }
@@ -2822,7 +3015,7 @@ function removeEditLevel(id) {
   Object.keys(editMeta.levelAssignments || {}).forEach(nr => { if (editMeta.levelAssignments[nr] === id) delete editMeta.levelAssignments[nr]; });
   editScheduleDays.forEach(d => d.items.forEach(it => { if (it.levelId === id) it.levelId = ''; }));
   const hands = editModuleContent.handsOn;
-  if (hands && Array.isArray(hands.sessions)) hands.sessions.forEach(hs => { if (hs.levelId === id) { hs.levelId = ''; hs.overrides = {}; } });
+  if (hands && Array.isArray(hands.sessions)) hands.sessions.forEach(hs => { if (hs.levelId === id) { hs.levelId = ''; hs.overrides = {}; hs.locked = false; } });
   if (editScheduleLevelFilter === id) editScheduleLevelFilter = '';
   rerenderOrganizerScroll();
 }
@@ -2864,7 +3057,9 @@ function renderLevelsEditor() {
   for (let i = 1; i <= total; i++) { const lv = assign[String(i)]; if (lv && counts[lv] !== undefined) counts[lv]++; else unassigned++; }
   const rows = levels.map(l => `<div class="level-row"><input type="text" maxlength="40" value="${escHtml(l.name)}" oninput="onEditLevelName('${escHtml(l.id)}',this.value)"><span class="level-count">${counts[l.id]} participant${counts[l.id] === 1 ? '' : 's'}</span><button class="remove-btn" style="position:static;" title="Remove level" onclick="removeEditLevel('${escHtml(l.id)}')">✕</button></div>`).join('');
   let assignTool = '';
-  if (levels.length) {
+  if (levels.length && regOn()) {
+    assignTool = `<div class="field-hint" style="margin:10px 0 6px;">This conference uses registration: each person's level is chosen at sign-up and can be changed per person in the <b>Registrations</b> tab.</div>`;
+  } else if (levels.length) {
     const names = namesLookup(editModuleContent && editModuleContent.handsOn);
     const opt = (cur) => `<option value="">—</option>${levels.map(l => `<option value="${escHtml(l.id)}" ${cur === l.id ? 'selected' : ''}>${escHtml(l.name)}</option>`).join('')}`;
     let grid = '';
@@ -2919,7 +3114,7 @@ function renderSessionLevelSelect(si) {
 }
 function onEditSessionLevel(si, val) {
   const s = editModuleContent.handsOn.sessions[si];
-  s.levelId = val; s.overrides = {}; // the pool of people changed, so old manual moves no longer apply
+  s.levelId = val; s.overrides = {}; s.locked = false; // the pool of people changed, so old manual moves no longer apply
   rerenderOrganizerScroll();
 }
 function duplicateSessionToLevels(si) {
@@ -2928,7 +3123,7 @@ function duplicateSessionToLevels(si) {
   if (!others.length || !confirm(`Create copies of this session for: ${others.map(l => l.name).join(', ')}? Each gets its own random groups.`)) return;
   others.forEach((l, k) => {
     const copy = JSON.parse(JSON.stringify(s));
-    copy.levelId = l.id; copy.overrides = {}; copy.groupAssignment = 'randomize';
+    copy.levelId = l.id; copy.overrides = {}; copy.locked = false; copy.groupAssignment = 'randomize';
     if (c.mode === 'breakout') copy.groupSeed = newBreakoutSeed();
     c.sessions.splice(si + 1 + k, 0, copy);
   });
@@ -3042,6 +3237,7 @@ function saveOrganizerChanges() {
     observerCount: editMeta.observerCount,
     levels: editMeta.levels || [],
     levelAssignments: editMeta.levelAssignments || {},
+    signup: editMeta.signup || {},
     branding: editMeta.branding || {logo:""},
     modules: editMeta.modules,
     moduleContent: editModuleContent,

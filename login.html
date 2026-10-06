@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Conf Design — Log in</title>
+<title>Conf Design — Conferences</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -136,6 +136,18 @@
     accent-color: var(--pf-indigo); cursor: pointer;
   }
   .privacy-check a { color: var(--pf-indigo); font-weight: bold; }
+  .search-box { width:100%; padding:11px 14px; border:2px solid var(--pf-border); border-radius:10px; font-size:14px; margin-bottom:12px; font-family:inherit; }
+  .search-box:focus { border-color: var(--pf-indigo); outline:none; }
+  .conf-item { display:flex; align-items:stretch; border:2px solid var(--pf-border); border-radius:12px; margin-bottom:10px; overflow:hidden; text-decoration:none; color:inherit; background:#fff; }
+  .conf-item:hover { border-color: var(--pf-indigo); }
+  .conf-item .stripe { width:8px; flex-shrink:0; }
+  .conf-item .body { padding:12px 14px; flex:1; min-width:0; }
+  .conf-item .name { font-size:15px; font-weight:bold; color:var(--pf-ink); }
+  .conf-item .dates { font-size:12px; color:var(--pf-muted); margin-top:3px; }
+  .conf-badge { display:inline-block; margin-top:6px; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:bold; background:var(--pf-indigo-light); color:var(--pf-indigo); }
+  .conf-badge.open { background:#E6F4EA; color:#1E6B3A; }
+  .conf-badge.closed { background:#FBECEA; color:#B3261E; }
+  .list-note { font-size:13px; color:var(--pf-muted); text-align:center; padding:14px 0; line-height:1.5; }
 </style>
 <style>
 @media (max-width: 600px) {
@@ -157,7 +169,7 @@
     <a href="login.html" style="text-decoration:none;"><div class="mark">CD</div></a>
     <div>
       <h1>Conf Design</h1>
-      <p>Log in to a conference</p>
+      <p>Find your conference</p>
     </div>
   </div>
 
@@ -177,17 +189,12 @@
   </div>
 
   <div id="normalLoginFlow">
-    <div class="card">
-      <h2>Participant or faculty</h2>
-      <div class="card-sub">Enter your conference code followed by your number — for example <b>HNUS42</b>.</div>
-      <input type="text" class="code-input" id="codeInput" placeholder="e.g. HNUS42" autocomplete="off"
-        oninput="onCodeInput(this.value)" onkeydown="if(event.key==='Enter')doLogin()">
-      <div class="field-error" id="codeError"></div>
-      <button class="primary-btn" onclick="doLogin()">Log in</button>
-      <div class="remember-row">
-        <input type="checkbox" id="rememberMe" checked>
-        <label for="rememberMe">Remember me on this device — skip login next time</label>
-      </div>
+    <div class="card" id="confListCard">
+      <h2>Conferences</h2>
+      <div class="card-sub">Choose the conference you are attending — then register, or log in with your number.</div>
+      <input type="text" class="search-box" id="confSearch" placeholder="Search conferences…" autocomplete="off" oninput="onConfSearch(this.value)">
+      <div id="confList"><div class="list-note">Loading conferences…</div></div>
+      <label class="remember-row" style="margin-top:12px;"><input type="checkbox" id="showPast" onchange="onTogglePast(this.checked)"><span>Also show conferences that have ended</span></label>
     </div>
 
     <div class="divider">or</div>
@@ -209,7 +216,6 @@
       </div>
     </div>
 
-    <a class="browse-link" href="overview.html">Don't have a code? Browse all conferences →</a>
   </div>
 </div>
 
@@ -293,38 +299,11 @@ function clearRememberedAndShowForm() {
 (function tryAutoLogin() {
   const params = new URLSearchParams(location.search);
   const qrSlug = (params.get('conf') || '').trim().toLowerCase();
-
-  if (qrSlug) {
-    const nr = getRememberedNr(qrSlug);
-    if (nr) { showWelcomeBack(qrSlug, nr); return; }
-    // Known conference (from a QR code) but no remembered number yet —
-    // pre-fill the code so the person only has to type their own number.
-    const input = document.getElementById('codeInput');
-    if (input) {
-      input.value = qrSlug.toUpperCase();
-      requestAnimationFrame(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); });
-    }
-    return;
-  }
-
+  // A QR code / old link that names one conference goes straight to it.
+  if (qrSlug) { location.replace('conference.html?conf=' + encodeURIComponent(qrSlug)); return; }
   const last = getLastRememberedLogin();
-  if (last) {
-    showWelcomeBack(last.slug, last.nr);
-  }
+  if (last) showWelcomeBack(last.slug, last.nr);
 })();
-
-function onCodeInput(v) {
-  document.getElementById("codeError").textContent = "";
-  const parsed = parseCode(v);
-  updatePrivacyLink(parsed ? parsed.slug : "");
-}
-
-function parseCode(raw) {
-  const cleaned = (raw || "").trim().toLowerCase();
-  const match = cleaned.match(/^([a-z]+)(\d+)$/);
-  if (!match) return null;
-  return { slug: match[1], nr: match[2] };
-}
 
 async function conferenceExists(slug) {
   try {
@@ -333,33 +312,6 @@ async function conferenceExists(slug) {
   } catch (_) {
     return null;
   }
-}
-
-async function doLogin() {
-  const raw = document.getElementById("codeInput").value;
-  const parsed = parseCode(raw);
-  const errEl = document.getElementById("codeError");
-  if (!privacyAccepted()) {
-    errEl.textContent = "Du skal først acceptere privatlivspolitikken ovenfor.";
-    return;
-  }
-  if (!parsed) {
-    errEl.textContent = "Enter a code followed by your number, e.g. HNUS42.";
-    return;
-  }
-  errEl.textContent = "Checking conference…";
-  const exists = await conferenceExists(parsed.slug);
-  if (exists === false) {
-    errEl.textContent = "This conference does not exist. Check the code and try again.";
-    return;
-  }
-  if (exists === null) {
-    errEl.textContent = "Couldn't contact the conference service. Please try again.";
-    return;
-  }
-  errEl.textContent = "";
-  const remember = document.getElementById("rememberMe").checked ? 1 : 0;
-  location.href = `index.html?conf=${encodeURIComponent(parsed.slug)}&nr=${encodeURIComponent(parsed.nr)}&remember=${remember}`;
 }
 
 function toggleOrganizerChoice() {
@@ -391,7 +343,45 @@ async function doManage() {
   location.href = `index.html?conf=${encodeURIComponent(raw)}&admin=1`;
 }
 
+let allConfs = [], confSearch = '', showPast = false;
+function todayStr() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function formatDateRange(start, end) {
+  if (!start || !end) return 'Dates TBA';
+  const s = new Date(start + 'T00:00:00'), e = new Date(end + 'T00:00:00');
+  if (isNaN(s) || isNaN(e)) return 'Dates TBA';
+  const opts = { day: 'numeric', month: 'long', year: 'numeric' };
+  if (start === end) return s.toLocaleDateString('en-GB', opts);
+  return s.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' }) + ' – ' + e.toLocaleDateString('en-GB', opts);
+}
+function onConfSearch(v) { confSearch = v.toLowerCase(); renderConfList(); }
+function onTogglePast(v) { showPast = !!v; renderConfList(); }
+function renderConfList() {
+  const el = document.getElementById('confList');
+  const today = todayStr();
+  if (!allConfs.length) { el.innerHTML = '<div class="list-note">No conferences yet.</div>'; return; }
+  const visible = allConfs.filter(c => (showPast || !c.endDate || c.endDate >= today) && c.name.toLowerCase().includes(confSearch));
+  if (!visible.length) { el.innerHTML = '<div class="list-note">No ' + (showPast ? '' : 'ongoing or upcoming ') + 'conferences found.</div>'; return; }
+  el.innerHTML = visible.map(c => {
+    const badge = c.registration
+      ? (c.registrationClosed ? '<span class="conf-badge closed">Registration closed</span>' : '<span class="conf-badge">Registration required</span>')
+      : '<span class="conf-badge open">Open for everyone</span>';
+    return '<a class="conf-item" href="conference.html?conf=' + encodeURIComponent(c.slug) + '"><div class="stripe" style="background:' + escHtmlLite(c.themeColor || '#3E4C9C') + ';"></div><div class="body"><div class="name">' + escHtmlLite(c.name) + '</div><div class="dates">' + formatDateRange(c.startDate, c.endDate) + '</div>' + badge + '</div></a>';
+  }).join('');
+}
+async function loadConfList() {
+  try {
+    const res = await fetch(PLATFORM_WORKER_URL + '/conf/list');
+    if (!res.ok) throw new Error('bad');
+    allConfs = (await res.json()).conferences || [];
+    renderConfList();
+  } catch (e) {
+    document.getElementById('confList').innerHTML = '<div class="list-note">Could not load the conference list. Check your connection and reload.</div>';
+  }
+}
+loadConfList();
+
 initPrivacyConsent();
+
 </script>
 
 </body>

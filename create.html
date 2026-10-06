@@ -503,7 +503,7 @@ let form = {
   participantCount: 100,
   facultyCount: 20,
   observerCount: 0,
-  modules: { handsOn: false, map: false, industry: false, quiz: false, evaluations: false, conferenceFeedback: false, contact: false, facultyInfo: false, presentations: false },
+  modules: { registration: false, handsOn: false, map: false, industry: false, quiz: false, evaluations: false, conferenceFeedback: false, contact: false, facultyInfo: false, presentations: false },
   moduleContent: {
     handsOn: { title: "Breakout sessions", intro: "", sessions: [newHandsOnSession()] },
     map: { title: "Venue map", intro: "", address: "", image: "" },
@@ -732,6 +732,7 @@ function render() {
       </div>
 
       ${[
+        ['registration','✉','Registration','People sign up with name and e-mail and you approve them; they then receive their number by e-mail. Off = open conference that anyone can browse. The form (extra fields, groups) is set up under Add-ons after creation.'],
         ['handsOn','▣','Breakout sessions','Rotations, stations, rooms and practical course information.'],
         ['map','◇','Map','Venue map and directions for participants.'],
         ['industry','▱','Industry','Exhibitors, stands and industry partners.'],

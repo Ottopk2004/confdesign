@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Conf Design — Conference</title>
+<style>
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --pf-ink:        #1E2233;
+    --pf-indigo:      #3E4C9C;
+    --pf-indigo-light:#EEF0FA;
+    --pf-white:       #FFFFFF;
+    --pf-gray:        #F5F6FA;
+    --pf-border:      #DADFF0;
+    --pf-muted:       #656B85;
+    --pf-red:         #B3261E;
+    --pf-red-light:   #FBECEA;
+  }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #eef0f6;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 24px 12px;
+    color: var(--pf-ink);
+  }
+
+  .shell { width: 100%; max-width: 440px; }
+
+  .top-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .top-brand .mark {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: var(--pf-indigo); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 15px; flex-shrink: 0;
+  }
+  .top-brand h1 { font-size: 16px; color: var(--pf-ink); }
+  .top-brand p { font-size: 11.5px; color: var(--pf-muted); }
+
+  .card {
+    background: var(--pf-white);
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(30,34,51,0.08);
+    padding: 24px 22px;
+    margin-bottom: 16px;
+  }
+
+  .card h2 { font-size: 15px; color: var(--pf-indigo); margin-bottom: 4px; }
+  .card .card-sub { font-size: 12px; color: var(--pf-muted); margin-bottom: 18px; line-height: 1.5; }
+
+  .code-input {
+    width: 100%;
+    padding: 16px 14px;
+    border: 2px solid var(--pf-border);
+    border-radius: 10px;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--pf-ink);
+    font-family: inherit;
+  }
+  .code-input::placeholder { text-transform: none; font-weight: normal; letter-spacing: normal; color: #b9bdd0; }
+  .code-input:focus { border-color: var(--pf-indigo); outline: none; }
+
+  .field-hint { font-size: 11.5px; color: var(--pf-muted); margin-top: 8px; line-height: 1.5; text-align: center; }
+  .field-error { font-size: 12.5px; color: var(--pf-red); margin-top: 8px; text-align: center; min-height: 16px; }
+
+  .primary-btn {
+    width: 100%; margin-top: 14px; padding: 14px; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: bold; background: var(--pf-indigo); color: #fff; cursor: pointer;
+  }
+  .primary-btn:hover { filter: brightness(0.92); }
+
+  .divider {
+    display: flex; align-items: center; gap: 10px; margin: 4px 0 16px;
+    color: var(--pf-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  }
+  .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: var(--pf-border); }
+
+  .organizer-card { text-align: center; }
+  .organizer-btn {
+    width: 100%; padding: 13px; border: 2px solid var(--pf-indigo); border-radius: 10px;
+    background: #fff; color: var(--pf-indigo); font-size: 14px; font-weight: bold; cursor: pointer;
+  }
+  .organizer-btn:hover { background: var(--pf-indigo-light); }
+
+  .browse-link { display: block; text-align: center; font-size: 12.5px; color: var(--pf-muted); margin-top: 4px; text-decoration: none; }
+  .browse-link:hover { color: var(--pf-indigo); }
+
+  .organizer-choice { display: none; margin-top: 12px; }
+  .organizer-choice.open { display: block; }
+  .organizer-choice input {
+    width: 100%; padding: 11px 12px; border: 2px solid var(--pf-border); border-radius: 8px;
+    font-size: 14px; text-align: center; text-transform: uppercase; margin-bottom: 8px; font-family: inherit;
+  }
+  .organizer-choice input:focus { border-color: var(--pf-indigo); outline: none; }
+  .organizer-choice .secondary-btn {
+    width: 100%; padding: 11px; border: 0.5px solid var(--pf-border); border-radius: 8px;
+    background: var(--pf-gray); color: var(--pf-ink); font-size: 13px; font-weight: bold; cursor: pointer; margin-top: 6px;
+  }
+
+  .remember-row { display:flex; align-items:center; gap:8px; margin-top:14px; font-size:12.5px; color:var(--pf-muted); }
+  .remember-row input { width:17px; height:17px; flex-shrink:0; accent-color: var(--pf-indigo); }
+  .remember-row label { cursor:pointer; }
+
+  .welcome-back-icon { width:46px; height:46px; border-radius:50%; background:var(--pf-indigo-light); color:var(--pf-indigo); display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:bold; margin-bottom:12px; }
+  .welcome-back-name { font-size:19px; font-weight:bold; color:var(--pf-ink); margin-bottom:2px; }
+  .secondary-btn-wide { width:100%; padding:13px; border:2px solid var(--pf-border); border-radius:10px; background:#fff; color:var(--pf-muted); font-size:13.5px; font-weight:bold; cursor:pointer; margin-top:10px; }
+  .secondary-btn-wide:hover { background:var(--pf-gray); }
+
+  .privacy-consent {
+    background: var(--pf-white);
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(30,34,51,0.08);
+    padding: 16px 18px;
+    margin-bottom: 16px;
+  }
+  .privacy-check {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 12.5px; color: var(--pf-muted); line-height: 1.5; cursor: pointer;
+  }
+  .privacy-check input {
+    margin-top: 2px; width: 18px; height: 18px; flex-shrink: 0;
+    accent-color: var(--pf-indigo); cursor: pointer;
+  }
+  .privacy-check a { color: var(--pf-indigo); font-weight: bold; }
+  .search-box { width:100%; padding:11px 14px; border:2px solid var(--pf-border); border-radius:10px; font-size:14px; margin-bottom:12px; font-family:inherit; }
+  .search-box:focus { border-color: var(--pf-indigo); outline:none; }
+  .conf-item { display:flex; align-items:stretch; border:2px solid var(--pf-border); border-radius:12px; margin-bottom:10px; overflow:hidden; text-decoration:none; color:inherit; background:#fff; }
+  .conf-item:hover { border-color: var(--pf-indigo); }
+  .conf-item .stripe { width:8px; flex-shrink:0; }
+  .conf-item .body { padding:12px 14px; flex:1; min-width:0; }
+  .conf-item .name { font-size:15px; font-weight:bold; color:var(--pf-ink); }
+  .conf-item .dates { font-size:12px; color:var(--pf-muted); margin-top:3px; }
+  .conf-badge { display:inline-block; margin-top:6px; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:bold; background:var(--pf-indigo-light); color:var(--pf-indigo); }
+  .conf-badge.open { background:#E6F4EA; color:#1E6B3A; }
+  .conf-badge.closed { background:#FBECEA; color:#B3261E; }
+  .list-note { font-size:13px; color:var(--pf-muted); text-align:center; padding:14px 0; line-height:1.5; }
+
+  .field { margin-bottom:12px; }
+  .field label.lbl { display:block; font-size:12.5px; font-weight:bold; margin-bottom:5px; color:var(--pf-ink); }
+  .field input[type=text], .field input[type=email], .field input[type=tel], .field textarea, .field select {
+    width:100%; padding:11px 12px; border:2px solid var(--pf-border); border-radius:8px; font-size:14px; font-family:inherit; color:var(--pf-ink); background:#fff; }
+  .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--theme); outline:none; }
+  .group-opt { display:flex; gap:10px; align-items:center; border:2px solid var(--pf-border); border-radius:10px; padding:10px 12px; margin-bottom:8px; cursor:pointer; font-size:14px; }
+  .group-opt.sel { border-color: var(--theme); background: var(--pf-indigo-light); }
+  .group-opt input { accent-color: var(--theme); width:18px; height:18px; }
+  .big-number { font-size:42px; font-weight:bold; color:var(--theme); letter-spacing:.03em; text-align:center; margin:6px 0; }
+  .notice { border-radius:10px; padding:12px 14px; font-size:13.5px; line-height:1.5; margin-bottom:12px; }
+  .notice.wait { background:#FFF8E6; color:#8A5A00; border:1px solid #E0A82E; }
+  .notice.ok { background:#E6F4EA; color:#1E6B3A; border:1px solid #9BD3AE; }
+  .notice.bad { background:#FBECEA; color:#B3261E; border:1px solid #E6A7A2; }
+  .conf-title { font-size:22px; font-weight:bold; line-height:1.25; }
+  .conf-dates { font-size:13px; color:var(--pf-muted); margin-top:4px; }
+  .num-input { width:100%; padding:14px; border:2px solid var(--pf-border); border-radius:10px; font-size:22px; font-weight:bold; text-align:center; font-family:inherit; }
+  .num-input:focus { border-color: var(--theme); outline:none; }
+  .primary-btn { background: var(--theme); }
+  .back-link { display:inline-block; font-size:12.5px; color:var(--pf-muted); text-decoration:none; margin-bottom:12px; }
+  .req { color:#B3261E; }
+  .hp { position:absolute; left:-9999px; }
+
+  :root { --theme: #3E4C9C; }
+  @media (max-width: 600px) { body { padding:0 12px 40px; background:#fff; } .shell { max-width:none; } .card { padding:20px 16px; border-radius:12px; box-shadow:none; border:1px solid var(--pf-border); } input, select, textarea { font-size:16px !important; } button { min-height:50px; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top-brand">
+    <a href="login.html" style="text-decoration:none;"><div class="mark">CD</div></a>
+    <div><h1>Conf Design</h1><p>Conference</p></div>
+  </div>
+  <a class="back-link" href="login.html">← All conferences</a>
+
+  <div class="privacy-consent" id="privacyConsent">
+    <label class="privacy-check">
+      <input type="checkbox" id="privacyCheckbox" onchange="onPrivacyToggle(this.checked)">
+      <span>Jeg har læst og forstået <a href="privacy.html" id="privacyLink" target="_blank" rel="noopener">privatlivspolitikken</a> for brugen af denne side.</span>
+    </label>
+  </div>
+
+  <div id="app"><div class="card"><div class="card-sub" style="margin:0;">Loading conference…</div></div></div>
+</div>
+
+<script>
+const PLATFORM_WORKER_URL = "https://cm-worker.conferenceplanner.workers.dev";
+const PRIVACY_KEY = "cd_privacy_accepted";
+const params = new URLSearchParams(location.search);
+const slug = (params.get("conf") || "").trim().toLowerCase();
+
+function privacyAccepted() { try { return localStorage.getItem(PRIVACY_KEY) === "1"; } catch (_) { return false; } }
+function onPrivacyToggle(checked) {
+  try { if (checked) localStorage.setItem(PRIVACY_KEY, "1"); else localStorage.removeItem(PRIVACY_KEY); } catch (_) {}
+  document.querySelectorAll(".privacy-err").forEach(e => e.textContent = "");
+}
+function initPrivacyConsent() {
+  const el = document.getElementById("privacyConsent");
+  if (privacyAccepted() && el) el.style.display = "none";
+  const link = document.getElementById("privacyLink");
+  if (link && slug) link.href = "privacy.html?conf=" + encodeURIComponent(slug);
+}
+function esc(s) { return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function formatDateRange(start, end) {
+  if (!start || !end) return "Dates TBA";
+  const s = new Date(start + "T00:00:00"), e = new Date(end + "T00:00:00");
+  if (isNaN(s) || isNaN(e)) return "Dates TBA";
+  const o = { day: "numeric", month: "long", year: "numeric" };
+  if (start === end) return s.toLocaleDateString("en-GB", o);
+  return s.toLocaleDateString("en-GB", { day: "numeric", month: "long" }) + " – " + e.toLocaleDateString("en-GB", o);
+}
+function storeGet(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
+function storeSet(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
+function storeDel(k) { try { localStorage.removeItem(k); } catch (_) {} }
+function baseUrl() { return location.origin + location.pathname.replace(/[^/]*$/, ""); }
+
+let conf = null, signupStatus = null, formError = "", formBusy = false, formDone = false;
+const regForm = { name: "", email: "", workplace: "", jobTitle: "", phone: "", notes: "", groupKey: "" };
+let loginError = "";
+
+function isRegistration() { return !!(conf && conf.meta.modules && conf.meta.modules.registration); }
+function signupCfg() {
+  const s = (conf.meta.signup) || {};
+  return { intro: s.intro || "", closed: !!s.closed, chooseGroup: s.chooseGroup !== false,
+    fields: Object.assign({ workplace: "off", jobTitle: "off", phone: "off", notes: "off" }, s.fields || {}),
+    groups: Object.assign({ levelIds: [], faculty: false, observer: false }, s.groups || {}) };
+}
+// Mirrors the worker: which groups may be picked in the public form.
+function selectableGroups() {
+  const m = conf.meta, cfg = signupCfg(), levels = Array.isArray(m.levels) ? m.levels : [], out = [];
+  if (levels.length) {
+    const allowed = cfg.groups.levelIds.length ? levels.filter(l => cfg.groups.levelIds.includes(l.id)) : levels;
+    allowed.forEach(l => out.push({ key: "level:" + l.id, label: l.name }));
+  } else out.push({ key: "participant", label: "Participant" });
+  if (cfg.groups.faculty && Number(m.facultyCount) > 0) out.push({ key: "faculty", label: "Faculty" });
+  if (cfg.groups.observer && Number(m.observerCount) > 0) out.push({ key: "observer", label: "Observer" });
+  return out;
+}
+
+async function load() {
+  initPrivacyConsent();
+  if (!slug) { location.replace("login.html"); return; }
+  try {
+    const res = await fetch(PLATFORM_WORKER_URL + "/conf/" + encodeURIComponent(slug));
+    if (res.status === 404) { document.getElementById("app").innerHTML = '<div class="card"><h2>Conference not found</h2><div class="card-sub">Check the link, or pick a conference from the list.</div><a href="login.html"><button class="primary-btn">Back to the list</button></a></div>'; return; }
+    if (!res.ok) throw new Error("bad");
+    conf = await res.json();
+  } catch (e) {
+    document.getElementById("app").innerHTML = '<div class="card"><h2>Could not connect</h2><div class="card-sub">Check your internet connection and reload the page.</div></div>';
+    return;
+  }
+  const color = conf.meta.themeColor || "#3E4C9C";
+  document.documentElement.style.setProperty("--theme", color);
+  document.title = conf.meta.name + " — Conf Design";
+  const id = storeGet("cd_signup_" + slug);
+  if (id && isRegistration()) await refreshStatus(id);
+  render();
+}
+
+async function refreshStatus(id) {
+  try {
+    const r = await fetch(PLATFORM_WORKER_URL + "/conf/" + encodeURIComponent(slug) + "/signup/status?id=" + encodeURIComponent(id), { cache: "no-store" });
+    if (r.status === 404) { storeDel("cd_signup_" + slug); signupStatus = null; return; }
+    if (r.ok) signupStatus = Object.assign({ id }, await r.json());
+  } catch (e) {}
+}
+
+function needPrivacy(targetErrId) {
+  if (privacyAccepted()) return false;
+  const el = document.getElementById(targetErrId);
+  if (el) el.textContent = "Du skal først acceptere privatlivspolitikken ovenfor.";
+  return true;
+}
+
+function render() {
+  const m = conf.meta;
+  let h = '<div class="card"><div class="conf-title">' + esc(m.name) + '</div><div class="conf-dates">' + formatDateRange(m.startDate, m.endDate) + '</div></div>';
+
+  const remembered = storeGet("cd_login_" + slug);
+  if (remembered) {
+    h += '<div class="card"><div class="welcome-back-icon">👋</div><div class="welcome-back-name">' + esc(slug.toUpperCase() + remembered) + '</div>'
+      + '<div class="card-sub">This device is remembered as this number — continue, or log in as someone else.</div>'
+      + '<button class="primary-btn" onclick="continueRemembered()">Continue</button>'
+      + '<button class="secondary-btn-wide" onclick="forgetRemembered()">Not you? Use another number</button></div>';
+  }
+
+  if (isRegistration()) {
+    h += renderStatusCard() + renderRegisterCard() + renderLoginCard();
+  } else {
+    h += '<div class="card"><h2>Open conference</h2><div class="card-sub">Everyone is welcome — you can see the programme, map, industry, faculty and presentations without registering. Personal features (test, evaluations and your own breakout group) need a number.</div>'
+      + '<button class="primary-btn" onclick="enterGuest()">View the conference</button><div class="field-error privacy-err" id="guestErr"></div></div>'
+      + renderLoginCard();
+  }
+  document.getElementById("app").innerHTML = h;
+}
+
+function renderStatusCard() {
+  if (!signupStatus) return "";
+  const s = signupStatus;
+  if (s.status === "approved") {
+    return '<div class="card"><h2>You are registered</h2><div class="card-sub">Hi ' + esc(s.name) + ' — your registration' + (s.group ? ' (' + esc(s.group) + ')' : '') + ' has been approved. We also sent your number by e-mail.</div>'
+      + '<div class="big-number">' + esc(slug.toUpperCase()) + esc(s.nr) + '</div>'
+      + '<button class="primary-btn" onclick="loginWithNumber(' + Number(s.nr) + ')">Open the conference</button><div class="field-error privacy-err" id="statusErr"></div></div>';
+  }
+  if (s.status === "rejected") {
+    return '<div class="card"><div class="notice bad">Your registration was not approved. Contact the organizer if you think this is a mistake.</div></div>';
+  }
+  return '<div class="card"><div class="notice wait"><b>Waiting for approval.</b> Thanks, ' + esc(s.name) + '! The organizer has to approve your registration. You will get your number by e-mail — you can also come back to this page to check.</div>'
+    + '<button class="secondary-btn-wide" style="margin-top:0" onclick="recheck()">Check status</button></div>';
+}
+
+function renderRegisterCard() {
+  if (signupStatus && signupStatus.status !== "rejected") return "";
+  const cfg = signupCfg();
+  if (cfg.closed) return '<div class="card"><div class="notice bad">Registration for this conference is closed.</div></div>';
+  const groups = selectableGroups();
+  const field = (key, label, type) => {
+    const mode = cfg.fields[key];
+    if (mode === "off") return "";
+    const req = mode === "required";
+    const input = key === "notes"
+      ? '<textarea rows="3" maxlength="1000" oninput="regForm.notes=this.value">' + esc(regForm.notes) + '</textarea>'
+      : '<input type="' + type + '" value="' + esc(regForm[key]) + '" oninput="regForm.' + key + '=this.value">';
+    return '<div class="field"><label class="lbl">' + label + (req ? ' <span class="req">*</span>' : ' <span style="font-weight:normal;color:#656B85">(optional)</span>') + '</label>' + input + '</div>';
+  };
+  let groupHtml = "";
+  if (cfg.chooseGroup && groups.length > 1) {
+    groupHtml = '<div class="field"><label class="lbl">Your group <span class="req">*</span></label>' + groups.map(g =>
+      '<label class="group-opt ' + (regForm.groupKey === g.key ? "sel" : "") + '"><input type="radio" name="grp" ' + (regForm.groupKey === g.key ? "checked" : "") + ' onchange="regForm.groupKey=\'' + esc(g.key) + '\';render2()"> ' + esc(g.label) + '</label>').join("") + '</div>';
+  }
+  return '<div class="card"><h2>Register</h2>'
+    + (cfg.intro ? '<div class="card-sub" style="white-space:pre-wrap">' + esc(cfg.intro) + '</div>' : '<div class="card-sub">Fill in the form. The organizer approves your registration, and then you receive your number by e-mail.</div>')
+    + '<div class="field"><label class="lbl">Name <span class="req">*</span></label><input type="text" autocomplete="name" value="' + esc(regForm.name) + '" oninput="regForm.name=this.value"></div>'
+    + '<div class="field"><label class="lbl">E-mail <span class="req">*</span></label><input type="email" autocomplete="email" inputmode="email" value="' + esc(regForm.email) + '" oninput="regForm.email=this.value"></div>'
+    + field("workplace", "Workplace", "text") + field("jobTitle", "Job title", "text") + field("phone", "Phone number", "tel") + field("notes", "About you", "text")
+    + groupHtml
+    + '<div class="field-error privacy-err" id="regErr">' + esc(formError) + '</div>'
+    + '<button class="primary-btn" id="regBtn" onclick="submitRegistration()" ' + (formBusy ? "disabled" : "") + '>' + (formBusy ? "Sending…" : "Register") + '</button></div>';
+}
+function render2() { // re-render keeping the typed values (they live in `form`)
+  render();
+}
+
+function renderLoginCard() {
+  return '<div class="card"><h2>Already have a number?</h2><div class="card-sub">Enter the number you received by e-mail — participants, faculty and observers.</div>'
+    + '<input type="text" class="num-input" id="nrInput" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 42" autocomplete="off" onkeydown="if(event.key===\'Enter\')loginFromInput()">'
+    + '<div class="field-error privacy-err" id="loginErr">' + esc(loginError) + '</div>'
+    + '<button class="primary-btn" onclick="loginFromInput()">Log in</button>'
+    + '<div class="remember-row"><input type="checkbox" id="rememberMe" checked><label for="rememberMe">Remember me on this device</label></div></div>';
+}
+
+async function submitRegistration() {
+  formError = "";
+  if (!privacyAccepted()) { formError = "Du skal først acceptere privatlivspolitikken ovenfor."; document.getElementById("regErr").textContent = formError; return; }
+  const cfg = signupCfg(), groups = selectableGroups();
+  const need = (k, l) => cfg.fields[k] === "required" && !String(regForm[k]).trim() ? "Please fill in " + l + "." : "";
+  formError = (regForm.name.trim().length < 2 ? "Please enter your name." : "")
+    || (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(regForm.email.trim()) ? "Enter a valid email address." : "")
+    || need("workplace", "your workplace") || need("jobTitle", "your job title") || need("phone", "your phone number") || need("notes", "the information about yourself")
+    || (cfg.chooseGroup && groups.length > 1 && !regForm.groupKey ? "Please choose your group." : "");
+  if (formError) { document.getElementById("regErr").textContent = formError; return; }
+  formBusy = true; render();
+  try {
+    const body = Object.assign({}, regForm, { baseUrl: baseUrl() });
+    if (!(cfg.chooseGroup && groups.length > 1)) body.groupKey = groups.length === 1 ? groups[0].key : "";
+    const r = await fetch(PLATFORM_WORKER_URL + "/conf/" + encodeURIComponent(slug) + "/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || "Something went wrong.");
+    storeSet("cd_signup_" + slug, d.id);
+    signupStatus = { id: d.id, status: "pending", name: regForm.name.trim() };
+    formBusy = false; formError = "";
+    render();
+  } catch (e) {
+    formBusy = false; formError = e.message; render();
+  }
+}
+async function recheck() { if (signupStatus) { await refreshStatus(signupStatus.id); render(); } }
+
+function goIndex(nr, remember) {
+  location.href = "index.html?conf=" + encodeURIComponent(slug) + "&nr=" + encodeURIComponent(nr) + "&remember=" + (remember ? 1 : 0);
+}
+function loginWithNumber(nr) { if (needPrivacy("statusErr")) return; goIndex(nr, true); }
+function continueRemembered() {
+  if (!privacyAccepted()) { document.querySelector(".welcome-back-name").insertAdjacentHTML("afterend", '<div class="field-error">Du skal først acceptere privatlivspolitikken ovenfor.</div>'); return; }
+  goIndex(storeGet("cd_login_" + slug), true);
+}
+function forgetRemembered() { storeDel("cd_login_" + slug); if (storeGet("cd_last_slug") === slug) storeDel("cd_last_slug"); render(); }
+function enterGuest() {
+  if (needPrivacy("guestErr")) return;
+  location.href = "index.html?conf=" + encodeURIComponent(slug) + "&guest=1";
+}
+async function loginFromInput() {
+  const el = document.getElementById("loginErr");
+  const v = document.getElementById("nrInput").value.trim().replace(/^[a-zA-Z]+/, "");
+  if (!privacyAccepted()) { el.textContent = "Du skal først acceptere privatlivspolitikken ovenfor."; return; }
+  if (!/^\d{1,4}$/.test(v) || Number(v) < 1) { el.textContent = "Enter your number — digits only."; return; }
+  el.textContent = "Checking…";
+  try {
+    const r = await fetch(PLATFORM_WORKER_URL + "/conf/" + encodeURIComponent(slug) + "/signup/verify?nr=" + encodeURIComponent(v), { cache: "no-store" });
+    const d = await r.json();
+    if (!r.ok) throw new Error();
+    if (!d.ok) { el.textContent = "This number has not been approved for this conference."; return; }
+  } catch (e) { el.textContent = "Could not contact the conference service. Please try again."; return; }
+  goIndex(v, document.getElementById("rememberMe").checked);
+}
+
+load();
+</script>
+</body>
+</html>
