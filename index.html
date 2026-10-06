@@ -195,6 +195,17 @@
   .session-card .time { font-size: 11px; color: var(--pf-theme); font-weight: bold; }
   .session-card .title { font-weight: bold; margin: 2px 0; }
   .session-card .speaker { font-size: 11.5px; color: var(--pf-muted); }
+  .level-badge { display:inline-block; margin-left:6px; padding:2px 8px; border-radius:999px; background:var(--pf-theme); color:#fff; font-size:10px; font-weight:bold; vertical-align:middle; }
+  .level-banner { background:#fff; border:2px solid var(--pf-border); border-radius:12px; padding:10px 14px; margin:0 0 14px; font-size:13px; color:var(--pf-muted); }
+  .level-banner b { color:var(--pf-theme); }
+  .level-banner.level-warn { border-color:#e0a82e; background:#fff8e6; color:#8a5a00; }
+  .level-chips { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
+  .level-chip { border:2px solid var(--pf-border); background:#fff; border-radius:999px; padding:7px 14px; font-size:12.5px; font-weight:bold; cursor:pointer; color:var(--pf-muted); font-family:inherit; }
+  .level-chip.active { background:var(--pf-theme); border-color:var(--pf-theme); color:#fff; }
+  .level-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .level-row input { flex:1; min-width:0; }
+  .level-count { font-size:11.5px; color:var(--pf-muted); white-space:nowrap; }
+  .names-grid-item select { flex:1; min-width:0; padding:6px 8px; font-size:12.5px; border:2px solid var(--pf-border); border-radius:6px; background:#fff; font-family:inherit; }
 
   .empty-note { text-align:center; color: var(--pf-muted); font-size: 13px; padding: 30px 10px; }
 
@@ -518,6 +529,9 @@ let pinInput = "";
 let pinError = "";
 let editMeta = null;
 let editScheduleDays = null;
+let editScheduleLevelFilter = '';
+let levelBulk = { levelId: '', text: '', message: '' };
+let viewLevel = ''; // faculty/observer: which level's schedule to show ('' = all)
 let editModuleContent = null;
 let editOpenModule = '';
 let orgPresentationsList = null;
@@ -1154,7 +1168,7 @@ function getParticipantTabs(meta) {
 
 function renderParticipantModule(tab) {
   if ((mode === "faculty" || mode === "observer") && tab === "evaluations") return renderEvaluationTab();
-  if (tab === "schedule") return renderScheduleReadOnly(confData.schedule);
+  if (tab === "schedule") return renderLevelHeader() + renderScheduleReadOnly(filterScheduleForViewer(confData.schedule));
   if (tab === "quiz") return renderQuizTab();
   if (tab === "evaluations") return renderEvaluationTab();
   if (tab === "conferenceFeedback") return renderConferenceFeedbackTab();
@@ -1164,7 +1178,7 @@ function renderParticipantModule(tab) {
   const top = `<h2 style="color:var(--pf-theme)">${escHtml(heading)}</h2>${c.intro ? `<p class="content-intro">${escHtml(c.intro)}</p>` : ''}${c.image ? `<img class="content-image" src="${c.image}" alt="${escHtml(heading)}">` : ''}`;
   if (tab === 'map') return `${top}${c.address ? `<div class="info-card"><h3>Venue</h3><p>${escHtml(c.address)}</p></div>` : emptyModule()}`;
   if (tab === 'handsOn') {
-    return top + renderHandsOnAssignment(c);
+    return top + renderLevelHeader() + renderHandsOnAssignment(c);
   }
   if (tab === 'industry') {
     const booths=Array.isArray(c.booths)?c.booths:parseRows(c.items).map(r=>({name:r[0],description:r[1],website:r[2],image:''}));
@@ -1190,6 +1204,78 @@ function safeUrl(url) { const s=String(url||''); return /^https?:\/\//i.test(s) 
 function contactCard(title,name,phone,email) { if(!name&&!phone&&!email)return ''; return `<div class="info-card"><h3>${escHtml(title)}</h3>${name?`<p><strong>${escHtml(name)}</strong></p>`:''}${phone?`<p>☎ ${escHtml(phone)}</p>`:''}${email?`<p>✉ <a href="mailto:${escHtml(email)}">${escHtml(email)}</a></p>`:''}</div>`; }
 function balancedBucket(position,total,buckets){const base=Math.floor(total/buckets),extra=total%buckets,small=buckets-extra;let start=1;for(let b=0;b<buckets;b++){const size=base+(b>=small?1:0),end=start+size-1;if(position>=start&&position<=end)return b;start=end+1;}return Math.max(0,buckets-1);}
 function bucketMembers(bucket,total,buckets,offset=0){const out=[];for(let p=1;p<=total;p++)if(balancedBucket(p,total,buckets)===bucket)out.push(p+offset);return out;}
+
+// ── Participant levels (e.g. Advanced / Medium / Basic) ───────────────
+// meta.levels = [{id,name}], meta.levelAssignments = {"<participantNr>": "<levelId>"}.
+// Schedule items and breakout sessions carry an optional levelId. With
+// levels in use, a participant only sees items for their own level (plus
+// any item without a level), and breakout groups are only ever formed
+// among the participants assigned to that session's level.
+function curMeta() { return (mode === 'organizer' && editMeta) ? editMeta : ((confData && confData.meta) || {}); }
+function levelCtx() { const m = curMeta(); return { levels: Array.isArray(m.levels) ? m.levels : [], assign: m.levelAssignments || {} }; }
+function hasLevels() { return levelCtx().levels.length > 0; }
+function levelName(id) { const l = levelCtx().levels.find(x => x.id === id); return l ? l.name : ''; }
+function participantLevelId(nr) { return levelCtx().assign[String(nr)] || ''; }
+function rangeList(total, offset = 0) { return Array.from({ length: Math.max(0, total) }, (_, i) => i + 1 + offset); }
+function levelParticipants(levelId) {
+  const assign = levelCtx().assign, total = Number(curMeta().participantCount) || 0, out = [];
+  for (let i = 1; i <= total; i++) if (assign[String(i)] === levelId) out.push(i);
+  return out;
+}
+// Returns a predicate: "may the current viewer see an item of this level?"
+function visibleLevelFilter() {
+  if (!hasLevels()) return () => true;
+  if (mode === 'participant') { const mine = participantLevelId(loginNr); return id => !id || id === mine; }
+  return id => !viewLevel || !id || id === viewLevel;
+}
+function filterScheduleForViewer(schedule) { const vis = visibleLevelFilter(); return (schedule || []).filter(s => vis(s.levelId)); }
+function setViewLevel(id) { viewLevel = id; rerenderParticipantScroll(); }
+function renderLevelHeader() {
+  if (!hasLevels()) return '';
+  if (mode === 'participant') {
+    const id = participantLevelId(loginNr);
+    return id
+      ? `<div class="level-banner">Your level: <b>${escHtml(levelName(id))}</b></div>`
+      : `<div class="level-banner level-warn">You haven't been placed in a level yet — please ask the organizer. Only items for everyone are shown below.</div>`;
+  }
+  const { levels } = levelCtx();
+  return `<div class="level-chips">${[['', 'All levels']].concat(levels.map(l => [l.id, l.name])).map(([id, name]) => `<button class="level-chip ${viewLevel === id ? 'active' : ''}" onclick="setViewLevel('${escHtml(id)}')">${escHtml(name)}</button>`).join('')}</div>`;
+}
+function levelTag(hs) { return (hasLevels() && hs && hs.levelId && mode !== 'participant') ? `${escHtml(levelName(hs.levelId))} · ` : ''; }
+// Who gets split into groups for a session: faculty always as one pool;
+// participants as everyone — or only the session's level members.
+function breakoutPool(hs, role) {
+  const m = curMeta();
+  if (role === 'faculty') return rangeList(Number(m.facultyCount) || 0, 999);
+  if (hasLevels() && hs && hs.levelId) return levelParticipants(hs.levelId);
+  return rangeList(Number(m.participantCount) || 0, 0);
+}
+function seededShuffledList(list, seed) {
+  const arr = list.slice(), rand = mulberry32(seed);
+  for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+  return arr;
+}
+function groupIndexInPool(nr, pool, groupCount, seed) {
+  const pos = seededShuffledList(pool, seed).indexOf(Number(nr));
+  return pos === -1 ? -1 : balancedBucket(pos + 1, pool.length, groupCount);
+}
+function effectiveGroupIndexInPool(nr, pool, groupCount, seed, overrides) {
+  if (pool.indexOf(Number(nr)) === -1) return -1;
+  const ov = overrides && overrides[String(nr)];
+  if (ov !== undefined && ov !== null && ov !== "") { const g = Number(ov); if (Number.isInteger(g) && g >= 0 && g < groupCount) return g; }
+  return groupIndexInPool(nr, pool, groupCount, seed);
+}
+function effectiveGroupMembersInPool(groupIdx, pool, groupCount, seed, overrides) {
+  return pool.filter(nr => effectiveGroupIndexInPool(nr, pool, groupCount, seed, overrides) === groupIdx);
+}
+// Station-rotation bucket for a participant, among their level if the session has one.
+function rotationBucket(hs, n) {
+  if (hasLevels() && hs.levelId) {
+    const pool = levelParticipants(hs.levelId), pos = pool.indexOf(Number(loginNr));
+    return pos === -1 ? 0 : balancedBucket(pos + 1, pool.length, n);
+  }
+  return balancedBucket(Number(loginNr), Number(confData.meta.participantCount) || 0, n);
+}
 
 // ── Breakout groups: a seeded, reproducible shuffle ───────────────────
 // Given the same seed, this always produces the same grouping — that's
@@ -1270,7 +1356,8 @@ function personLabel(nr, namesMap) {
 function minutesOf(t){const m=String(t||'').match(/^(\d{1,2}):(\d{2})$/);return m?Number(m[1])*60+Number(m[2]):0;}
 function timeOf(m){return `${String(Math.floor(m/60)%24).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;}
 function renderHandsOnAssignment(c){
-  const sessions=normalizeDisplayHandsOn(c);if(!sessions.length)return emptyModule();
+  const visLevel=visibleLevelFilter();
+  const sessions=normalizeDisplayHandsOn(c).filter(hs=>visLevel(hs.levelId));if(!sessions.length)return emptyModule();
   if(c.mode==='breakout'){
     if(mode==='faculty')return sessions.map((hs,si)=>renderFacultyBreakoutSession(hs,si)).join('');
     return sessions.map((hs,si)=>renderParticipantBreakoutSession(hs,si)).join('');
@@ -1290,27 +1377,28 @@ function renderFacultyHandsOnSession(hs,sessionIndex){const stations=(hs.station
 // organizer override always wins over the computed seed position).
 function renderParticipantBreakoutSession(hs,sessionIndex){
   const n=Number(hs.groupCount)||0; if(!n||!hs.groupSeed) return '';
-  const total=Number(confData.meta.participantCount)||0;
+  const pool=breakoutPool(hs,'participant');
   const overrides=hs.overrides||{};
   const names=namesLookup(confData.moduleContent&&confData.moduleContent.handsOn);
-  const groupIdx=effectiveBreakoutGroupIndex(Number(loginNr),total,n,hs.groupSeed,0,overrides);
-  const members=effectiveBreakoutGroupMembers(groupIdx,total,n,hs.groupSeed,0,overrides).filter(x=>x!==Number(loginNr));
+  const groupIdx=effectiveGroupIndexInPool(Number(loginNr),pool,n,hs.groupSeed,overrides);
+  if(groupIdx<0) return '';
+  const members=effectiveGroupMembersInPool(groupIdx,pool,n,hs.groupSeed,overrides).filter(x=>x!==Number(loginNr));
   return `<details class="breakout-session-card"><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">Your group: Group ${groupIdx+1}</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${members.length?`<p style="margin-top:14px"><strong>With you:</strong> ${members.map(x=>personLabel(x,names)).join(', ')}</p>`:''}</div></div></details>`;
 }
 function renderFacultyBreakoutSession(hs,sessionIndex){
   const n=Number(hs.groupCount)||0; if(!n||!hs.groupSeed) return '';
-  const total=Number(confData.meta.facultyCount)||0;
+  const fPool=breakoutPool(hs,'faculty'), pPool=breakoutPool(hs,'participant');
   const facultyPosition=Number(loginNr);
   const overrides=hs.overrides||{};
   const names=namesLookup(confData.moduleContent&&confData.moduleContent.handsOn);
-  const groupIdx=effectiveBreakoutGroupIndex(facultyPosition,total,n,hs.groupSeed,999,overrides);
-  const colleagues=effectiveBreakoutGroupMembers(groupIdx,total,n,hs.groupSeed,999,overrides).filter(x=>x!==facultyPosition);
-  const pTotal=Number(confData.meta.participantCount)||0;
-  const participants=effectiveBreakoutGroupMembers(groupIdx,pTotal,n,hs.groupSeed,0,overrides);
-  return `<details class="breakout-session-card"><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">Your group: Group ${groupIdx+1}</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${colleagues.length?`<p style="margin-top:14px"><strong>Faculty with you:</strong> ${colleagues.map(x=>personLabel(x,names)).join(', ')}</p>`:''}${participants.length?`<p style="margin-top:8px"><strong>Participants in this group:</strong> ${participants.map(x=>personLabel(x,names)).join(', ')}</p>`:''}</div></div></details>`;
+  const groupIdx=effectiveGroupIndexInPool(facultyPosition,fPool,n,hs.groupSeed,overrides);
+  if(groupIdx<0) return '';
+  const colleagues=effectiveGroupMembersInPool(groupIdx,fPool,n,hs.groupSeed,overrides).filter(x=>x!==facultyPosition);
+  const participants=effectiveGroupMembersInPool(groupIdx,pPool,n,hs.groupSeed,overrides);
+  return `<details class="breakout-session-card"><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">${levelTag(hs)}Your group: Group ${groupIdx+1}</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${colleagues.length?`<p style="margin-top:14px"><strong>Faculty with you:</strong> ${colleagues.map(x=>personLabel(x,names)).join(', ')}</p>`:''}${participants.length?`<p style="margin-top:8px"><strong>Participants in this group:</strong> ${participants.map(x=>personLabel(x,names)).join(', ')}</p>`:''}</div></div></details>`;
 }
-function renderParticipantHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=balancedBucket(Number(loginNr),total,n);let cards='';for(let r=0;r<n;r++){const from=start+r*step,to=Math.min(from+step,end),station=stations[(group+sessionIndex+r)%n]||{};if(from>=end)break;cards+=`<div class="info-card"><h3>${escHtml(station.name||'Station')}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${timeOf(from)}–${timeOf(to)}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(station.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(station.stand||'TBA')}</strong></div></div></div>`;}return `<details class="breakout-session-card"><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">Rotation schedule</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}${cards}</div></details>`;}
-function renderNextUpAcrossSessions(sessions){const now=new Date();let chosen=null;for(let si=0;si<sessions.length;si++){const d=sessionDates(sessions[si]);if(!d)continue;if(now<d.to){chosen={hs:sessions[si],si,d};break;}}if(!chosen)return `<div class="next-up-card" style="background:#41708f"><div class="next-label">BREAKOUT SESSIONS</div><h2>All rotations completed</h2></div>`;const hs=chosen.hs,stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length,step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=balancedBucket(Number(loginNr),total,n);return renderNextUpCard(hs,stations,group,n,chosen.d.start,chosen.d.end,step,chosen.si);}
+function renderParticipantHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=rotationBucket(hs,n);let cards='';for(let r=0;r<n;r++){const from=start+r*step,to=Math.min(from+step,end),station=stations[(group+sessionIndex+r)%n]||{};if(from>=end)break;cards+=`<div class="info-card"><h3>${escHtml(station.name||'Station')}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${timeOf(from)}–${timeOf(to)}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(station.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(station.stand||'TBA')}</strong></div></div></div>`;}return `<details class="breakout-session-card"><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">Rotation schedule</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}${cards}</div></details>`;}
+function renderNextUpAcrossSessions(sessions){const now=new Date();let chosen=null;for(let si=0;si<sessions.length;si++){const d=sessionDates(sessions[si]);if(!d)continue;if(now<d.to){chosen={hs:sessions[si],si,d};break;}}if(!chosen)return `<div class="next-up-card" style="background:#41708f"><div class="next-label">BREAKOUT SESSIONS</div><h2>All rotations completed</h2></div>`;const hs=chosen.hs,stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length,step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=rotationBucket(hs,n);return renderNextUpCard(hs,stations,group,n,chosen.d.start,chosen.d.end,step,chosen.si);}
 function renderNextUpCard(c,stations,group,n,start,end,step,sessionIndex=0){
   const now=new Date(), base=c.date?new Date(`${c.date}T00:00:00`):null;
   if(!base||isNaN(base)||!n)return `<div class="next-up-card"><div class="next-label">NEXT UP</div><h2>Breakout session schedule TBA</h2></div>`;
@@ -1358,6 +1446,9 @@ function doOrganizerLogin() {
 
 function enterOrganizerMode() {
   editMeta = Object.assign({}, confData.meta);
+  editMeta.levels = JSON.parse(JSON.stringify(confData.meta.levels || []));
+  editMeta.levelAssignments = Object.assign({}, confData.meta.levelAssignments || {});
+  editScheduleLevelFilter = ''; levelBulk = { levelId: '', text: '', message: '' };
   editOpenSessions = {};
   editOpenListItems = {};
   if(!editMeta.branding) editMeta.branding = {logo:"", size:"medium", position:"left"};
@@ -1432,7 +1523,7 @@ function renderScheduleReadOnly(schedule) {
       <div class="day-label">${formatDateLabel(date)}</div>
       ${byDay[date].map(s => `
         <div class="session-card">
-          <div class="time">${escHtml(formatSessionTimeRange(s))}</div>
+          <div class="time">${escHtml(formatSessionTimeRange(s))}${s.levelId && hasLevels() && mode !== 'participant' ? `<span class="level-badge">${escHtml(levelName(s.levelId))}</span>` : ''}</div>
           <div class="title">${escHtml(s.title)}</div>
           ${s.speaker ? `<div class="speaker">${escHtml(s.speaker)}</div>` : ""}
         </div>
@@ -1449,7 +1540,7 @@ function formatSessionTimeRange(s) {
   return s.endTime ? `${start}–${s.endTime}` : start;
 }
 
-function newEditScheduleItem() { return { startTime: "", endTime: "", title: "", speaker: "" }; }
+function newEditScheduleItem() { return { startTime: "", endTime: "", title: "", speaker: "", levelId: editScheduleLevelFilter || "" }; }
 
 // Turns the day-grouped editor state back into the flat sessions array
 // the backend and participant-facing schedule expect — one entry per
@@ -1465,6 +1556,7 @@ function flattenScheduleDays(days) {
         endTime: item.endTime || "",
         title: item.title.trim(),
         speaker: (item.speaker || "").trim(),
+        levelId: item.levelId || "",
       });
     });
   });
@@ -1486,6 +1578,7 @@ function groupSessionsIntoDays(sessions) {
       endTime: s.endTime || "",
       title: s.title || "",
       speaker: s.speaker || "",
+      levelId: s.levelId || "",
     });
   });
   order.sort();
@@ -1807,8 +1900,10 @@ function renderOrganizerEditor() {
   if (organizerTab === 'schedule') {
     return `
       <div class="editor-tab-content">
+        ${renderLevelsEditor()}
         <div class="mini-label" style="margin:0 0 12px;font-size:12px;">Schedule</div>
-        <div class="field-hint" style="margin:0 0 14px;">Add a day, then add the activities that happen on it. Schedule can be changed at any time after the conference has been created.</div>
+        <div class="field-hint" style="margin:0 0 14px;">Add a day, then add the activities that happen on it. Schedule can be changed at any time after the conference has been created.${hasLevels() ? ' With levels in use, give every activity a level — participants only see their own level\'s schedule.' : ''}</div>
+        ${renderScheduleLevelFilter()}
         ${editScheduleDays.map((day, di) => `
           <div class="session-edit-row">
             <div class="row-actions">
@@ -1820,7 +1915,7 @@ function renderOrganizerEditor() {
             <input type="date" value="${escHtml(day.date)}" oninput="onEditScheduleDayDate(${di},this.value)">
 
             ${day.items.map((item, ii) => `
-              <div class="quiz-edit-row" style="margin-top:10px;">
+              <div class="quiz-edit-row" style="margin-top:10px;${editScheduleLevelFilter && item.levelId !== editScheduleLevelFilter ? 'display:none;' : ''}">
                 <div class="row-actions">
                   <button class="move-btn" title="Move activity up" ${ii===0?'disabled':''} onclick="moveEditScheduleItem(${di},${ii},-1)">▲</button>
                   <button class="move-btn" title="Move activity down" ${ii===day.items.length-1?'disabled':''} onclick="moveEditScheduleItem(${di},${ii},1)">▼</button>
@@ -1844,6 +1939,7 @@ function renderOrganizerEditor() {
                   <span class="mini-label">Speaker / location</span>
                   <input type="text" value="${escHtml(item.speaker)}" oninput="onEditScheduleItem(${di},${ii},'speaker',this.value)">
                 </div>
+                ${renderScheduleItemLevel(di,ii,item)}
               </div>
             `).join("")}
             <button class="add-btn" onclick="addEditScheduleItem(${di})" style="margin-top:10px;">+ Add activity to this day</button>
@@ -2222,7 +2318,7 @@ function normalizeEditHandsOn(c){
       ? [{date:c.date||'',startTime:c.startTime||'09:00',endTime:c.endTime||'11:30',groupCount:c.groupCount||5,groupAssignment:'randomize',groupSeed:newBreakoutSeed(),topic:c.topic||'',overrides:{}}]
       : [{date:c.date||'',startTime:c.startTime||'09:00',endTime:c.endTime||'11:30',rotationMinutes:c.rotationMinutes||30,stationCount:c.stationCount||5,topic:c.topic||'',stations:c.stations||newEditHandsOnSession().stations}];
   }
-  c.sessions.forEach(s=>{if(s.topic===undefined)s.topic='';if(c.mode==='breakout'&&!s.overrides)s.overrides={};});
+  c.sessions.forEach(s=>{if(s.topic===undefined)s.topic='';if(s.levelId===undefined)s.levelId='';if(c.mode==='breakout'&&!s.overrides)s.overrides={};});
   return c;
 }
 // Switching mode replaces the sessions with a single, blank session in
@@ -2255,7 +2351,7 @@ function onMoveBreakoutMember(si, nr, groupIdxRaw){
   if (!s.overrides) s.overrides = {};
   const groupIdx = parseInt(groupIdxRaw, 10);
   const n = Number(s.groupCount) || 0;
-  const baseIdx = breakoutGroupIndex(nr, nr > 999 ? (Number(editMeta.facultyCount)||0) : (Number(editMeta.participantCount)||0), n, s.groupSeed, nr > 999 ? 999 : 0);
+  const baseIdx = groupIndexInPool(nr, breakoutPool(s, nr > 999 ? 'faculty' : 'participant'), n, s.groupSeed);
   if (groupIdx === baseIdx) delete s.overrides[String(nr)];
   else s.overrides[String(nr)] = groupIdx;
   rerenderOrganizerScroll();
@@ -2323,15 +2419,15 @@ function renderBreakoutGroupManager(si) {
   const hs = editModuleContent.handsOn.sessions[si];
   const n = Number(hs.groupCount) || 0;
   if (n < 1 || !hs.groupSeed) return '';
-  const pTotal = Number(editMeta.participantCount) || 0;
-  const fTotal = Number(editMeta.facultyCount) || 0;
+  const pPool = breakoutPool(hs, 'participant');
+  const fPool = breakoutPool(hs, 'faculty');
   const overrides = hs.overrides || {};
   const names = namesLookup(editModuleContent.handsOn);
   const groupOptions = (current) => Array.from({length:n},(_,gi)=>`<option value="${gi}" ${gi===current?'selected':''}>Group ${gi+1}</option>`).join('');
   const blocks = [];
   for (let g = 0; g < n; g++) {
-    const pMembers = effectiveBreakoutGroupMembers(g, pTotal, n, hs.groupSeed, 0, overrides);
-    const fMembers = fTotal > 0 ? effectiveBreakoutGroupMembers(g, fTotal, n, hs.groupSeed, 999, overrides) : [];
+    const pMembers = effectiveGroupMembersInPool(g, pPool, n, hs.groupSeed, overrides);
+    const fMembers = effectiveGroupMembersInPool(g, fPool, n, hs.groupSeed, overrides);
     const rows = pMembers.concat(fMembers).map(nr => `
       <div class="group-member-row">
         <span>${personLabel(nr, names)}</span>
@@ -2358,17 +2454,17 @@ function renderOrganizerModuleContent(module) {
     if(c.mode==='breakout'){
       specific = modeToggle + `${c.sessions.map((hs,si)=>{
         const key=`handsOn-breakout-${si}`;
-        const label=`Session ${si+1}${hs.date?' · '+escHtml(hs.date):''}${hs.startTime?' · '+escHtml(hs.startTime)+(hs.endTime?'–'+escHtml(hs.endTime):''):''}${hs.groupCount?' · '+hs.groupCount+' groups':''}`;
+        const label=`Session ${si+1}${hs.levelId&&hasLevels()?' · '+escHtml(levelName(hs.levelId)):''}${hs.date?' · '+escHtml(hs.date):''}${hs.startTime?' · '+escHtml(hs.startTime)+(hs.endTime?'–'+escHtml(hs.endTime):''):''}${hs.groupCount?' · '+hs.groupCount+' groups':''}`;
         const removeBtn=c.sessions.length>1?`<button class="remove-btn" onclick="event.stopPropagation();event.preventDefault();removeEditBreakoutSession(${si})">✕</button>`:'';
-        const body=`<div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditBreakoutSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of groups</label><input type="number" min="1" max="50" value="${hs.groupCount}" onchange="onEditBreakoutGroupCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditBreakoutSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditBreakoutSession(${si},'endTime',this.value)"></div></div>${si>0?`<div class="field-group"><label>Group assignment</label><div class="segmented"><div class="segmented-btn ${hs.groupAssignment==='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'keep')">Keep same groups</div><div class="segmented-btn ${hs.groupAssignment!=='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'randomize')">New random groups</div></div><div class="field-hint">"Keep same groups" reuses the grouping from Session ${si}.</div></div>`:''}${renderBreakoutGroupManager(si)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditBreakoutSession(${si},'topic',this.value);this.parentElement.querySelector('.topic-preview-text').textContent=this.value;">${escHtml(hs.topic||'')}</textarea><div class="topic-preview"><div class="topic-preview-label">Preview — shown under the session date</div><p class="topic-preview-text">${escHtml(hs.topic||'')}</p></div></div></details>`;
+        const body=`${renderSessionLevelSelect(si)}<div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditBreakoutSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of groups</label><input type="number" min="1" max="50" value="${hs.groupCount}" onchange="onEditBreakoutGroupCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditBreakoutSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditBreakoutSession(${si},'endTime',this.value)"></div></div>${si>0?`<div class="field-group"><label>Group assignment</label><div class="segmented"><div class="segmented-btn ${hs.groupAssignment==='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'keep')">Keep same groups</div><div class="segmented-btn ${hs.groupAssignment!=='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'randomize')">New random groups</div></div><div class="field-hint">"Keep same groups" reuses the grouping from Session ${si}.</div></div>`:''}${renderBreakoutGroupManager(si)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditBreakoutSession(${si},'topic',this.value);this.parentElement.querySelector('.topic-preview-text').textContent=this.value;">${escHtml(hs.topic||'')}</textarea><div class="topic-preview"><div class="topic-preview-label">Preview — shown under the session date</div><p class="topic-preview-text">${escHtml(hs.topic||'')}</p></div></div></details>`;
         return `<details class="session-collapsible" ${editOpenSessions[key]?'open':''} ontoggle="if(this.open){editOpenSessions['${key}']=true}else{delete editOpenSessions['${key}']}"><summary>${label}${removeBtn}</summary><div class="session-collapsible-body">${body}</div></details>`;
       }).join('')}<button class="add-btn" onclick="addEditBreakoutSession()">+ Add another session</button>`;
     } else {
       specific = modeToggle + `${c.sessions.map((hs,si)=>{
         const key=`handsOn-rotation-${si}`;
-        const label=`Session ${si+1}${hs.date?' · '+escHtml(hs.date):''}${hs.startTime?' · '+escHtml(hs.startTime)+(hs.endTime?'–'+escHtml(hs.endTime):''):''}${hs.stationCount?' · '+hs.stationCount+' stations':''}`;
+        const label=`Session ${si+1}${hs.levelId&&hasLevels()?' · '+escHtml(levelName(hs.levelId)):''}${hs.date?' · '+escHtml(hs.date):''}${hs.startTime?' · '+escHtml(hs.startTime)+(hs.endTime?'–'+escHtml(hs.endTime):''):''}${hs.stationCount?' · '+hs.stationCount+' stations':''}`;
         const removeBtn=c.sessions.length>1?`<button class="remove-btn" onclick="event.stopPropagation();event.preventDefault();removeEditHandsOnSession(${si})">✕</button>`:'';
-        const body=`<div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onEditHandsOnCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onEditHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-edit-row"><span class="mini-label">Station ${i+1}</span><input value="${escHtml(s.name)}" oninput="onEditHandsOnStation(${si},${i},'name',this.value)"><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onEditHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onEditHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}${renderHandsOnGroupOverview(hs.stationCount,hs.stations)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditHandsOnSession(${si},'topic',this.value);this.parentElement.querySelector('.topic-preview-text').textContent=this.value;">${escHtml(hs.topic||'')}</textarea><div class="topic-preview"><div class="topic-preview-label">Preview — shown under the session date</div><p class="topic-preview-text">${escHtml(hs.topic||'')}</p></div></div></details>`;
+        const body=`${renderSessionLevelSelect(si)}<div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditHandsOnSession(${si},'date',this.value)"></div><div class="field-group"><label>Stations</label><input type="number" min="1" max="30" value="${hs.stationCount}" onchange="onEditHandsOnCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditHandsOnSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditHandsOnSession(${si},'endTime',this.value)"></div><div class="field-group"><label>Minutes</label><input type="number" min="5" step="5" value="${hs.rotationMinutes}" oninput="onEditHandsOnSession(${si},'rotationMinutes',parseInt(this.value)||30)"></div></div>${(hs.stations||[]).map((s,i)=>`<div class="session-edit-row"><span class="mini-label">Station ${i+1}</span><input value="${escHtml(s.name)}" oninput="onEditHandsOnStation(${si},${i},'name',this.value)"><div class="field-row"><div class="field-group"><label>Room</label><input value="${escHtml(s.room)}" oninput="onEditHandsOnStation(${si},${i},'room',this.value)"></div><div class="field-group"><label>Stand</label><input value="${escHtml(s.stand)}" oninput="onEditHandsOnStation(${si},${i},'stand',this.value)"></div></div></div>`).join('')}${renderHandsOnGroupOverview(hs.stationCount,hs.stations)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditHandsOnSession(${si},'topic',this.value);this.parentElement.querySelector('.topic-preview-text').textContent=this.value;">${escHtml(hs.topic||'')}</textarea><div class="topic-preview"><div class="topic-preview-label">Preview — shown under the session date</div><p class="topic-preview-text">${escHtml(hs.topic||'')}</p></div></div></details>`;
         return `<details class="session-collapsible" ${editOpenSessions[key]?'open':''} ontoggle="if(this.open){editOpenSessions['${key}']=true}else{delete editOpenSessions['${key}']}"><summary>${label}${removeBtn}</summary><div class="session-collapsible-body">${body}</div></details>`;
       }).join('')}<button class="add-btn" onclick="addEditHandsOnSession()">+ Add another session</button>`;
     }
@@ -2705,6 +2801,140 @@ function doQuizReset() {
 }
 
 
+// ── Organizer: levels, participant assignment, per-level items ────────
+function newEditLevelId() {
+  const used = new Set((editMeta.levels || []).map(l => l.id));
+  let id; do { id = 'l' + Date.now().toString(36).slice(-6) + Math.floor(Math.random() * 1296).toString(36); } while (used.has(id));
+  return id;
+}
+function addEditLevel() {
+  if (!editMeta.levels) editMeta.levels = [];
+  if (editMeta.levels.length >= 8) { alert('A conference can have at most 8 levels.'); return; }
+  const defaults = ['Advanced', 'Medium', 'Basic'];
+  editMeta.levels.push({ id: newEditLevelId(), name: defaults[editMeta.levels.length] || `Level ${editMeta.levels.length + 1}` });
+  rerenderOrganizerScroll();
+}
+function onEditLevelName(id, name) { const l = (editMeta.levels || []).find(x => x.id === id); if (l) l.name = name; }
+function removeEditLevel(id) {
+  const l = (editMeta.levels || []).find(x => x.id === id);
+  if (!l || !confirm(`Remove the level "${l.name}"? Its participants become unassigned, and its schedule items and breakout sessions lose their level.`)) return;
+  editMeta.levels = editMeta.levels.filter(x => x.id !== id);
+  Object.keys(editMeta.levelAssignments || {}).forEach(nr => { if (editMeta.levelAssignments[nr] === id) delete editMeta.levelAssignments[nr]; });
+  editScheduleDays.forEach(d => d.items.forEach(it => { if (it.levelId === id) it.levelId = ''; }));
+  const hands = editModuleContent.handsOn;
+  if (hands && Array.isArray(hands.sessions)) hands.sessions.forEach(hs => { if (hs.levelId === id) { hs.levelId = ''; hs.overrides = {}; } });
+  if (editScheduleLevelFilter === id) editScheduleLevelFilter = '';
+  rerenderOrganizerScroll();
+}
+function onEditParticipantLevel(nr, levelId) {
+  if (!editMeta.levelAssignments) editMeta.levelAssignments = {};
+  if (levelId) editMeta.levelAssignments[String(nr)] = levelId; else delete editMeta.levelAssignments[String(nr)];
+  rerenderOrganizerScroll();
+}
+// "1-20, 25, 30-35" -> [1..20, 25, 30..35], limited to 1..total
+function parseNumberList(text, total) {
+  const nums = new Set(), bad = [];
+  String(text || '').split(/[\s,;]+/).filter(Boolean).forEach(tok => {
+    const m = tok.match(/^(\d+)(?:-(\d+))?$/);
+    if (!m) { bad.push(tok); return; }
+    let a = parseInt(m[1], 10), b = m[2] ? parseInt(m[2], 10) : a;
+    if (a > b) [a, b] = [b, a];
+    if (a < 1 || b > total) { bad.push(tok); return; }
+    for (let i = a; i <= b; i++) nums.add(i);
+  });
+  return { nums: Array.from(nums).sort((x, y) => x - y), bad };
+}
+function applyLevelBulk() {
+  const total = Number(editMeta.participantCount) || 0;
+  if (!levelBulk.levelId) { levelBulk.message = 'Choose a level (or "Remove level") first.'; rerenderOrganizerScroll(); return; }
+  const { nums, bad } = parseNumberList(levelBulk.text, total);
+  if (!nums.length) { levelBulk.message = `Enter participant numbers between 1 and ${total}, e.g. 1-20, 25, 30-35.`; rerenderOrganizerScroll(); return; }
+  if (!editMeta.levelAssignments) editMeta.levelAssignments = {};
+  nums.forEach(nr => { if (levelBulk.levelId === '__none') delete editMeta.levelAssignments[String(nr)]; else editMeta.levelAssignments[String(nr)] = levelBulk.levelId; });
+  const target = levelBulk.levelId === '__none' ? 'no level' : levelName(levelBulk.levelId);
+  levelBulk.message = `${nums.length} participant${nums.length === 1 ? '' : 's'} set to ${target}.${bad.length ? ' Ignored: ' + bad.join(', ') + '.' : ''}`;
+  levelBulk.text = '';
+  rerenderOrganizerScroll();
+}
+function renderLevelsEditor() {
+  const { levels, assign } = levelCtx();
+  const total = Number(editMeta.participantCount) || 0;
+  const counts = {}; levels.forEach(l => counts[l.id] = 0);
+  let unassigned = 0;
+  for (let i = 1; i <= total; i++) { const lv = assign[String(i)]; if (lv && counts[lv] !== undefined) counts[lv]++; else unassigned++; }
+  const rows = levels.map(l => `<div class="level-row"><input type="text" maxlength="40" value="${escHtml(l.name)}" oninput="onEditLevelName('${escHtml(l.id)}',this.value)"><span class="level-count">${counts[l.id]} participant${counts[l.id] === 1 ? '' : 's'}</span><button class="remove-btn" style="position:static;" title="Remove level" onclick="removeEditLevel('${escHtml(l.id)}')">✕</button></div>`).join('');
+  let assignTool = '';
+  if (levels.length) {
+    const names = namesLookup(editModuleContent && editModuleContent.handsOn);
+    const opt = (cur) => `<option value="">—</option>${levels.map(l => `<option value="${escHtml(l.id)}" ${cur === l.id ? 'selected' : ''}>${escHtml(l.name)}</option>`).join('')}`;
+    let grid = '';
+    for (let nr = 1; nr <= total; nr++) grid += `<div class="names-grid-item"><span class="names-grid-nr">#${nr}</span><select onchange="onEditParticipantLevel(${nr},this.value)" title="${escHtml(names[String(nr)] || '')}">${opt(assign[String(nr)] || '')}</select></div>`;
+    assignTool = `
+      <div class="field-hint" style="margin:10px 0 6px;">${unassigned ? `<b>${unassigned}</b> of ${total} participants have no level yet.` : 'All participants have a level.'}</div>
+      <div class="field-group"><label>Assign participants to a level</label>
+        <div class="field-row">
+          <div class="field-group"><select onchange="levelBulk.levelId=this.value"><option value="">— choose level —</option>${levels.map(l => `<option value="${escHtml(l.id)}" ${levelBulk.levelId === l.id ? 'selected' : ''}>${escHtml(l.name)}</option>`).join('')}<option value="__none" ${levelBulk.levelId === '__none' ? 'selected' : ''}>Remove level</option></select></div>
+          <div class="field-group"><input type="text" placeholder="e.g. 1-20, 25, 30-35" value="${escHtml(levelBulk.text)}" oninput="levelBulk.text=this.value"></div>
+        </div>
+        <button class="add-btn" onclick="applyLevelBulk()">Assign</button>
+        ${levelBulk.message ? `<div class="field-hint" style="margin-top:6px;">${escHtml(levelBulk.message)}</div>` : ''}
+      </div>
+      <details class="names-role-group"><summary>Set level per participant (${total})</summary><div class="names-grid">${grid}</div></details>`;
+  }
+  return `
+    <div class="mini-label" style="margin:0 0 8px;font-size:12px;">Levels (optional)</div>
+    <div class="field-hint" style="margin:0 0 10px;">Split participants into levels, e.g. Advanced / Medium / Basic. Each level gets its own schedule and its own breakout groups — participants only see and meet their own level. Faculty and observers can switch between all levels. Leave empty to run one common programme.</div>
+    ${rows}
+    <button class="add-btn" onclick="addEditLevel()">+ Add level</button>
+    ${assignTool}
+    <div style="height:1px;background:var(--pf-border);margin:18px 0;"></div>`;
+}
+function renderScheduleLevelFilter() {
+  if (!hasLevels()) return '';
+  const { levels } = levelCtx();
+  return `<div class="level-chips">${[['', 'All levels']].concat(levels.map(l => [l.id, l.name])).map(([id, name]) => `<button class="level-chip ${editScheduleLevelFilter === id ? 'active' : ''}" onclick="editScheduleLevelFilter='${escHtml(id)}';rerenderOrganizerScroll()">${escHtml(name)}</button>`).join('')}</div>`;
+}
+function renderScheduleItemLevel(di, ii, item) {
+  if (!hasLevels()) return '';
+  const { levels } = levelCtx();
+  return `<div style="margin-top:8px;"><span class="mini-label">Level</span>
+    <select onchange="onEditScheduleItemLevel(${di},${ii},this.value)"><option value="">— choose level —</option>${levels.map(l => `<option value="${escHtml(l.id)}" ${item.levelId === l.id ? 'selected' : ''}>${escHtml(l.name)}</option>`).join('')}</select>
+    ${item.levelId && levels.length > 1 ? `<button class="add-btn" style="margin-top:8px;" onclick="duplicateEditScheduleItem(${di},${ii})">Copy to the other levels</button>` : ''}</div>`;
+}
+function onEditScheduleItemLevel(di, ii, val) { editScheduleDays[di].items[ii].levelId = val; rerenderOrganizerScroll(); }
+function duplicateEditScheduleItem(di, ii) {
+  const items = editScheduleDays[di].items, it = items[ii];
+  const others = levelCtx().levels.filter(l => l.id !== it.levelId);
+  if (!others.length || !confirm(`Create copies of this activity for: ${others.map(l => l.name).join(', ')}?`)) return;
+  others.forEach((l, k) => items.splice(ii + 1 + k, 0, Object.assign({}, it, { levelId: l.id })));
+  rerenderOrganizerScroll();
+}
+function renderSessionLevelSelect(si) {
+  if (!hasLevels()) return '';
+  const hs = editModuleContent.handsOn.sessions[si], { levels } = levelCtx();
+  return `<div class="field-group"><label>Level</label>
+    <select onchange="onEditSessionLevel(${si},this.value)"><option value="">Everyone (no level)</option>${levels.map(l => `<option value="${escHtml(l.id)}" ${hs.levelId === l.id ? 'selected' : ''}>${escHtml(l.name)}</option>`).join('')}</select>
+    <div class="field-hint">Only participants at this level see this session and are placed in its groups.</div>
+    ${hs.levelId && levels.length > 1 ? `<button class="add-btn" style="margin-top:6px;" onclick="duplicateSessionToLevels(${si})">Copy session to the other levels</button>` : ''}</div>`;
+}
+function onEditSessionLevel(si, val) {
+  const s = editModuleContent.handsOn.sessions[si];
+  s.levelId = val; s.overrides = {}; // the pool of people changed, so old manual moves no longer apply
+  rerenderOrganizerScroll();
+}
+function duplicateSessionToLevels(si) {
+  const c = editModuleContent.handsOn, s = c.sessions[si];
+  const others = levelCtx().levels.filter(l => l.id !== s.levelId);
+  if (!others.length || !confirm(`Create copies of this session for: ${others.map(l => l.name).join(', ')}? Each gets its own random groups.`)) return;
+  others.forEach((l, k) => {
+    const copy = JSON.parse(JSON.stringify(s));
+    copy.levelId = l.id; copy.overrides = {}; copy.groupAssignment = 'randomize';
+    if (c.mode === 'breakout') copy.groupSeed = newBreakoutSeed();
+    c.sessions.splice(si + 1 + k, 0, copy);
+  });
+  rerenderOrganizerScroll();
+}
+
 function onEditMeta(key, val) { editMeta[key] = val; }
 
 function onEditThemeColor(hex) {
@@ -2793,6 +3023,10 @@ function saveOrganizerChanges() {
       return;
     }
   }
+  if (hasLevels()) {
+    const noLevel = editScheduleDays.some(d => d.items.some(it => it.title && it.title.trim() && !it.levelId));
+    if (noLevel && !confirm('Some schedule activities have no level, so they will be shown to everyone. Save anyway?')) return;
+  }
   saveStatus = "Saving…"; saveStatusIsError = false;
   rerenderOrganizerScroll();
 
@@ -2806,6 +3040,8 @@ function saveOrganizerChanges() {
     participantCount: editMeta.participantCount,
     facultyCount: editMeta.facultyCount,
     observerCount: editMeta.observerCount,
+    levels: editMeta.levels || [],
+    levelAssignments: editMeta.levelAssignments || {},
     branding: editMeta.branding || {logo:""},
     modules: editMeta.modules,
     moduleContent: editModuleContent,
