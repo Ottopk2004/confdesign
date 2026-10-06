@@ -1931,6 +1931,10 @@ function decideSignup(id, action) {
       if (!r.ok) throw new Error(d.error || 'Server error');
       // Keep the editor in step with what the server just changed.
       if (d.levelAssignments) { editMeta.levelAssignments = Object.assign({}, d.levelAssignments); confData.meta.levelAssignments = Object.assign({}, d.levelAssignments); }
+      if (Array.isArray(d.names) && editModuleContent && editModuleContent.handsOn) {
+        editModuleContent.handsOn.names = d.names.map(n => Object.assign({}, n));
+        if (confData.moduleContent && confData.moduleContent.handsOn) confData.moduleContent.handsOn.names = d.names.map(n => Object.assign({}, n));
+      }
       const hs = editModuleContent && editModuleContent.handsOn && editModuleContent.handsOn.sessions;
       if (d.breakoutState && hs && hs.length === d.breakoutState.length) {
         d.breakoutState.forEach((st, i) => { hs[i].overrides = st.overrides; hs[i].locked = st.locked; });
@@ -2079,6 +2083,10 @@ function renderOrganizerEditor() {
           Faculty log in with ${escHtml(editMeta.slug.toUpperCase())} + 1000–${1000 + (editMeta.facultyCount || 0) - 1}.
           Observers log in with ${escHtml(editMeta.slug.toUpperCase())} + 2000–${2000 + (editMeta.observerCount || 0) - 1}.
         </div>
+
+        <div style="height:1px;background:var(--pf-border);margin:6px 0 18px;"></div>
+        ${renderLevelsEditor()}
+        ${renderEditNamesEditor()}
       </div>
       ${saveButton}`;
   }
@@ -2086,7 +2094,6 @@ function renderOrganizerEditor() {
   if (organizerTab === 'schedule') {
     return `
       <div class="editor-tab-content">
-        ${renderLevelsEditor()}
         <div class="mini-label" style="margin:0 0 12px;font-size:12px;">Schedule</div>
         <div class="field-hint" style="margin:0 0 14px;">Add a day, then add the activities that happen on it. Schedule can be changed at any time after the conference has been created.${hasLevels() ? ' With levels in use, give every activity a level — participants only see their own level\'s schedule.' : ''}</div>
         ${renderScheduleLevelFilter()}
@@ -2501,7 +2508,7 @@ function renderEditNamesEditor(){
   const fCount = Number(editMeta.facultyCount) || 0;
   const oCount = Number(editMeta.observerCount) || 0;
   const body = renderNamesRoleGroup('Participants', 1, pCount) + renderNamesRoleGroup('Faculty', 1000, fCount) + renderNamesRoleGroup('Observers', 2000, oCount);
-  return `<details class="topic-toggle" style="margin-top:16px"><summary>Participant &amp; faculty names (optional)</summary><div class="topic-body"><div class="field-hint" style="margin-bottom:10px">A box for every number open under Access. Type a name where you want one shown in breakout sessions — leave the rest blank to just show the number.</div>${body || '<div class="field-hint">Set participant/faculty/observer numbers under Access first.</div>'}</div></details>`;
+  return `<details class="topic-toggle" style="margin-top:16px"><summary>Participant &amp; faculty names (optional)</summary><div class="topic-body"><div class="field-hint" style="margin-bottom:10px">A box for every number open under Access. Type a name where you want one shown in breakout sessions and on certificates. People who register are added automatically when you approve them. Leave the rest blank to just show the number.</div>${body || '<div class="field-hint">Set participant/faculty/observer numbers under Access first.</div>'}</div></details>`;
 }
 function normalizeEditHandsOn(c){
   if(!c.mode) c.mode = 'rotation';
@@ -2661,7 +2668,6 @@ function renderOrganizerModuleContent(module) {
         return `<details class="session-collapsible" ${editOpenSessions[key]?'open':''} ontoggle="if(this.open){editOpenSessions['${key}']=true}else{delete editOpenSessions['${key}']}"><summary>${label}${removeBtn}</summary><div class="session-collapsible-body">${body}</div></details>`;
       }).join('')}<button class="add-btn" onclick="addEditHandsOnSession()">+ Add another session</button>`;
     }
-    specific += renderEditNamesEditor();
   }
   if(module==='map') specific=`<div class="field-group"><label>Address</label><input value="${escHtml(c.address)}" oninput="onEditModuleContent('map','address',this.value)"></div>${renderOrganizerImage('map')}`;
   if(module==='conferenceFeedback'){
@@ -2847,7 +2853,7 @@ function renderCertificatesTab(){
     <div class="mini-label" style="margin:26px 0 8px;font-size:12px;">Send to one person</div>
     <div class="field-row">
       <div class="field-group"><label>Number</label><input type="text" inputmode="numeric" value="${escHtml(certSendState.nr)}" oninput="onCertSendField('nr',this.value.replace(/\\D/g,''))"></div>
-      <div class="field-group"><label>Name (optional)</label><input type="text" value="${escHtml(certSendState.name)}" placeholder="e.g. Jane Doe" oninput="onCertSendField('name',this.value)"></div>
+      <div class="field-group"><label>Name (optional — taken from registration / names if empty)</label><input type="text" value="${escHtml(certSendState.name)}" placeholder="e.g. Jane Doe" oninput="onCertSendField('name',this.value)"></div>
     </div>
     <div class="field-row">
       <div class="field-group"><label>Date</label><input type="text" value="${escHtml(certSendState.date)}" placeholder="e.g. 10 June 2026" oninput="onCertSendField('date',this.value)"></div>
