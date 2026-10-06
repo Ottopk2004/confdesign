@@ -1004,10 +1004,10 @@ function render() {
         <div class="tab-bar organizer-editor-tabs" id="tabBar" onscroll="checkTabBarOverflow()">
           <div class="tab-btn ${organizerTab==='general'?'active':''}" data-organizer-tab="general" onclick="setOrganizerTab('general')">General</div>
           <div class="tab-btn ${organizerTab==='schedule'?'active':''}" data-organizer-tab="schedule" onclick="setOrganizerTab('schedule')">Schedule</div>
+          <div class="tab-btn ${organizerTab==='breakout'?'active':''}" data-organizer-tab="breakout" onclick="setOrganizerTab('breakout')">Breakout sessions</div>
           <div class="tab-btn ${organizerTab==='addons'?'active':''}" data-organizer-tab="addons" onclick="setOrganizerTab('addons')">Add-ons</div>
           <div class="tab-btn ${organizerTab==='quizeval'?'active':''}" data-organizer-tab="quizeval" onclick="setOrganizerTab('quizeval')">Quiz and evaluation</div>
           ${regOn() ? `<div class="tab-btn ${organizerTab==='registrations'?'active':''}" data-organizer-tab="registrations" onclick="setOrganizerTab('registrations')">Registrations${signupData && signupData.summary && signupData.summary.pending ? ` <span class="reg-badge">${signupData.summary.pending}</span>` : ''}</div>` : ''}
-          <div class="tab-btn ${organizerTab==='certificates'?'active':''}" data-organizer-tab="certificates" onclick="setOrganizerTab('certificates')">Certificates</div>
           <div class="tab-btn ${organizerTab==='administration'?'active':''}" data-organizer-tab="administration" onclick="setOrganizerTab('administration')">Administration</div>
         </div>
         <button type="button" class="tab-bar-arrow next hidden" id="tabBarNext" onclick="scrollTabBar(1)" aria-label="Show more tabs">›</button>
@@ -1545,6 +1545,7 @@ function enterOrganizerMode() {
 
   mode = "organizer";
   render();
+  if (regOn() && PLATFORM_WORKER_URL) loadSignups();
   loadQuizForEdit();
 }
 
@@ -1880,7 +1881,7 @@ function regOn() { return !!(editMeta && editMeta.modules && editMeta.modules.re
 function ensureSignupCfg() {
   if (!editMeta.signup || typeof editMeta.signup !== 'object') editMeta.signup = {};
   const s = editMeta.signup;
-  s.fields = Object.assign({ workplace: 'off', jobTitle: 'off', phone: 'off', notes: 'off' }, s.fields || {});
+  s.fields = Object.assign({ workplace: 'off', jobTitle: 'off', phone: 'off', notes: 'off', attachment: 'off' }, s.fields || {});
   s.groups = Object.assign({ levelIds: [], faculty: false, observer: false }, s.groups || {});
   if (!Array.isArray(s.groups.levelIds)) s.groups.levelIds = [];
   if (s.chooseGroup === undefined) s.chooseGroup = true;
@@ -1913,6 +1914,7 @@ function renderRegistrationAddon() {
       <div class="field-group"><label>Text above the form (optional)</label><textarea rows="2" maxlength="1000" oninput="onSignupCfg('intro',this.value)">${escHtml(s.intro)}</textarea></div>
       <div class="field-row">${fieldRow('workplace', 'Workplace')}${fieldRow('jobTitle', 'Job title')}</div>
       <div class="field-row">${fieldRow('phone', 'Phone number')}${fieldRow('notes', 'About themselves')}</div>
+      <div class="field-row">${fieldRow('attachment', 'PDF attachment (e.g. CV or application, max 10 MB)')}</div>
       <label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-body);margin:10px 0 4px;"><input type="checkbox" ${s.chooseGroup ? 'checked' : ''} onchange="onSignupCfg('chooseGroup',this.checked)"> Let people choose their group (you can always change it afterwards)</label>
       ${levelBoxes}
       <label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-body);margin:4px 0;"><input type="checkbox" ${s.groups.faculty ? 'checked' : ''} onchange="onSignupGroupFlag('faculty',this.checked)"> Faculty can register in this form</label>
@@ -1926,7 +1928,15 @@ function loadSignups() {
   signupLoading = true; signupError = '';
   rerenderOrganizerScroll();
   fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/signup/list`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminPin: pinInput }) })
-    .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Server error'); signupData = d; })
+    .then(async r => {
+      const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Server error'); signupData = d;
+      // Registered names the server added (or backfilled) show up under "Participant & faculty names" — only gaps are filled.
+      if (Array.isArray(d.names) && editModuleContent && editModuleContent.handsOn) {
+        const arr = Array.isArray(editModuleContent.handsOn.names) ? editModuleContent.handsOn.names : (editModuleContent.handsOn.names = []);
+        const have = new Set(arr.map(n => String(n.nr)));
+        d.names.forEach(n => { if (!have.has(String(n.nr))) arr.push({ nr: String(n.nr), name: n.name }); });
+      }
+    })
     .catch(e => { signupError = e.message; })
     .finally(() => { signupLoading = false; rerenderOrganizerScroll(); const b = document.querySelector('[data-organizer-tab="registrations"]'); if (b) b.innerHTML = 'Registrations' + (signupData && signupData.summary.pending ? ` <span class="reg-badge">${signupData.summary.pending}</span>` : ''); });
 }
@@ -1968,6 +1978,16 @@ async function exportSignups() {
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   } catch (e) { alert("Couldn't download the registrations — try again."); }
 }
+async function downloadSignupAttachment(id) {
+  try {
+    const r = await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/signup/attachment/download`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminPin: pinInput, id }) });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Download failed'); }
+    const blob = await r.blob(), a = document.createElement('a');
+    const req = (signupData && signupData.requests || []).find(x => x.id === id);
+    a.href = URL.createObjectURL(blob); a.download = (req && req.attachment && req.attachment.name) || 'attachment.pdf'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  } catch (e) { alert("Couldn't download the PDF: " + e.message); }
+}
 function setSignupFilter(f) { signupFilter = f; rerenderOrganizerScroll(); }
 function renderRegistrationsTab() {
   if (!regOn()) return `<div class="info-card"><strong>Registration is off</strong><div class="field-hint" style="margin-top:5px;">Turn on <b>Registration</b> under Add-ons to collect sign-ups.</div></div>`;
@@ -1989,8 +2009,9 @@ function renderRegistrationsTab() {
       : r.status === 'approved'
         ? `<select id="regGroup_${r.id}" ${busy ? 'disabled' : ''}>${opts}</select><button class="reg-btn ghost" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','regroup')">Change group</button><button class="reg-btn danger" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','revoke')">Withdraw</button>`
         : `<select id="regGroup_${r.id}" ${busy ? 'disabled' : ''}>${opts}</select><button class="reg-btn" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','approve')">Approve anyway</button><button class="reg-btn danger" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','delete')">Delete</button>`;
+    const att = r.attachment ? `<br>📎 <a href="#" onclick="downloadSignupAttachment('${r.id}');return false;">${escHtml(r.attachment.name || 'attachment.pdf')}</a> <span>(${Math.max(1, Math.round((r.attachment.size || 0) / 1024))} KB)</span>` : '';
     return `<div class="reg-card"><h3>${badge}${escHtml(r.name)}</h3>
-      <div class="reg-meta">${escHtml(r.email)}${details ? ' · ' + details : ''}<br>Group: <b>${escHtml(r.groupLabel || 'not chosen')}</b> · Registered ${escHtml(String(r.createdAt || '').slice(0, 10))}${r.notes ? `<br><i>${escHtml(r.notes)}</i>` : ''}</div>
+      <div class="reg-meta">${escHtml(r.email)}${details ? ' · ' + details : ''}<br>Group: <b>${escHtml(r.groupLabel || 'not chosen')}</b> · Registered ${escHtml(String(r.createdAt || '').slice(0, 10))}${r.notes ? `<br><i>${escHtml(r.notes)}</i>` : ''}${att}</div>
       <div class="reg-actions">${actions}${busy ? '<span class="reg-meta">Working…</span>' : ''}</div></div>`;
   };
   return `
@@ -2169,7 +2190,8 @@ function renderOrganizerEditor() {
             <div><div style="font-size:var(--fs-body);font-weight:bold;">${label}</div><div style="font-size:var(--fs-body);color:var(--pf-muted);">${key==='evaluations'?'Enable faculty evaluation for this conference.':'Show this module to participants.'}</div></div>
           </label>`).join('')}
 
-        ${['handsOn','map','industry'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
+        ${['map','industry'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
+        ${editMeta.modules && editMeta.modules.handsOn ? `<div class="field-hint" style="margin:6px 0 14px;">Breakout sessions are edited under <b>Breakout sessions</b>.</div>` : ''}
         ${(hasQuiz||hasEvaluations||hasFeedback) ? `<div class="field-hint" style="margin:6px 0 14px;">Quiz, faculty evaluation and conference evaluation content and results are edited under <b>Quiz and evaluation</b>.</div>` : ''}
         ${['contact','facultyInfo','presentations'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
       </div>
@@ -2198,9 +2220,14 @@ function renderOrganizerEditor() {
     return `<div class="editor-tab-content">${renderRegistrationsTab()}</div>`;
   }
 
-  // Certificates
-  if (organizerTab === 'certificates') {
-    return `<div class="editor-tab-content">${renderCertificatesTab()}</div>`;
+  if (organizerTab === 'breakout') {
+    return `
+      <div class="editor-tab-content">
+        ${editMeta.modules && editMeta.modules.handsOn
+          ? renderOrganizerModuleContent('handsOn')
+          : `<div class="info-card"><strong>Breakout sessions</strong><div class="field-hint" style="margin-top:5px;">Not enabled for this conference. Turn it on under <b>Add-ons</b> and save.</div></div>`}
+      </div>
+      ${saveButton}`;
   }
 
   // Administration
@@ -2214,6 +2241,10 @@ function renderOrganizerEditor() {
       ${renderRegistrationResetTool()}
 
       <div class="field-hint" style="margin-top:18px;">Quiz, faculty evaluation and conference evaluation results are under <b>Quiz and evaluation</b>.</div>
+
+      <div style="height:1px;background:var(--pf-border);margin:24px 0 18px;"></div>
+      <div class="mini-label" style="margin:0 0 8px;">Certificates</div>
+      ${renderCertificatesTab()}
     </div>
     ${saveButton}`;
 }

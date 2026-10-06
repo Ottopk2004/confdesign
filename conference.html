@@ -239,12 +239,38 @@ function baseUrl() { return location.origin + location.pathname.replace(/[^/]*$/
 let conf = null, signupStatus = null, formError = "", formBusy = false, formDone = false;
 const regForm = { name: "", email: "", workplace: "", jobTitle: "", phone: "", notes: "", groupKey: "" };
 let loginError = "";
+let attachFile = null, attachNote = "";
+const ATTACH_MAX = 10 * 1024 * 1024;
+function onAttachPick(input) {
+  const f = input.files && input.files[0];
+  attachNote = "";
+  if (!f) { attachFile = null; return; }
+  if (!/\.pdf$/i.test(f.name) && f.type !== "application/pdf") { attachFile = null; input.value = ""; attachNote = "Only PDF files can be attached."; }
+  else if (f.size > ATTACH_MAX) { attachFile = null; input.value = ""; attachNote = "The PDF is too large — the maximum size is 10 MB."; }
+  else attachFile = f;
+  const el = document.getElementById("attachNote"); if (el) el.textContent = attachNote;
+}
+async function uploadAttachment(id, file) {
+  const r = await fetch(PLATFORM_WORKER_URL + "/conf/" + encodeURIComponent(slug) + "/signup/attachment?id=" + encodeURIComponent(id) + "&fileName=" + encodeURIComponent(file.name), { method: "POST", headers: { "Content-Type": "application/pdf" }, body: file });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || "Upload failed.");
+}
+async function retryAttachment() {
+  const input = document.getElementById("retryPdf");
+  const f = input && input.files && input.files[0];
+  const note = document.getElementById("retryNote");
+  if (!f || !signupStatus) { if (note) note.textContent = "Choose a PDF first."; return; }
+  if (f.size > ATTACH_MAX) { note.textContent = "The PDF is too large — the maximum size is 10 MB."; return; }
+  note.textContent = "Uploading…";
+  try { await uploadAttachment(signupStatus.id, f); signupStatus.hasAttachment = true; attachNote = ""; render(); }
+  catch (e) { note.textContent = e.message; }
+}
 
 function isRegistration() { return !!(conf && conf.meta.modules && conf.meta.modules.registration); }
 function signupCfg() {
   const s = (conf.meta.signup) || {};
   return { intro: s.intro || "", closed: !!s.closed, chooseGroup: s.chooseGroup !== false,
-    fields: Object.assign({ workplace: "off", jobTitle: "off", phone: "off", notes: "off" }, s.fields || {}),
+    fields: Object.assign({ workplace: "off", jobTitle: "off", phone: "off", notes: "off", attachment: "off" }, s.fields || {}),
     groups: Object.assign({ levelIds: [], faculty: false, observer: false }, s.groups || {}) };
 }
 // Mirrors the worker: which groups may be picked in the public form.
@@ -328,9 +354,17 @@ function renderStatusCard() {
     return '<div class="card"><div class="notice bad">Your registration was not approved. Contact the organizer if you think this is a mistake.</div></div>';
   }
   return '<div class="card"><div class="notice wait"><b>Waiting for approval.</b> Thanks, ' + esc(s.name) + '! The organizer has to approve your registration. You will get your number by e-mail — you can also come back to this page to check.</div>'
+    + retryBlock()
     + '<button class="secondary-btn-wide" style="margin-top:0" onclick="recheck()">Check status</button></div>';
 }
 
+function retryBlock() {
+  const mode = signupCfg().fields.attachment;
+  if (mode === "off" || (signupStatus && signupStatus.hasAttachment)) return signupStatus && signupStatus.hasAttachment ? '<div class="notice ok">Your PDF was received.</div>' : "";
+  return '<div class="field"><label class="lbl">Attach your PDF' + (mode === "required" ? ' <span class="req">*</span>' : '') + '</label><input type="file" id="retryPdf" accept="application/pdf,.pdf">'
+    + '<div class="field-error" id="retryNote" style="text-align:left;">' + esc(attachNote) + '</div>'
+    + '<button class="secondary-btn-wide" style="margin-top:8px" onclick="retryAttachment()">Upload PDF</button></div>';
+}
 function renderRegisterCard() {
   if (signupStatus && signupStatus.status !== "rejected") return "";
   const cfg = signupCfg();
@@ -355,9 +389,18 @@ function renderRegisterCard() {
     + '<div class="field"><label class="lbl">Name <span class="req">*</span></label><input type="text" autocomplete="name" value="' + esc(regForm.name) + '" oninput="regForm.name=this.value"></div>'
     + '<div class="field"><label class="lbl">E-mail <span class="req">*</span></label><input type="email" autocomplete="email" inputmode="email" value="' + esc(regForm.email) + '" oninput="regForm.email=this.value"></div>'
     + field("workplace", "Workplace", "text") + field("jobTitle", "Job title", "text") + field("phone", "Phone number", "tel") + field("notes", "About you", "text")
+    + attachField()
     + groupHtml
     + '<div class="field-error privacy-err" id="regErr">' + esc(formError) + '</div>'
     + '<button class="primary-btn" id="regBtn" onclick="submitRegistration()" ' + (formBusy ? "disabled" : "") + '>' + (formBusy ? "Sending…" : "Register") + '</button></div>';
+}
+function attachField() {
+  const mode = signupCfg().fields.attachment;
+  if (mode === "off") return "";
+  return '<div class="field"><label class="lbl">PDF attachment' + (mode === "required" ? ' <span class="req">*</span>' : ' <span style="font-weight:normal;color:#656B85">(optional)</span>') + '</label>'
+    + '<input type="file" accept="application/pdf,.pdf" onchange="onAttachPick(this)">'
+    + '<div class="card-sub" style="margin:6px 0 0;">PDF, maximum 10 MB. Only the organizer can see it.' + (attachFile ? ' Selected: ' + esc(attachFile.name) : '') + '</div>'
+    + '<div class="field-error" id="attachNote" style="text-align:left;">' + esc(attachNote) + '</div></div>';
 }
 function render2() { // re-render keeping the typed values (they live in `form`)
   render();
@@ -379,7 +422,8 @@ async function submitRegistration() {
   formError = (regForm.name.trim().length < 2 ? "Please enter your name." : "")
     || (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(regForm.email.trim()) ? "Enter a valid email address." : "")
     || need("workplace", "your workplace") || need("jobTitle", "your job title") || need("phone", "your phone number") || need("notes", "the information about yourself")
-    || (cfg.chooseGroup && groups.length > 1 && !regForm.groupKey ? "Please choose your group." : "");
+    || (cfg.chooseGroup && groups.length > 1 && !regForm.groupKey ? "Please choose your group." : "")
+    || (cfg.fields.attachment === "required" && !attachFile ? "Please attach your PDF." : "");
   if (formError) { document.getElementById("regErr").textContent = formError; return; }
   formBusy = true; render();
   try {
@@ -389,7 +433,12 @@ async function submitRegistration() {
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || "Something went wrong.");
     storeSet("cd_signup_" + slug, d.id);
-    signupStatus = { id: d.id, status: "pending", name: regForm.name.trim() };
+    signupStatus = { id: d.id, status: "pending", name: regForm.name.trim(), hasAttachment: false };
+    if (attachFile && cfg.fields.attachment !== "off") {
+      try { await uploadAttachment(d.id, attachFile); signupStatus.hasAttachment = true; attachNote = ""; }
+      catch (e) { attachNote = "Your registration was received, but the PDF could not be uploaded: " + e.message; }
+    }
+    attachFile = null;
     formBusy = false; formError = "";
     render();
   } catch (e) {
