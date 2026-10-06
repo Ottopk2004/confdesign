@@ -244,6 +244,12 @@
     position:absolute; top:6px; right:6px; width:22px; height:22px; border-radius:50%;
     border:none; background:var(--pf-red-light); color:var(--pf-red); font-size:var(--fs-small); font-weight:bold; cursor:pointer;
   }
+  .section-title { display:block; font-size:var(--fs-h2); font-weight:800; color:var(--pf-ink); line-height:1.25; margin:0 0 10px; padding:2px 0 2px 10px; border-left:4px solid var(--pf-theme); }
+  h1, h2, h3 { font-weight:800; }
+  .organizer-module summary { font-size:var(--fs-h3); }
+  .names-role-group summary { font-size:var(--fs-body); }
+  .topic-toggle summary { font-size:var(--fs-body); }
+  .info-card h3 { font-weight:800; color:var(--pf-ink); }
   .mini-label { font-size:var(--fs-small); font-weight:bold; color:var(--pf-muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:3px; display:block; }
 
   .add-btn {
@@ -259,7 +265,7 @@
   .move-btn:disabled { opacity:.35; cursor:default; }
 
   .topic-toggle { border:1px dashed var(--pf-border); border-radius:8px; margin-top:10px; overflow:hidden; }
-  .topic-toggle summary { cursor:pointer; padding:8px 10px; font-size:var(--fs-small); font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
+  .topic-toggle summary { cursor:pointer; padding:8px 10px; font-size:var(--fs-body); font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
   .topic-toggle .topic-body { padding:10px; }
   .topic-preview { margin-top:10px; padding-top:10px; border-top:1px dashed var(--pf-border); }
   .topic-preview-label { font-size:var(--fs-small); text-transform:uppercase; letter-spacing:.03em; color:var(--pf-muted); font-weight:bold; margin-bottom:4px; }
@@ -309,7 +315,7 @@
   .group-member-row select { font-size:var(--fs-small); padding:4px 6px; border:2px solid var(--pf-border); border-radius:6px; }
 
   .names-role-group { border:1px solid var(--pf-border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
-  .names-role-group summary { cursor:pointer; padding:8px 10px; font-size:var(--fs-small); font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
+  .names-role-group summary { cursor:pointer; padding:8px 10px; font-size:var(--fs-body); font-weight:bold; color:var(--pf-theme); background:var(--pf-gray); }
   .names-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:6px 10px; padding:10px; }
   .names-grid-item { display:flex; align-items:center; gap:6px; }
   .names-grid-nr { font-size:var(--fs-small); color:var(--pf-muted); font-weight:bold; min-width:40px; flex-shrink:0; }
@@ -1857,11 +1863,11 @@ function submitQuiz() {
 function addEvaluationPost(){if(!editModuleContent.evaluations)editModuleContent.evaluations={title:'Faculty evaluation',intro:'',posts:[]};editModuleContent.evaluations.posts.push({id:`P${editModuleContent.evaluations.posts.length+1}`,name:''});rerenderOrganizerScroll();}
 function removeEvaluationPost(i){editModuleContent.evaluations.posts.splice(i,1);rerenderOrganizerScroll();}
 function onEvaluationPost(i,val){editModuleContent.evaluations.posts[i].name=val;}
-function renderEvaluationEditor(){const c=editModuleContent.evaluations||{title:'Faculty evaluation',intro:'',posts:[],responses:[]};if(!Array.isArray(c.responses))c.responses=[];return `<div class="field-group"><label>Title</label><input value="${escHtml(c.title||'Faculty evaluation')}" oninput="onEditModuleContent('evaluations','title',this.value)"></div><div class="field-group"><label>Introduction</label><textarea oninput="onEditModuleContent('evaluations','intro',this.value)">${escHtml(c.intro||'')}</textarea></div><div class="mini-label" style="margin:18px 0 4px;font-size:var(--fs-small);">Response options</div><div class="field-hint" style="margin:0 0 10px;">What faculty can choose from when evaluating a participant, shown as a dropdown. Add as many as you need — e.g. "Pass" / "Fail", or a scale like "Excellent" / "Satisfactory" / "Needs improvement".</div>${c.responses.map((r,i)=>`<div class="session-row">${c.responses.length>1?`<button class="remove-btn" onclick="removeEvaluationResponse(${i})">✕</button>`:''}<span class="mini-label">Option ${i+1}</span><input value="${escHtml(r.label||'')}" placeholder="e.g. Pass" oninput="onEvaluationResponse(${i},this.value)"></div>`).join('')}<button class="add-btn" onclick="addEvaluationResponse()">+ Add response option</button>${renderFeedbackItemsEditor('evaluations')}`;}
+function renderEvaluationEditor(){const c=editModuleContent.evaluations||{title:'Faculty evaluation',intro:'',posts:[],responses:[]};if(!Array.isArray(c.responses))c.responses=[];return `<div class="field-group"><label>Title</label><input value="${escHtml(c.title||'Faculty evaluation')}" oninput="onEditModuleContent('evaluations','title',this.value)"></div><div class="field-group"><label>Introduction</label><textarea oninput="onEditModuleContent('evaluations','intro',this.value)">${escHtml(c.intro||'')}</textarea></div><div class="section-title" style="margin:18px 0 4px;">Response options</div><div class="field-hint" style="margin:0 0 10px;">What faculty can choose from when evaluating a participant, shown as a dropdown. Add as many as you need — e.g. "Pass" / "Fail", or a scale like "Excellent" / "Satisfactory" / "Needs improvement".</div>${c.responses.map((r,i)=>`<div class="session-row">${c.responses.length>1?`<button class="remove-btn" onclick="removeEvaluationResponse(${i})">✕</button>`:''}<span class="mini-label">Option ${i+1}</span><input value="${escHtml(r.label||'')}" placeholder="e.g. Pass" oninput="onEvaluationResponse(${i},this.value)"></div>`).join('')}<button class="add-btn" onclick="addEvaluationResponse()">+ Add response option</button>${renderFeedbackItemsEditor('evaluations')}`;}
 function addEvaluationResponse(){if(!editModuleContent.evaluations)editModuleContent.evaluations={title:'Faculty evaluation',intro:'',posts:[],responses:[]};if(!Array.isArray(editModuleContent.evaluations.responses))editModuleContent.evaluations.responses=[];editModuleContent.evaluations.responses.push({id:`R${editModuleContent.evaluations.responses.length+1}`,label:''});rerenderOrganizerScroll();}
 function removeEvaluationResponse(i){editModuleContent.evaluations.responses.splice(i,1);rerenderOrganizerScroll();}
 function onEvaluationResponse(i,value){editModuleContent.evaluations.responses[i].label=value;}
-function renderRegistrationResetTool(){return `<div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Reset participant registration</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">Use this if a participant registered an email on the wrong participant number. This removes only the registration; it does not move or delete quiz/evaluation records.</p><div class="field-row" style="align-items:flex-end;"><div class="field-group" style="margin-bottom:0;"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(registrationResetNr)}" oninput="registrationResetNr=this.value.replace(/\D/g,'')"></div><button class="save-btn" style="width:auto;padding:9px 16px;margin-top:0;" onclick="doRegistrationReset()">Reset registration</button></div>${registrationResetResult?`<div class="save-status ${registrationResetResult.error?'error':'ok'}">${escHtml(registrationResetResult.message)}</div>`:''}`;}
+function renderRegistrationResetTool(){return `<div class="section-title" style="margin:24px 0 8px;">Reset participant registration</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">Use this if a participant registered an email on the wrong participant number. This removes only the registration; it does not move or delete quiz/evaluation records.</p><div class="field-row" style="align-items:flex-end;"><div class="field-group" style="margin-bottom:0;"><label>Participant number</label><input type="text" inputmode="numeric" value="${escHtml(registrationResetNr)}" oninput="registrationResetNr=this.value.replace(/\D/g,'')"></div><button class="save-btn" style="width:auto;padding:9px 16px;margin-top:0;" onclick="doRegistrationReset()">Reset registration</button></div>${registrationResetResult?`<div class="save-status ${registrationResetResult.error?'error':'ok'}">${escHtml(registrationResetResult.message)}</div>`:''}`;}
 function doRegistrationReset(){if(!registrationResetNr)return;if(!confirm(`Reset registration for participant ${registrationResetNr}?`))return;fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/registration/reset`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nr:registrationResetNr,adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not reset registration.');registrationResetResult={message:`Registration for participant ${registrationResetNr} was reset.`};rerenderOrganizerScroll();}).catch(e=>{registrationResetResult={error:true,message:e.message};rerenderOrganizerScroll();});}
 function loadEvaluationResults(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations/results`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load evaluations.');evaluationResults=d;evaluationResultsError='';rerenderOrganizerScroll();}).catch(e=>{evaluationResultsError=e.message;rerenderOrganizerScroll();});}
 async function downloadEvaluationExport(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/evaluations/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-faculty-evaluations.xlsx`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
@@ -1874,7 +1880,7 @@ function renderItemStatsSummary(itemStats){
     return `<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(s.question||'Comment')}</strong><div style="font-size:var(--fs-small);color:var(--pf-muted)">${s.responses} response${s.responses===1?'':'s'}</div></div>`;
   }).join('')}</div>`;
 }
-function renderEvaluationAnalytics(){if(!evaluationResults)return `<div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Faculty evaluations</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">See evaluation totals and download the evaluation data.</p><button class="save-btn" onclick="loadEvaluationResults()">Load faculty evaluations</button>${evaluationResultsError?`<div class="save-status error">${escHtml(evaluationResultsError)}</div>`:''}`;const s=evaluationResults.summary||{};const responseStats=evaluationResults.responseStats||[];return `<div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Faculty evaluations</div><div class="info-grid"><div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">EVALUATIONS</span><strong>${s.evaluations||0}</strong></div></div><div class="info-card"><h3>By response</h3>${responseStats.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(r.label)}</strong><div style="font-size:var(--fs-small);color:var(--pf-muted)">${r.count} · ${r.pct}%</div></div>`).join('')||'<div class="empty-note">No evaluations yet.</div>'}</div>${renderItemStatsSummary(evaluationResults.itemStats)}<button class="save-btn" onclick="downloadEvaluationExport()">Download evaluations (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="evaluationResults=null;evaluationResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
+function renderEvaluationAnalytics(){if(!evaluationResults)return `<div class="section-title" style="margin:24px 0 8px;">Faculty evaluations</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">See evaluation totals and download the evaluation data.</p><button class="save-btn" onclick="loadEvaluationResults()">Load faculty evaluations</button>${evaluationResultsError?`<div class="save-status error">${escHtml(evaluationResultsError)}</div>`:''}`;const s=evaluationResults.summary||{};const responseStats=evaluationResults.responseStats||[];return `<div class="section-title" style="margin:24px 0 8px;">Faculty evaluations</div><div class="info-grid"><div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">EVALUATIONS</span><strong>${s.evaluations||0}</strong></div></div><div class="info-card"><h3>By response</h3>${responseStats.map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--pf-border)"><strong>${escHtml(r.label)}</strong><div style="font-size:var(--fs-small);color:var(--pf-muted)">${r.count} · ${r.pct}%</div></div>`).join('')||'<div class="empty-note">No evaluations yet.</div>'}</div>${renderItemStatsSummary(evaluationResults.itemStats)}<button class="save-btn" onclick="downloadEvaluationExport()">Download evaluations (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="evaluationResults=null;evaluationResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
 
 // ── Registration add-on (organizer side) ─────────────────────────────
 function regOn() { return !!(editMeta && editMeta.modules && editMeta.modules.registration); }
@@ -1908,8 +1914,7 @@ function renderRegistrationAddon() {
   const fieldRow = (f, label) => `<div class="field-group" style="flex:1;min-width:150px;"><label>${label}</label>
       <select onchange="onSignupField('${f}',this.value)">${[['off', 'Not asked'], ['optional', 'Optional'], ['required', 'Required']].map(([v, t]) => `<option value="${v}" ${s.fields[f] === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
   const levelBoxes = levels.length ? `<div class="field-group"><label>Levels people can choose (none ticked = all)</label>${levels.map(l => `<label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-body);margin:4px 0;"><input type="checkbox" ${s.groups.levelIds.includes(l.id) ? 'checked' : ''} onchange="onSignupLevel('${escHtml(l.id)}',this.checked)"> ${escHtml(l.name)}</label>`).join('')}</div>` : '';
-  return toggle + `<div class="info-card" style="margin:0 0 14px;">
-      <div class="mini-label" style="margin:0 0 8px;font-size:var(--fs-small);">Registration form</div>
+  return toggle + `<details class="organizer-module" ${editOpenModule==='regform'?'open':''} ontoggle="if(this.open)editOpenModule='regform';else if(editOpenModule==='regform')editOpenModule='' "><summary>Registration form</summary><div class="organizer-module-body">
       <div class="field-hint" style="margin:0 0 10px;">Name and e-mail are always required. Choose what else to ask for.</div>
       <div class="field-group"><label>Text above the form (optional)</label><textarea rows="2" maxlength="1000" oninput="onSignupCfg('intro',this.value)">${escHtml(s.intro)}</textarea></div>
       <div class="field-row">${fieldRow('workplace', 'Workplace')}${fieldRow('jobTitle', 'Job title')}</div>
@@ -1921,7 +1926,7 @@ function renderRegistrationAddon() {
       <label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-body);margin:4px 0;"><input type="checkbox" ${s.groups.observer ? 'checked' : ''} onchange="onSignupGroupFlag('observer',this.checked)"> Observers can register in this form</label>
       <label style="display:flex;gap:8px;align-items:center;font-size:var(--fs-body);margin:10px 0 0;"><input type="checkbox" ${s.closed ? 'checked' : ''} onchange="onSignupCfg('closed',this.checked)"> Close registration (no new sign-ups)</label>
       <div class="field-hint" style="margin-top:10px;">Faculty and observers get numbers from their own ranges (faculty 1000+, observers 2000+) — set how many under General. Save changes to publish the form.</div>
-    </div>`;
+    </div></details>`;
 }
 function signupBaseUrl() { return location.origin + location.pathname.replace(/[^/]*$/, ''); }
 function loadSignups() {
@@ -2015,7 +2020,7 @@ function renderRegistrationsTab() {
       <div class="reg-actions">${actions}${busy ? '<span class="reg-meta">Working…</span>' : ''}</div></div>`;
   };
   return `
-    <div class="mini-label" style="margin:0 0 8px;font-size:var(--fs-small);">Registrations</div>
+    <div class="section-title" style="margin:0 0 8px;">Registrations</div>
     <div class="field-hint" style="margin:0 0 10px;">${capLine || 'Set participant numbers under General.'}</div>
     <div class="level-chips">${chip('pending', 'Pending', sm.pending)}${chip('approved', 'Approved', sm.approved)}${chip('rejected', 'Rejected', sm.rejected)}${chip('all', 'All', sm.pending + sm.approved + sm.rejected)}</div>
     <div style="display:flex;gap:8px;margin:10px 0;"><button class="reg-btn ghost" onclick="loadSignups()">Refresh</button><button class="reg-btn ghost" onclick="exportSignups()">Download Excel</button></div>
@@ -2038,7 +2043,7 @@ function renderOrganizerEditor() {
   if (organizerTab === 'general') {
     return `
       <div class="editor-tab-content">
-        <div class="mini-label" style="margin:0 0 12px;font-size:var(--fs-small);">Conference details</div>
+        <div class="section-title" style="margin:0 0 12px;">Conference details</div>
 
         <div class="field-group">
           <label>Conference name</label>
@@ -2127,7 +2132,7 @@ function renderOrganizerEditor() {
   if (organizerTab === 'schedule') {
     return `
       <div class="editor-tab-content">
-        <div class="mini-label" style="margin:0 0 12px;font-size:var(--fs-small);">Schedule</div>
+        <div class="section-title" style="margin:0 0 12px;">Schedule</div>
         <div class="field-hint" style="margin:0 0 14px;">Add a day, then add the activities that happen on it. Schedule can be changed at any time after the conference has been created.${hasLevels() ? ' With levels in use, give every activity a level — participants only see their own level\'s schedule.' : ''}</div>
         ${renderScheduleLevelFilter()}
         ${editScheduleDays.map((day, di) => `
@@ -2179,7 +2184,7 @@ function renderOrganizerEditor() {
   if (organizerTab === 'addons') {
     return `
       <div class="editor-tab-content">
-        <div class="mini-label" style="margin:0 0 8px;font-size:var(--fs-small);">Modules and add-ons</div>
+        <div class="section-title" style="margin:0 0 8px;">Modules and add-ons</div>
         <div class="field-hint" style="margin:0 0 12px;">You can add or remove modules at any time, even after the conference has been created. Turn a module on, edit its content, then save changes.</div>
 
         ${renderRegistrationAddon()}
@@ -2204,13 +2209,13 @@ function renderOrganizerEditor() {
     const evTitle = escHtml((editModuleContent.evaluations && editModuleContent.evaluations.title) || 'Faculty evaluation');
     return `
       <div class="editor-tab-content">
-        <div class="mini-label" style="margin:0 0 8px;">Quiz</div>
+        <div class="section-title" style="margin:0 0 8px;">Quiz</div>
         ${hasQuiz ? sec('quiz', 'Edit quiz questions', renderQuizEditor()) + sec('quiz-results', 'Quiz results', renderQuizAnalytics() + renderQuizTextResponsesTab()) : off('Quiz')}
 
-        <div class="mini-label" style="margin:22px 0 8px;">Faculty evaluation</div>
+        <div class="section-title" style="margin:22px 0 8px;">Faculty evaluation</div>
         ${hasEvaluations ? sec('evaluations', 'Edit ' + evTitle, renderEvaluationEditor()) + sec('eval-results', evTitle + ' results', renderEvaluationAnalytics()) : off('Faculty evaluation')}
 
-        <div class="mini-label" style="margin:22px 0 8px;">Conference evaluation</div>
+        <div class="section-title" style="margin:22px 0 8px;">Conference evaluation</div>
         ${hasFeedback ? renderOrganizerModuleContent('conferenceFeedback') + sec('fb-results', 'Conference evaluation results', renderConferenceFeedbackResponses()) : off('Conference evaluation')}
       </div>
       ${saveButton}`;
@@ -2233,7 +2238,7 @@ function renderOrganizerEditor() {
   // Administration
   return `
     <div class="editor-tab-content">
-      <div class="mini-label" style="margin:0 0 8px;font-size:var(--fs-small);">Participant administration</div>
+      <div class="section-title" style="margin:0 0 8px;">Participant administration</div>
       ${hasQuiz ? renderQuizResetTool() : `
         <div class="info-card"><strong>Reset a participant's quiz</strong><div class="field-hint" style="margin-top:5px;">Quiz is not enabled for this conference.</div></div>`}
       ${hasFeedback ? renderFeedbackResetTool() : `
@@ -2243,21 +2248,21 @@ function renderOrganizerEditor() {
       <div class="field-hint" style="margin-top:18px;">Quiz, faculty evaluation and conference evaluation results are under <b>Quiz and evaluation</b>.</div>
 
       <div style="height:1px;background:var(--pf-border);margin:24px 0 18px;"></div>
-      <div class="mini-label" style="margin:0 0 8px;">Certificates</div>
+      <div class="section-title" style="margin:0 0 8px;">Certificates</div>
       ${renderCertificatesTab()}
     </div>
     ${saveButton}`;
 }
 
 function renderOrganizerTextResponsesTab(hasQuiz,hasFeedback){return `${hasFeedback?renderConferenceFeedbackResponses():''}${hasQuiz?renderQuizTextResponsesTab():''}`;}
-function renderConferenceFeedbackResponses(){if(!conferenceFeedbackResults)return `<div class="mini-label" style="margin:8px 0;font-size:var(--fs-small);">Conference evaluation responses</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">See a summary of the comments, scores and multiple-choice answers submitted by participants and faculty. Download the .xlsx file to see what each individual person answered.</p><button class="save-btn" onclick="loadConferenceFeedbackResults()">Load conference feedback</button>${conferenceFeedbackResultsError?`<div class="save-status error">${escHtml(conferenceFeedbackResultsError)}</div>`:''}`;const rows=conferenceFeedbackResults.records||[];return `<div class="mini-label" style="margin:8px 0;font-size:var(--fs-small);">Conference evaluation responses (${rows.length})</div>${renderItemStatsSummary(conferenceFeedbackResults.itemStats)||'<div class="empty-note">No conference feedback yet.</div>'}<button class="save-btn" onclick="downloadConferenceFeedback()">Download conference feedback (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="conferenceFeedbackResults=null;conferenceFeedbackResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
+function renderConferenceFeedbackResponses(){if(!conferenceFeedbackResults)return `<div class="section-title" style="margin:8px 0;">Conference evaluation responses</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">See a summary of the comments, scores and multiple-choice answers submitted by participants and faculty. Download the .xlsx file to see what each individual person answered.</p><button class="save-btn" onclick="loadConferenceFeedbackResults()">Load conference feedback</button>${conferenceFeedbackResultsError?`<div class="save-status error">${escHtml(conferenceFeedbackResultsError)}</div>`:''}`;const rows=conferenceFeedbackResults.records||[];return `<div class="section-title" style="margin:8px 0;">Conference evaluation responses (${rows.length})</div>${renderItemStatsSummary(conferenceFeedbackResults.itemStats)||'<div class="empty-note">No conference feedback yet.</div>'}<button class="save-btn" onclick="downloadConferenceFeedback()">Download conference feedback (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="conferenceFeedbackResults=null;conferenceFeedbackResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
 function loadConferenceFeedbackResults(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/results`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load conference feedback.');conferenceFeedbackResults=d;conferenceFeedbackResultsError='';rerenderOrganizerScroll();}).catch(e=>{conferenceFeedbackResultsError=e.message;rerenderOrganizerScroll();});}
 async function downloadConferenceFeedback(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-conference-feedback.xlsx`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
 
 function renderQuizTextResponsesTab() {
-  if (!quizTextResponses) return `<div class="mini-label" style="margin:8px 0;font-size:var(--fs-small);">Open-text responses</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">Responses from questions where the organizer enabled a text field.</p><button class="save-btn" onclick="loadQuizTextResponses()">Load text responses</button>${quizTextResponsesError?`<div class="save-status error">${escHtml(quizTextResponsesError)}</div>`:''}`;
+  if (!quizTextResponses) return `<div class="section-title" style="margin:8px 0;">Open-text responses</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">Responses from questions where the organizer enabled a text field.</p><button class="save-btn" onclick="loadQuizTextResponses()">Load text responses</button>${quizTextResponsesError?`<div class="save-status error">${escHtml(quizTextResponsesError)}</div>`:''}`;
   const rows=quizTextResponses.responses||[];
-  return `<div class="mini-label" style="margin:8px 0;font-size:var(--fs-small);">Open-text responses</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:12px;">${rows.length} response${rows.length===1?'':'s'} received.</p>${rows.map(r=>`<div class="info-card" style="margin-bottom:10px;"><div style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">PARTICIPANT ${escHtml(r.nr)} · ${escHtml(r.email)}</div><div style="font-size:var(--fs-small);font-weight:bold;margin-top:5px;">${escHtml(r.questionId)} — ${escHtml(r.questionText)}</div><div style="margin-top:8px;white-space:pre-wrap;line-height:1.5;">${escHtml(r.response)}</div><div style="font-size:var(--fs-small);color:var(--pf-muted);margin-top:8px;">${escHtml(new Date(r.submittedAt).toLocaleString('en-GB'))}</div></div>`).join('') || '<div class="empty-note">No text responses yet.</div>'}<button class="save-btn" onclick="downloadQuizTextResponses()">Download text responses (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="quizTextResponses=null;quizTextResponsesError='';rerenderOrganizerScroll()">Refresh</button>`;
+  return `<div class="section-title" style="margin:8px 0;">Open-text responses</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:12px;">${rows.length} response${rows.length===1?'':'s'} received.</p>${rows.map(r=>`<div class="info-card" style="margin-bottom:10px;"><div style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">PARTICIPANT ${escHtml(r.nr)} · ${escHtml(r.email)}</div><div style="font-size:var(--fs-small);font-weight:bold;margin-top:5px;">${escHtml(r.questionId)} — ${escHtml(r.questionText)}</div><div style="margin-top:8px;white-space:pre-wrap;line-height:1.5;">${escHtml(r.response)}</div><div style="font-size:var(--fs-small);color:var(--pf-muted);margin-top:8px;">${escHtml(new Date(r.submittedAt).toLocaleString('en-GB'))}</div></div>`).join('') || '<div class="empty-note">No text responses yet.</div>'}<button class="save-btn" onclick="downloadQuizTextResponses()">Download text responses (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="quizTextResponses=null;quizTextResponsesError='';rerenderOrganizerScroll()">Refresh</button>`;
 }
 function loadQuizTextResponses(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/text-responses`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load text responses.');quizTextResponses=d;quizTextResponsesError='';rerenderOrganizerScroll();}).catch(e=>{quizTextResponsesError=e.message;rerenderOrganizerScroll();});}
 async function downloadQuizTextResponses(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/quiz/text-responses/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-text-responses.xlsx`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
@@ -2311,13 +2316,13 @@ function renderQuizEditor() {
 
 function renderQuizAnalytics() {
   if (!quizAnalytics) return `
-    <div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Test results & data</div>
+    <div class="section-title" style="margin:24px 0 8px;">Test results & data</div>
     <p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">View aggregate results and download the complete participant answer file.</p>
     <button class="save-btn" onclick="loadQuizAnalytics()">Load test results</button>
     ${quizAnalyticsError ? `<div class="save-status error">${escHtml(quizAnalyticsError)}</div>` : ""}`;
   const s = quizAnalytics.summary || {};
   return `
-    <div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Test results & data</div>
+    <div class="section-title" style="margin:24px 0 8px;">Test results & data</div>
     <div class="info-grid" style="margin-bottom:14px;">
       <div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">PARTICIPANTS</span><strong>${s.expectedParticipants||0}</strong></div><div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">SUBMISSIONS</span><strong>${s.submissions||0}</strong></div><div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">NOT SUBMITTED</span><strong>${s.notSubmitted||0}</strong></div>
       <div class="info-card"><span style="font-size:var(--fs-small);color:var(--pf-muted);font-weight:bold;">PASSED</span><strong>${s.passed||0}</strong></div>
@@ -2349,7 +2354,7 @@ async function downloadQuizExport() {
 
 function renderQuizResetTool() {
   return `
-    <div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Reset a participant's quiz</div>
+    <div class="section-title" style="margin:24px 0 8px;">Reset a participant's quiz</div>
     <div class="field-row" style="align-items:flex-end;">
       <div class="field-group" style="margin-bottom:0;">
         <label>Participant number</label>
@@ -2380,7 +2385,7 @@ function renderResetLookupResult() {
 // observer), since all three can submit conference feedback.
 function renderFeedbackResetTool() {
   return `
-    <div class="mini-label" style="margin:24px 0 8px;font-size:var(--fs-small);">Reset a conference evaluation</div>
+    <div class="section-title" style="margin:24px 0 8px;">Reset a conference evaluation</div>
     <div class="field-row" style="align-items:flex-end;">
       <div class="field-group" style="margin-bottom:0;">
         <label>Participant / faculty / observer number</label>
@@ -2496,7 +2501,7 @@ function renderFeedbackItemsEditor(module){
   const items=c.items||[];
   const labelFor={comment:'Comment field',score:'Score (1–5)',mc:'Multiple choice'};
   return `
-    <div class="mini-label" style="margin:18px 0 4px;font-size:var(--fs-small);">Add-ons</div>
+    <div class="section-title" style="margin:18px 0 4px;">Add-ons</div>
     <div class="field-hint" style="margin:0 0 10px;">Add as many comment fields, scores or multiple-choice questions as you need.</div>
     ${items.map((it,i)=>`
     <div class="session-edit-row">
@@ -2547,21 +2552,27 @@ function setEditPersonName(nr, name){
     arr.splice(idx,1);
   }
 }
-function renderNamesRoleGroup(label, start, count){
-  if (count <= 0) return '';
-  let rows = '';
-  for (let i = 0; i < count; i++) {
-    const nr = start + i;
-    rows += `<div class="names-grid-item"><span class="names-grid-nr">#${nr}</span><input type="text" placeholder="Name" value="${escHtml(editPersonName(nr))}" oninput="setEditPersonName(${nr},this.value)"></div>`;
-  }
-  return `<details class="names-role-group"><summary>${label} (${count})</summary><div class="names-grid">${rows}</div></details>`;
+function renderNamesGroup(label, nrs){
+  if (!nrs.length) return '';
+  const rows = nrs.map(nr => `<div class="names-grid-item"><span class="names-grid-nr">#${nr}</span><input type="text" placeholder="Name" value="${escHtml(editPersonName(nr))}" oninput="setEditPersonName(${nr},this.value)"></div>`).join('');
+  return `<details class="names-role-group"><summary>${escHtml(label)} (${nrs.length})</summary><div class="names-grid">${rows}</div></details>`;
 }
 function renderEditNamesEditor(){
   const pCount = Number(editMeta.participantCount) || 0;
   const fCount = Number(editMeta.facultyCount) || 0;
   const oCount = Number(editMeta.observerCount) || 0;
-  const body = renderNamesRoleGroup('Participants', 1, pCount) + renderNamesRoleGroup('Faculty', 1000, fCount) + renderNamesRoleGroup('Observers', 2000, oCount);
-  return `<details class="topic-toggle" style="margin-top:16px"><summary>Participant &amp; faculty names (optional)</summary><div class="topic-body"><div class="field-hint" style="margin-bottom:10px">A box for every number open under Access. Type a name where you want one shown in breakout sessions and on certificates. People who register are added automatically when you approve them. Leave the rest blank to just show the number.</div>${body || '<div class="field-hint">Set participant/faculty/observer numbers under Access first.</div>'}</div></details>`;
+  let body = '';
+  if (hasLevels()) {
+    const { levels, assign } = levelCtx();
+    levels.forEach(l => { body += renderNamesGroup(l.name, levelParticipants(l.id)); });
+    const none = [];
+    for (let i = 1; i <= pCount; i++) if (!levels.some(l => assign[String(i)] === l.id)) none.push(i);
+    body += renderNamesGroup('No level yet', none);
+  } else {
+    body += renderNamesGroup('Participants', rangeList(pCount, 0));
+  }
+  body += renderNamesGroup('Faculty', rangeList(fCount, 999)) + renderNamesGroup('Observers', rangeList(oCount, 1999));
+  return `<div class="section-title" style="margin-top:22px;">Participant &amp; faculty names</div><div class="field-hint" style="margin-bottom:10px">A box for every number open under General. Type a name where you want one shown in breakout sessions and on certificates. People who register are added automatically when you approve them. Leave the rest blank to just show the number.</div>${body || '<div class="field-hint">Set participant/faculty/observer numbers first.</div>'}`;
 }
 function normalizeEditHandsOn(c){
   if(!c.mode) c.mode = 'rotation';
@@ -2659,7 +2670,7 @@ function renderHandsOnGroupOverview(stationCount, stations) {
       </div>`);
   }
   return `
-    <div class="mini-label" style="margin:14px 0 6px;font-size:var(--fs-small);">Who's in which group</div>
+    <div class="section-title" style="margin:14px 0 6px;">Who's in which group</div>
     <div class="field-hint" style="margin:0 0 8px;">Based on the current participant/faculty counts and station count. Updates automatically as you change them above.</div>
     <div class="group-overview">${rows.join('')}</div>`;
 }
@@ -2693,7 +2704,7 @@ function renderBreakoutGroupManager(si) {
       </div>`);
   }
   return `
-    <div class="mini-label" style="margin:14px 0 6px;font-size:var(--fs-small);">Who's in which group</div>
+    <div class="section-title" style="margin:14px 0 6px;">Who's in which group</div>
     <div class="field-hint" style="margin:0 0 8px;">Groups are randomly balanced by default. Use the dropdown next to a name to move that person into a different group — this only affects this one session.</div>
     ${blocks.join('')}`;
 }
@@ -2796,7 +2807,7 @@ function renderOrgPresentationsManager(){
       </div>`).join('')}</div>` : `<div class="empty-note">No presentations have been uploaded yet.</div>`;
   }
   return `
-    <div class="mini-label" style="margin:14px 0 6px;font-size:var(--fs-small);">Uploaded files</div>
+    <div class="section-title" style="margin:14px 0 6px;">Uploaded files</div>
     ${listHtml}
     <div class="field-group" style="margin-top:14px;"><label>Title</label><input type="text" value="${escHtml(orgPresentationsUpload.title)}" placeholder="e.g. Airway management essentials" oninput="onOrgPresentationUploadField('title',this.value)"></div>
     <div class="field-group"><label>Presenter name</label><input type="text" value="${escHtml(orgPresentationsUpload.presenterName)}" placeholder="e.g. Dr. Jane Smith" oninput="onOrgPresentationUploadField('presenterName',this.value)"></div>
@@ -2876,7 +2887,7 @@ function renderCertificatesTab(){
   if(certTemplateError) return `<div class="save-status error">${escHtml(certTemplateError)}</div>`;
   const t=certTemplate||{};
   return `
-    <div class="mini-label" style="margin:0 0 8px;font-size:var(--fs-small);">Certificate template</div>
+    <div class="section-title" style="margin:0 0 8px;">Certificate template</div>
     <div class="field-hint" style="margin-bottom:12px;">Use the built-in design below, or upload your own background image and we'll add the participant's name and date on top. In the body text you can use <code>{name}</code>, <code>{date}</code> and <code>{conference}</code> — they'll be filled in automatically.</div>
 
     <div class="field-group"><label>Title</label><input type="text" value="${escHtml(t.title||'')}" oninput="onCertTemplateField('title',this.value)"></div>
@@ -2903,7 +2914,7 @@ function renderCertificatesTab(){
     ${certPreviewError?`<div class="save-status error">${escHtml(certPreviewError)}</div>`:''}
     <div class="save-status ${certTemplateSaveStatusIsError?'error':'ok'}">${escHtml(certTemplateSaveStatus)}</div>
 
-    <div class="mini-label" style="margin:26px 0 8px;font-size:var(--fs-small);">Send to one person</div>
+    <div class="section-title" style="margin:26px 0 8px;">Send to one person</div>
     <div class="field-row">
       <div class="field-group"><label>Number</label><input type="text" inputmode="numeric" value="${escHtml(certSendState.nr)}" oninput="onCertSendField('nr',this.value.replace(/\\D/g,''))"></div>
       <div class="field-group"><label>Name (optional — taken from registration / names if empty)</label><input type="text" value="${escHtml(certSendState.name)}" placeholder="e.g. Jane Doe" oninput="onCertSendField('name',this.value)"></div>
@@ -2916,7 +2927,7 @@ function renderCertificatesTab(){
     ${certSendState.message?`<div class="save-status ok">${escHtml(certSendState.message)}</div>`:''}
     ${certSendState.error?`<div class="save-status error">${escHtml(certSendState.error)}</div>`:''}
 
-    <div class="mini-label" style="margin:26px 0 8px;font-size:var(--fs-small);">Send to everyone</div>
+    <div class="section-title" style="margin:26px 0 8px;">Send to everyone</div>
     <div class="field-hint" style="margin-bottom:8px;">Sends to every participant who has registered an email address (from the quiz or faculty evaluation registration). Anyone without one on file is skipped — you'll see how many.</div>
     <div class="field-group"><label>Date</label><input type="text" value="${escHtml(certBulkState.date||'')}" placeholder="e.g. 10 June 2026" oninput="onCertBulkField('date',this.value)"></div>
     <button class="save-btn" style="width:auto;padding:10px 18px;background:var(--pf-red);" onclick="sendBulkCertificates()" ${certBulkState.sending?'disabled':''}>${certBulkState.sending?'Sending…':'Send to all participants'}</button>
@@ -3136,7 +3147,7 @@ function renderLevelsEditor() {
       <details class="names-role-group"><summary>Set level per participant (${total})</summary><div class="names-grid">${grid}</div></details>`;
   }
   return `
-    <div class="mini-label" style="margin:0 0 8px;font-size:var(--fs-small);">Levels (optional)</div>
+    <div class="section-title" style="margin:0 0 8px;">Levels (optional)</div>
     <div class="field-hint" style="margin:0 0 10px;">Split participants into levels, e.g. Advanced / Medium / Basic. Each level gets its own schedule and its own breakout groups — participants only see and meet their own level. Faculty and observers can switch between all levels. Leave empty to run one common programme.</div>
     ${rows}
     <button class="add-btn" onclick="addEditLevel()">+ Add level</button>

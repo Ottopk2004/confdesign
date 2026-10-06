@@ -224,7 +224,7 @@
   .move-btn:disabled { opacity:.35; cursor:default; }
 
   .topic-toggle { border:1px dashed var(--pf-border); border-radius:8px; margin-top:10px; overflow:hidden; }
-  .topic-toggle summary { cursor:pointer; padding:8px 10px; font-size:var(--fs-small); font-weight:bold; color:var(--pf-indigo); background:var(--pf-gray); }
+  .topic-toggle summary { cursor:pointer; padding:8px 10px; font-size:var(--fs-body); font-weight:bold; color:var(--pf-indigo); background:var(--pf-gray); }
   .topic-toggle .topic-body { padding:10px; }
   .topic-preview { margin-top:10px; padding-top:10px; border-top:1px dashed var(--pf-border); }
   .topic-preview-label { font-size:var(--fs-small); text-transform:uppercase; letter-spacing:.03em; color:var(--pf-muted); font-weight:bold; margin-bottom:4px; }
@@ -246,7 +246,7 @@
   .faculty-card .field-group:last-child { margin-bottom:0; }
 
   .names-role-group { border:1px solid var(--pf-border); border-radius:8px; margin-bottom:8px; overflow:hidden; }
-  .names-role-group summary { cursor:pointer; padding:8px 10px; font-size:var(--fs-small); font-weight:bold; color:var(--pf-indigo); background:var(--pf-gray); }
+  .names-role-group summary { cursor:pointer; padding:8px 10px; font-size:var(--fs-body); font-weight:bold; color:var(--pf-indigo); background:var(--pf-gray); }
   .names-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:6px 10px; padding:10px; }
   .names-grid-item { display:flex; align-items:center; gap:6px; }
   .names-grid-nr { font-size:var(--fs-small); color:var(--pf-muted); font-weight:bold; min-width:40px; flex-shrink:0; }
@@ -353,6 +353,8 @@
   h1 { font-size: var(--fs-title); }
   h2 { font-size: var(--fs-h2); }
   h3 { font-size: var(--fs-h3); }
+  h1, h2, h3 { font-weight:800; }
+  details.card > summary { font-size: var(--fs-h2); font-weight:800; color: var(--pf-ink); border-left:4px solid var(--pf-indigo); }
 </style>
 <style>
 @media (max-width: 600px) {
