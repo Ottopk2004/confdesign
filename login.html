@@ -26,6 +26,7 @@
   }
 
   body {
+    flex-wrap: wrap; align-content: flex-start;
     font-family: Arial, Helvetica, sans-serif;
     background: #eef0f6;
     min-height: 100vh;
@@ -397,7 +398,7 @@ initPrivacyConsent();
 
 </script>
 
-<footer style="text-align:center;padding:18px 12px 28px;font-size:12px;color:#656B85;"><a id="siteFooterPrivacy" href="privacy.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">Privatlivspolitik</a></footer>
+<footer style="flex:0 0 100%;text-align:center;padding:18px 12px 28px;font-size:12px;color:#656B85;"><a id="siteFooterPrivacy" href="privacy.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">Privatlivspolitik</a></footer>
 <script>(function(){try{var c=new URLSearchParams(location.search).get("conf");if(c)document.getElementById("siteFooterPrivacy").href="privacy.html?conf="+encodeURIComponent(c);}catch(e){}})();</script>
 </body>
 </html>

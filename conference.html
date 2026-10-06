@@ -27,6 +27,7 @@
   }
 
   body {
+    flex-wrap: wrap; align-content: flex-start;
     font-family: Arial, Helvetica, sans-serif;
     background: #eef0f6;
     min-height: 100vh;
@@ -197,13 +198,6 @@
   </div>
   <a class="back-link" href="login.html">← All conferences</a>
 
-  <div class="privacy-consent" id="privacyConsent">
-    <label class="privacy-check">
-      <input type="checkbox" id="privacyCheckbox" onchange="onPrivacyToggle(this.checked)">
-      <span>Jeg har læst og forstået <a href="privacy.html" id="privacyLink" target="_blank" rel="noopener">privatlivspolitikken</a> for brugen af denne side.</span>
-    </label>
-  </div>
-
   <div id="app"><div class="card"><div class="card-sub" style="margin:0;">Loading conference…</div></div></div>
 </div>
 
@@ -216,6 +210,8 @@ const slug = (params.get("conf") || "").trim().toLowerCase();
 function privacyAccepted() { try { return localStorage.getItem(PRIVACY_KEY) === "1"; } catch (_) { return false; } }
 function onPrivacyToggle(checked) {
   try { if (checked) localStorage.setItem(PRIVACY_KEY, "1"); else localStorage.removeItem(PRIVACY_KEY); } catch (_) {}
+  document.querySelectorAll(".privacy-cb").forEach(cb => cb.checked = checked);
+  if (typeof regForm !== "undefined") regForm.privacy = checked;
   document.querySelectorAll(".privacy-err").forEach(e => e.textContent = "");
 }
 function initPrivacyConsent() {
@@ -315,10 +311,13 @@ async function refreshStatus(id) {
   } catch (e) {}
 }
 
+function privacyBoxHtml(id) {
+  return '<label class="privacy-check" style="margin:6px 0 10px;"><input type="checkbox" class="privacy-cb" id="' + id + '" ' + (privacyAccepted() ? "checked" : "") + ' onchange="onPrivacyToggle(this.checked)"><span>Jeg har læst og forstået <a href="privacy.html?conf=' + encodeURIComponent(slug) + '" target="_blank" rel="noopener">privatlivspolitikken</a> og accepterer, at mine oplysninger behandles som beskrevet i den.</span></label>';
+}
 function needPrivacy(targetErrId) {
   if (privacyAccepted()) return false;
   const el = document.getElementById(targetErrId);
-  if (el) el.textContent = "Du skal først acceptere privatlivspolitikken ovenfor.";
+  if (el) el.textContent = "Du skal acceptere privatlivspolitikken for at fortsætte.";
   return true;
 }
 
@@ -338,6 +337,7 @@ function render() {
     h += renderStatusCard() + renderRegisterCard() + renderLoginCard();
   } else {
     h += '<div class="card"><h2>Open conference</h2><div class="card-sub">Everyone is welcome — you can see the programme, map, industry, faculty and presentations without registering. Personal features (test, evaluations and your own breakout group) need a number.</div>'
+      + privacyBoxHtml('guestPrivacy')
       + '<button class="primary-btn" onclick="enterGuest()">View the conference</button><div class="field-error privacy-err" id="guestErr"></div></div>'
       + renderLoginCard();
   }
@@ -393,7 +393,7 @@ function renderRegisterCard() {
     + field("workplace", "Workplace", "text") + field("jobTitle", "Job title", "text") + field("phone", "Phone number", "tel") + field("notes", "About you", "text")
     + attachField()
     + groupHtml
-    + '<label class="privacy-check" style="margin:6px 0 10px;"><input type="checkbox" id="regPrivacy" ' + ((regForm.privacy || privacyAccepted()) ? "checked" : "") + ' onchange="regForm.privacy=this.checked;onPrivacyToggle(this.checked)"><span>Jeg har læst og forstået <a href="privacy.html?conf=' + encodeURIComponent(slug) + '" target="_blank" rel="noopener">privatlivspolitikken</a> og accepterer, at mine oplysninger behandles som beskrevet i den.</span></label>'
+    + privacyBoxHtml('regPrivacy')
     + '<div class="field-error privacy-err" id="regErr">' + esc(formError) + '</div>'
     + '<button class="primary-btn" id="regBtn" onclick="submitRegistration()" ' + (formBusy ? "disabled" : "") + '>' + (formBusy ? "Sending…" : "Register") + '</button></div>';
 }
@@ -412,6 +412,7 @@ function render2() { // re-render keeping the typed values (they live in `form`)
 function renderLoginCard() {
   return '<div class="card"><h2>Already have a number?</h2><div class="card-sub">Enter the number you received by e-mail — participants, faculty and observers.</div>'
     + '<input type="text" class="num-input" id="nrInput" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 42" autocomplete="off" onkeydown="if(event.key===\'Enter\')loginFromInput()">'
+    + privacyBoxHtml('loginPrivacy')
     + '<div class="field-error privacy-err" id="loginErr">' + esc(loginError) + '</div>'
     + '<button class="primary-btn" onclick="loginFromInput()">Log in</button>'
     + '<div class="remember-row"><input type="checkbox" id="rememberMe" checked><label for="rememberMe">Remember me on this device</label></div></div>';
@@ -419,9 +420,7 @@ function renderLoginCard() {
 
 async function submitRegistration() {
   formError = "";
-  const pc = document.getElementById("regPrivacy");
-  if (pc) regForm.privacy = pc.checked;
-  if (!regForm.privacy && !privacyAccepted()) { formError = "Du skal acceptere privatlivspolitikken for at kunne tilmelde dig."; document.getElementById("regErr").textContent = formError; return; }
+  if (!privacyAccepted()) { formError = "Du skal acceptere privatlivspolitikken for at kunne tilmelde dig."; document.getElementById("regErr").textContent = formError; return; }
   regForm.privacy = true;
   const cfg = signupCfg(), groups = selectableGroups();
   const need = (k, l) => cfg.fields[k] === "required" && !String(regForm[k]).trim() ? "Please fill in " + l + "." : "";
@@ -469,7 +468,7 @@ function enterGuest() {
 async function loginFromInput() {
   const el = document.getElementById("loginErr");
   const v = document.getElementById("nrInput").value.trim().replace(/^[a-zA-Z]+/, "");
-  if (!privacyAccepted()) { el.textContent = "Du skal først acceptere privatlivspolitikken ovenfor."; return; }
+  if (!privacyAccepted()) { el.textContent = "Du skal acceptere privatlivspolitikken for at fortsætte."; return; }
   if (!/^\d{1,4}$/.test(v) || Number(v) < 1) { el.textContent = "Enter your number — digits only."; return; }
   el.textContent = "Checking…";
   try {
@@ -483,7 +482,7 @@ async function loginFromInput() {
 
 load();
 </script>
-<footer style="text-align:center;padding:18px 12px 28px;font-size:12px;color:#656B85;"><a id="siteFooterPrivacy" href="privacy.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">Privatlivspolitik</a></footer>
+<footer style="flex:0 0 100%;text-align:center;padding:18px 12px 28px;font-size:12px;color:#656B85;"><a id="siteFooterPrivacy" href="privacy.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">Privatlivspolitik</a></footer>
 <script>(function(){try{var c=new URLSearchParams(location.search).get("conf");if(c)document.getElementById("siteFooterPrivacy").href="privacy.html?conf="+encodeURIComponent(c);}catch(e){}})();</script>
 </body>
 </html>
