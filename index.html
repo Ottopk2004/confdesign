@@ -200,6 +200,13 @@
     padding: 14px 18px; font-size:var(--fs-body);
   }
   .day-group .session-card:last-child { border-radius: 0 0 8px 8px; }
+  .session-pair { display:grid; grid-template-columns:1fr 1fr; border:2px solid var(--pf-border); border-top:none; }
+  .session-pair .session-col + .session-col { border-left:2px solid var(--pf-border); background:rgba(0,0,0,.025); }
+  .session-pair .session-card { border:none; border-top:1px solid var(--pf-border); border-radius:0 !important; }
+  .session-pair .col-head { font-size:var(--fs-small); font-weight:bold; text-transform:uppercase; letter-spacing:.04em; padding:8px 18px 0; opacity:.7; }
+  .session-pair .col-head + .session-card { border-top:none; }
+  .day-group .session-pair:last-child { border-radius:0 0 8px 8px; overflow:hidden; }
+  @media (max-width:640px) { .session-pair { grid-template-columns:1fr; } .session-pair .session-col + .session-col { border-left:none; border-top:2px solid var(--pf-border); } }
   .session-card .time { font-size:var(--fs-small); color: var(--pf-theme); font-weight: bold; }
   .session-card .title { font-weight: bold; margin: 2px 0; }
   .session-card .speaker { font-size:var(--fs-small); color: var(--pf-muted); }
@@ -1678,21 +1685,32 @@ function scheduleItemWindows(schedule) {
   });
   return withStart;
 }
+function scheduleWindowsSplit(schedule) {
+  const list = schedule || [];
+  return scheduleItemWindows(list.filter(s => !s.personal))
+    .concat(scheduleItemWindows(list.filter(s => s.personal)))
+    .sort((a, b) => a.from - b.from);
+}
 function renderScheduleNowBar(schedule, nowOverride) {
-  const win = scheduleItemWindows(schedule);
+  const win = scheduleWindowsSplit(schedule);
   if (!win.length) return "";
   const now = nowOverride || new Date();
-  const current = win.filter(x => x.from <= now && now < x.to);
+  let current = win.filter(x => x.from <= now && now < x.to);
+  // Personal changes take priority in this box
+  if (current.some(x => x.s.personal)) current = current.filter(x => x.s.personal);
   const upcoming = win.filter(x => x.from > now);
   const timeRange = x => `${timeOf(x.from.getHours() * 60 + x.from.getMinutes())}–${timeOf(x.to.getHours() * 60 + x.to.getMinutes())}`;
   const row = x => `<div style="margin-top:12px;"><div class="next-time" style="font-size:var(--fs-h2);">${escHtml(x.s.title)}</div><div class="next-time">${x.s.location ? `📍 ${escHtml(x.s.location)}` : 'Location to be announced'} · ${timeRange(x)}${x.s.speaker ? ` · ${escHtml(x.s.speaker)}` : ''}</div></div>`;
   if (current.length) {
-    const nxt = upcoming.find(x => !current.includes(x));
+    const nxtFirst = upcoming.filter(x => !current.includes(x) && (!upcoming[0] || x.from.getTime() === upcoming[0].from.getTime()));
+    const nxt = nxtFirst.find(x => x.s.personal) || nxtFirst[0];
     return `<div class="next-up-card" style="background:var(--pf-theme)"><div class="next-label">HAPPENING NOW — GO TO</div>${current.slice(0, 3).map(row).join('')}${nxt ? `<div class="next-up-meta"><div><span>THEN</span><strong>${escHtml(nxt.s.title)} · ${timeOf(nxt.from.getHours() * 60 + nxt.from.getMinutes())}${nxt.s.location ? ' · ' + escHtml(nxt.s.location) : ''}</strong></div></div>` : ''}</div>`;
   }
   if (upcoming.length) {
     const first = upcoming[0].from.getTime();
-    const group = upcoming.filter(x => x.from.getTime() === first).slice(0, 3);
+    let group = upcoming.filter(x => x.from.getTime() === first);
+    if (group.some(x => x.s.personal)) group = group.filter(x => x.s.personal);
+    group = group.slice(0, 3);
     const when = relativeTime(first - now.getTime());
     return `<div class="next-up-card" style="background:var(--pf-theme)"><div class="next-label">NEXT UP — GO TO</div>${group.map(row).join('')}<div class="next-up-meta"><div><span>STARTS</span><strong>${when} · ${formatHandsOnDate(upcoming[0].from)}</strong></div></div></div>`;
   }
@@ -1709,20 +1727,46 @@ function renderScheduleReadOnly(schedule) {
   if (!schedule || schedule.length === 0) {
     return `<div class="empty-note">The programme hasn't been published yet — check back soon.</div>`;
   }
-  const byDay = groupByDate(schedule);
-  return Object.keys(byDay).sort().map(date => `
-    <div class="day-group">
-      <div class="day-label">${formatDateLabel(date)}</div>
-      ${byDay[date].map(s => `
+  const card = s => `
         <div class="session-card">
           <div class="time">${escHtml(formatSessionTimeRange(s))}${s.levelId && hasLevels() && mode !== 'participant' ? `<span class="level-badge">${escHtml(levelName(s.levelId))}</span>` : ''}${s.personal ? `<span class="level-badge">Changed for you</span>` : ''}</div>
           <div class="title">${escHtml(s.title)}</div>
           ${s.speaker ? `<div class="speaker">${escHtml(s.speaker)}</div>` : ""}
           ${s.location ? `<div class="speaker">📍 ${escHtml(s.location)}</div>` : ""}
-        </div>
-      `).join("")}
-    </div>
-  `).join("");
+        </div>`;
+  const byDay = groupByDate(schedule);
+  return Object.keys(byDay).sort().map(date => {
+    const items = byDay[date];
+    const wins = new Map();
+    scheduleWindowsSplit(items).forEach(x => wins.set(x.s, x));
+    const parent = items.map((_, i) => i);
+    const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
+    items.forEach((a, i) => items.forEach((b, j) => {
+      if (j <= i || !!a.personal === !!b.personal) return;
+      const wa = wins.get(a), wb = wins.get(b);
+      if (wa && wb && wa.from < wb.to && wb.from < wa.to) parent[find(j)] = find(i);
+    }));
+    const done = new Set();
+    let html = "";
+    items.forEach((s, i) => {
+      const root = find(i);
+      if (done.has(root)) return;
+      done.add(root);
+      const cluster = items.filter((_, k) => find(k) === root);
+      const gen = cluster.filter(x => !x.personal), per = cluster.filter(x => x.personal);
+      if (gen.length && per.length) {
+        html += `<div class="session-pair">
+          <div class="session-col"><div class="col-head">General programme</div>${gen.map(card).join("")}</div>
+          <div class="session-col personal"><div class="col-head">Your personal programme</div>${per.map(card).join("")}</div>
+        </div>`;
+      } else html += cluster.map(card).join("");
+    });
+    return `
+    <div class="day-group">
+      <div class="day-label">${formatDateLabel(date)}</div>
+      ${html}
+    </div>`;
+  }).join("");
 }
 
 // Shows "start–end" when an end time was set, otherwise just the start
