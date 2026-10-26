@@ -351,7 +351,7 @@ function render() {
   }
 
   if (isRegistration()) {
-    h += renderStatusCard() + renderRegisterCard() + renderLoginCard();
+    h += renderLoginCard() + renderStatusCard() + renderRegisterCard();
   } else {
     h += '<div class="card"><h2>Open conference</h2><div class="card-sub">Everyone is welcome — you can see the programme, map, industry, faculty and presentations without registering. Personal features (test, evaluations and your own breakout group) need a number.</div>'
       + privacyBoxHtml('guestPrivacy')
@@ -408,7 +408,7 @@ function renderRegisterCard() {
     groupHtml = '<div class="field"><label class="lbl">Your group <span class="req">*</span></label>' + groups.map(g =>
       '<label class="group-opt ' + (regForm.groupKey === g.key ? "sel" : "") + '"><input type="radio" name="grp" ' + (regForm.groupKey === g.key ? "checked" : "") + ' onchange="regForm.groupKey=\'' + esc(g.key) + '\';render2()"> ' + esc(g.label) + (capacity[g.key] ? ' <span style="color:#8A5A00;font-size:12px;">(full — waiting list)</span>' : '') + '</label>').join("") + '</div>';
   }
-  return '<div class="card"><h2>Register</h2>'
+  return '<div class="card"><h2>Don\u2019t have a number? Register here</h2>'
     + (cfg.intro ? '<div class="card-sub" style="white-space:pre-wrap">' + esc(cfg.intro) + '</div>' : '<div class="card-sub">Fill in the form. The organizer approves your registration, and then you receive your number by e-mail.</div>')
     + '<div class="field"><label class="lbl">Name <span class="req">*</span></label><input type="text" autocomplete="name" value="' + esc(regForm.name) + '" oninput="regForm.name=this.value"></div>'
     + '<div class="field"><label class="lbl">E-mail <span class="req">*</span></label><input type="email" autocomplete="email" inputmode="email" value="' + esc(regForm.email) + '" oninput="regForm.email=this.value"></div>'

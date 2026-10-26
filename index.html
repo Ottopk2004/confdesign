@@ -2045,6 +2045,14 @@ function decideSignup(id, action) {
     .then(async r => {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Server error');
+      applySignupResult(d);
+      signupMsg = action === 'approve' && d.email && d.email.sent === false ? `Approved as #${d.nr}, but the e-mail could not be sent (${d.email.error}). Tell the person their number: ${confSlug.toUpperCase()}${d.nr}.`
+        : action === 'approve' ? `Approved as #${d.nr}${d.email && d.email.sent ? ' — number sent by e-mail.' : '.'}` : '';
+    })
+    .catch(e => { signupMsg = 'Error: ' + e.message; })
+    .finally(() => { signupBusy = ''; loadSignups(); });
+}
+function applySignupResult(d) {
       // Keep the editor in step with what the server just changed.
       if (d.levelAssignments) { editMeta.levelAssignments = Object.assign({}, d.levelAssignments); confData.meta.levelAssignments = Object.assign({}, d.levelAssignments); }
       if (Array.isArray(d.names) && editModuleContent && editModuleContent.handsOn) {
@@ -2057,11 +2065,44 @@ function decideSignup(id, action) {
         const cs = confData.moduleContent && confData.moduleContent.handsOn && confData.moduleContent.handsOn.sessions;
         if (cs && cs.length === d.breakoutState.length) d.breakoutState.forEach((st, i) => { cs[i].overrides = st.overrides; cs[i].locked = st.locked; });
       }
-      signupMsg = action === 'approve' && d.email && d.email.sent === false ? `Approved as #${d.nr}, but the e-mail could not be sent (${d.email.error}). Tell the person their number: ${confSlug.toUpperCase()}${d.nr}.`
-        : action === 'approve' ? `Approved as #${d.nr}${d.email && d.email.sent ? ' — number sent by e-mail.' : '.'}` : '';
+}
+let manualOpen = false;
+let manualSignup = { name: '', email: '', groupKey: '', busy: false };
+function createManualSignup() {
+  const m = manualSignup;
+  if (m.busy) return;
+  const groups = (signupData && signupData.groups) || [];
+  const groupKey = m.groupKey || (groups.length === 1 ? groups[0].key : '');
+  if (m.name.trim().length < 2) { signupMsg = 'Error: Enter the person\'s name.'; rerenderOrganizerScroll(); return; }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m.email.trim())) { signupMsg = 'Error: Enter a valid e-mail address.'; rerenderOrganizerScroll(); return; }
+  if (!groupKey) { signupMsg = 'Error: Choose a level for this person.'; rerenderOrganizerScroll(); return; }
+  m.busy = true; signupMsg = '';
+  rerenderOrganizerScroll();
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/signup/create`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminPin: pinInput, name: m.name.trim(), email: m.email.trim(), groupKey, baseUrl: signupBaseUrl() }) })
+    .then(async r => {
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Server error');
+      applySignupResult(d);
+      signupMsg = d.email && d.email.sent === false
+        ? `${d.name} was created as #${d.nr}, but the e-mail could not be sent (${d.email.error}). Tell the person their number: ${confSlug.toUpperCase()}${d.nr}.`
+        : `${d.name} was created as #${d.nr} and the number was sent to ${d.emailAddress || m.email.trim()}.`;
+      manualSignup = { name: '', email: '', groupKey: m.groupKey, busy: false };
+      signupFilter = 'approved';
     })
-    .catch(e => { signupMsg = 'Error: ' + e.message; })
-    .finally(() => { signupBusy = ''; loadSignups(); });
+    .catch(e => { signupMsg = 'Error: ' + e.message; manualSignup.busy = false; })
+    .finally(() => { loadSignups(); });
+}
+function renderManualSignupForm() {
+  const groups = (signupData && signupData.groups) || [];
+  const m = manualSignup;
+  const opts = (groups.length === 1 ? '' : `<option value="">— choose level —</option>`) + groups.map(g => `<option value="${escHtml(g.key)}" ${(m.groupKey === g.key || groups.length === 1) ? 'selected' : ''}>${escHtml(g.label)}</option>`).join('');
+  return `<details class="organizer-module" style="margin:0 0 12px;" ${manualOpen ? 'open' : ''} ontoggle="manualOpen=this.open"><summary>Add a participant manually</summary><div class="organizer-module-body" style="padding:12px 0 0;">
+    <div class="field-hint" style="margin:0 0 8px;">Creates the person straight away, gives them the next free number in their group and e-mails the number to them.</div>
+    <div class="field-group"><label>Name</label><input type="text" maxlength="120" autocomplete="off" value="${escHtml(m.name)}" oninput="manualSignup.name=this.value"></div>
+    <div class="field-group"><label>E-mail</label><input type="email" autocomplete="off" inputmode="email" value="${escHtml(m.email)}" oninput="manualSignup.email=this.value"></div>
+    <div class="field-group"><label>${groups.length <= 1 ? 'Group' : 'Level'}</label><select onchange="manualSignup.groupKey=this.value">${opts}</select></div>
+    <button class="reg-btn" ${m.busy ? 'disabled' : ''} onclick="createManualSignup()">${m.busy ? 'Creating…' : 'Create and e-mail number'}</button>
+  </div></details>`;
 }
 async function exportSignups(scope) {
   try {
@@ -2114,6 +2155,7 @@ function renderRegistrationsTab() {
   };
   return `
     <div class="section-title" style="margin:0 0 8px;">Registrations</div>
+    ${renderManualSignupForm()}
     <div class="field-hint" style="margin:0 0 10px;">${capLine || 'Set participant numbers under General.'}${sm.waitlist ? ` &nbsp;·&nbsp; On waiting list: <b>${sm.waitlist}</b>` : ''}</div>
     <div class="level-chips">${chip('pending', 'Pending', sm.pending)}${chip('approved', 'Approved', sm.approved)}${chip('waitlist', 'Waiting list', sm.waitlist || 0)}${chip('rejected', 'Rejected', sm.rejected)}${chip('all', 'All', sm.pending + sm.approved + sm.rejected + (sm.waitlist || 0))}</div>
     <div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;"><button class="reg-btn ghost" onclick="loadSignups()">Refresh</button><button class="reg-btn" onclick="exportSignups('approved')">⬇ Participant list (Excel)</button><button class="reg-btn ghost" onclick="exportSignups('all')">⬇ All applications incl. waiting list (Excel)</button></div>
