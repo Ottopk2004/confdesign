@@ -785,6 +785,7 @@ async function afterConfLoaded() {
     if (role === "faculty" || role === "observer") resetEvaluationState();
     mode = role; // "participant", "faculty" or "observer"
     render();
+    if (PLATFORM_WORKER_URL) loadPersonalSchedule(nrParam);
     if (role === "participant") {
       if (emailRegistrationNeeded()) {
         loadRegistrationStatus();
@@ -1339,7 +1340,32 @@ function visibleLevelFilter() {
   if (mode === 'participant') { const mine = participantLevelId(loginNr); return id => !id || id === mine; }
   return id => !viewLevel || !id || id === viewLevel;
 }
-function filterScheduleForViewer(schedule) { const vis = visibleLevelFilter(); return (schedule || []).filter(s => vis(s.levelId)); }
+function filterScheduleForViewer(schedule) { const vis = visibleLevelFilter(); return applyPersonalSchedule((schedule || []).filter(s => vis(s.levelId)), personalSchedule); }
+
+// ── Personal schedule changes (set per participant by the organizer) ──
+// personalSchedule = { removed:[ids], changed:{id:{...fields}}, added:[items] } for the logged-in number.
+let personalSchedule = null;
+function applyPersonalSchedule(list, ov) {
+  if (!ov) return list;
+  const removed = new Set(ov.removed || []), changed = ov.changed || {};
+  let out = list.filter(s => !removed.has(s.id)).map(s => changed[s.id] ? Object.assign({}, s, changed[s.id], { personal: true }) : s);
+  const added = (ov.added || []).map(a => Object.assign({}, a, { personal: true }));
+  if (added.length) {
+    out = out.concat(added);
+    out.sort((a, b) => `${a.date || ''} ${a.startTime || a.time || ''}`.localeCompare(`${b.date || ''} ${b.startTime || b.time || ''}`));
+  }
+  return out;
+}
+async function loadPersonalSchedule(nr) {
+  try {
+    const r = await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/personal-schedule?nr=${encodeURIComponent(nr)}`, { cache: 'no-store' });
+    if (!r.ok) return;
+    const d = await r.json();
+    const o = d.overrides || {};
+    personalSchedule = (o.removed && o.removed.length) || (o.added && o.added.length) || (o.changed && Object.keys(o.changed).length) ? o : null;
+    if (personalSchedule) rerenderParticipantScroll();
+  } catch (e) {}
+}
 function setViewLevel(id) { viewLevel = id; rerenderParticipantScroll(); }
 function renderLevelHeader() {
   if (!hasLevels()) return '';
@@ -1689,7 +1715,7 @@ function renderScheduleReadOnly(schedule) {
       <div class="day-label">${formatDateLabel(date)}</div>
       ${byDay[date].map(s => `
         <div class="session-card">
-          <div class="time">${escHtml(formatSessionTimeRange(s))}${s.levelId && hasLevels() && mode !== 'participant' ? `<span class="level-badge">${escHtml(levelName(s.levelId))}</span>` : ''}</div>
+          <div class="time">${escHtml(formatSessionTimeRange(s))}${s.levelId && hasLevels() && mode !== 'participant' ? `<span class="level-badge">${escHtml(levelName(s.levelId))}</span>` : ''}${s.personal ? `<span class="level-badge">Changed for you</span>` : ''}</div>
           <div class="title">${escHtml(s.title)}</div>
           ${s.speaker ? `<div class="speaker">${escHtml(s.speaker)}</div>` : ""}
           ${s.location ? `<div class="speaker">📍 ${escHtml(s.location)}</div>` : ""}
@@ -1707,7 +1733,8 @@ function formatSessionTimeRange(s) {
   return s.endTime ? `${start}–${s.endTime}` : start;
 }
 
-function newEditScheduleItem() { return { startTime: "", endTime: "", title: "", speaker: "", location: "", levelId: editScheduleLevelFilter || "" }; }
+function newSchedId() { return 's' + Date.now().toString(36).slice(-6) + Math.floor(Math.random() * 46656).toString(36); }
+function newEditScheduleItem() { return { id: newSchedId(), startTime: "", endTime: "", title: "", speaker: "", location: "", levelId: editScheduleLevelFilter || "" }; }
 
 // Turns the day-grouped editor state back into the flat sessions array
 // the backend and participant-facing schedule expect — one entry per
@@ -1725,6 +1752,7 @@ function flattenScheduleDays(days) {
         speaker: (item.speaker || "").trim(),
         location: (item.location || "").trim(),
         levelId: item.levelId || "",
+        id: item.id || "",
       });
     });
   });
@@ -1748,6 +1776,7 @@ function groupSessionsIntoDays(sessions) {
       speaker: s.speaker || "",
       location: s.location || "",
       levelId: s.levelId || "",
+      id: s.id || "",
     });
   });
   order.sort();
@@ -2269,6 +2298,7 @@ function renderOrganizerEditor() {
       <div class="editor-tab-content">
         <div class="section-title" style="margin:0 0 12px;">Schedule</div>
         <div class="field-hint" style="margin:0 0 14px;">Add a day, then add the activities that happen on it. Schedule can be changed at any time after the conference has been created.${hasLevels() ? ' With levels in use, give every activity a level — participants only see their own level\'s schedule.' : ''}</div>
+        ${renderPersonalScheduleTool()}
         ${renderScheduleLevelFilter()}
         ${editScheduleDays.map((day, di) => `
           <div class="session-edit-row">
@@ -3293,6 +3323,112 @@ function renderLevelsEditor() {
     ${assignTool}
     <div style="height:1px;background:var(--pf-border);margin:18px 0;"></div>`;
 }
+
+// ── Organizer: change ONE participant's schedule ─────────────────────
+let pers = { query: '', matches: [], nr: null, rows: [], added: [], busy: false, msg: '', err: false, open: false };
+function persRole(nr) { return deriveRole(nr, editMeta || confData.meta); }
+function persBaseItems(nr) {
+  const role = persRole(nr), sched = confData.schedule || [];
+  if (role === 'participant' && hasLevels()) { const lv = (editMeta.levelAssignments || {})[String(nr)] || ''; return sched.filter(s => !s.levelId || s.levelId === lv); }
+  return sched.slice();
+}
+function persSearch() {
+  const q = String(pers.query || '').trim().replace(/^[a-zA-Z]+(?=\d)/, '');
+  pers.matches = []; pers.msg = ''; pers.err = false;
+  if (!q) { pers.nr = null; rerenderOrganizerScroll(); return; }
+  if (/^\d+$/.test(q)) {
+    if (!persRole(q)) { pers.nr = null; pers.msg = `#${q} is not a valid number for this conference.`; pers.err = true; rerenderOrganizerScroll(); return; }
+    persLoad(parseInt(q, 10)); return;
+  }
+  const names = namesLookup(editModuleContent && editModuleContent.handsOn), low = q.toLowerCase();
+  pers.matches = Object.keys(names).filter(nr => String(names[nr]).toLowerCase().includes(low) && persRole(nr)).slice(0, 8).map(nr => ({ nr, name: names[nr] }));
+  pers.nr = null;
+  if (!pers.matches.length) { pers.msg = `No participant found for "${q}".`; pers.err = true; }
+  rerenderOrganizerScroll();
+}
+function persPick(nr) { pers.matches = []; persLoad(parseInt(nr, 10)); }
+function persLoad(nr) {
+  pers.busy = true; pers.nr = nr; pers.msg = ''; pers.err = false; rerenderOrganizerScroll();
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/personal-schedule?nr=${nr}`, { cache: 'no-store' })
+    .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Server error'); persBuild(d.overrides || {}); })
+    .catch(e => { pers.msg = 'Error: ' + e.message; pers.err = true; pers.nr = null; })
+    .finally(() => { pers.busy = false; rerenderOrganizerScroll(); });
+}
+function persBuild(ov) {
+  const removed = new Set(ov.removed || []), changed = ov.changed || {};
+  pers.rows = persBaseItems(pers.nr).map(s => {
+    const c = changed[s.id] || {};
+    return { id: s.id, base: s, removed: removed.has(s.id),
+      startTime: c.startTime !== undefined ? c.startTime : (s.startTime || s.time || ''), endTime: c.endTime !== undefined ? c.endTime : (s.endTime || ''),
+      title: c.title !== undefined ? c.title : s.title, speaker: c.speaker !== undefined ? c.speaker : (s.speaker || ''), location: c.location !== undefined ? c.location : (s.location || '') };
+  });
+  pers.added = (ov.added || []).map(a => Object.assign({}, a));
+}
+function persField(i, key, val) { pers.rows[i][key] = val; }
+function persAddedField(i, key, val) { pers.added[i][key] = val; }
+function persToggle(i) { pers.rows[i].removed = !pers.rows[i].removed; rerenderOrganizerScroll(); }
+function persResetRow(i) { const s = pers.rows[i].base; Object.assign(pers.rows[i], { removed: false, startTime: s.startTime || s.time || '', endTime: s.endTime || '', title: s.title, speaker: s.speaker || '', location: s.location || '' }); rerenderOrganizerScroll(); }
+function persAdd() {
+  const first = (confData.schedule || []).map(s => s.date).filter(Boolean).sort()[0] || '';
+  pers.added.push({ id: 'p' + newSchedId(), date: first, startTime: '', endTime: '', title: '', speaker: '', location: '', levelId: '' });
+  rerenderOrganizerScroll();
+}
+function persRemoveAdded(i) { pers.added.splice(i, 1); rerenderOrganizerScroll(); }
+function persOverrides() {
+  const removed = [], changed = {};
+  pers.rows.forEach(r => {
+    if (r.removed) { removed.push(r.id); return; }
+    const s = r.base, c = {};
+    if (String(r.startTime).trim() !== (s.startTime || s.time || '')) c.startTime = String(r.startTime).trim();
+    if (String(r.endTime).trim() !== (s.endTime || '')) c.endTime = String(r.endTime).trim();
+    if (String(r.title).trim() !== s.title && String(r.title).trim()) c.title = String(r.title).trim();
+    if (String(r.speaker).trim() !== (s.speaker || '')) c.speaker = String(r.speaker).trim();
+    if (String(r.location).trim() !== (s.location || '')) c.location = String(r.location).trim();
+    if (Object.keys(c).length) changed[r.id] = c;
+  });
+  return { removed, changed, added: pers.added.filter(a => String(a.title).trim()) };
+}
+function persSave(reset) {
+  if (reset) { if (!confirm(`Remove all personal changes for #${pers.nr}? Their schedule goes back to the common one.`)) return; }
+  pers.busy = true; pers.msg = ''; rerenderOrganizerScroll();
+  const overrides = reset ? { removed: [], changed: {}, added: [] } : persOverrides();
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/personal-schedule`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminPin: pinInput, nr: pers.nr, overrides }) })
+    .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Server error'); persBuild(d.overrides); pers.msg = reset ? `#${pers.nr} now follows the common schedule.` : `Saved for #${pers.nr}. Nobody else is affected.`; pers.err = false; })
+    .catch(e => { pers.msg = 'Error: ' + e.message; pers.err = true; })
+    .finally(() => { pers.busy = false; rerenderOrganizerScroll(); });
+}
+function renderPersonalScheduleTool() {
+  const names = namesLookup(editModuleContent && editModuleContent.handsOn);
+  const label = pers.nr ? `#${pers.nr}${names[String(pers.nr)] ? ' — ' + escHtml(names[String(pers.nr)]) : ''}` : '';
+  const rows = pers.rows.map((r, i) => {
+    const s = r.base;
+    const dirty = !r.removed && (String(r.startTime).trim() !== (s.startTime || s.time || '') || String(r.endTime).trim() !== (s.endTime || '') || String(r.title).trim() !== s.title || String(r.speaker).trim() !== (s.speaker || '') || String(r.location).trim() !== (s.location || ''));
+    return `<div class="quiz-edit-row" style="margin-top:8px;${r.removed ? 'opacity:.55;' : ''}">
+      <div class="mini-label">${escHtml(s.date || '')}${dirty ? ' · <b style="color:var(--pf-theme)">changed for #' + pers.nr + '</b>' : ''}${r.removed ? ' · <b style="color:var(--pf-red)">hidden for #' + pers.nr + '</b>' : ''}</div>
+      <div class="field-row" style="margin-bottom:6px;"><div><span class="mini-label">Start</span><input type="text" maxlength="5" placeholder="HH:MM" value="${escHtml(r.startTime)}" ${r.removed ? 'disabled' : ''} oninput="persField(${i},'startTime',this.value)"></div><div><span class="mini-label">End</span><input type="text" maxlength="5" placeholder="HH:MM" value="${escHtml(r.endTime)}" ${r.removed ? 'disabled' : ''} oninput="persField(${i},'endTime',this.value)"></div></div>
+      <div style="margin-bottom:6px;"><span class="mini-label">Title</span><input type="text" value="${escHtml(r.title)}" ${r.removed ? 'disabled' : ''} oninput="persField(${i},'title',this.value)"></div>
+      <div class="field-row" style="margin-bottom:6px;"><div><span class="mini-label">Speaker</span><input type="text" value="${escHtml(r.speaker)}" ${r.removed ? 'disabled' : ''} oninput="persField(${i},'speaker',this.value)"></div><div><span class="mini-label">Room / where to go</span><input type="text" value="${escHtml(r.location)}" ${r.removed ? 'disabled' : ''} oninput="persField(${i},'location',this.value)"></div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="reg-btn ghost" onclick="persToggle(${i})">${r.removed ? 'Show again for #' + pers.nr : 'Hide for #' + pers.nr}</button>${dirty ? `<button type="button" class="reg-btn ghost" onclick="persResetRow(${i})">Undo changes</button>` : ''}</div></div>`;
+  }).join('');
+  const added = pers.added.map((a, i) => `<div class="quiz-edit-row" style="margin-top:8px;border-left:4px solid var(--pf-theme);">
+      <div class="mini-label">Extra activity only for #${pers.nr}</div>
+      <div class="field-row" style="margin-bottom:6px;"><div><span class="mini-label">Date</span><input type="date" value="${escHtml(a.date)}" oninput="persAddedField(${i},'date',this.value)"></div><div><span class="mini-label">Start</span><input type="text" maxlength="5" placeholder="HH:MM" value="${escHtml(a.startTime)}" oninput="persAddedField(${i},'startTime',this.value)"></div><div><span class="mini-label">End</span><input type="text" maxlength="5" placeholder="HH:MM" value="${escHtml(a.endTime)}" oninput="persAddedField(${i},'endTime',this.value)"></div></div>
+      <div style="margin-bottom:6px;"><span class="mini-label">Title</span><input type="text" value="${escHtml(a.title)}" oninput="persAddedField(${i},'title',this.value)"></div>
+      <div class="field-row" style="margin-bottom:6px;"><div><span class="mini-label">Speaker</span><input type="text" value="${escHtml(a.speaker)}" oninput="persAddedField(${i},'speaker',this.value)"></div><div><span class="mini-label">Room / where to go</span><input type="text" value="${escHtml(a.location)}" oninput="persAddedField(${i},'location',this.value)"></div></div>
+      <button type="button" class="reg-btn danger" onclick="persRemoveAdded(${i})">Remove</button></div>`).join('');
+  const matchList = pers.matches.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${pers.matches.map(m => `<button type="button" class="level-chip" onclick="persPick('${escHtml(m.nr)}')">#${escHtml(m.nr)} ${escHtml(m.name)}</button>`).join('')}</div>` : '';
+  return `<details class="organizer-module" style="margin:0 0 14px;" ${pers.open ? 'open' : ''} ontoggle="pers.open=this.open"><summary>Change one participant's schedule</summary><div class="organizer-module-body" style="padding:12px 0 0;">
+    <div class="field-hint" style="margin:0 0 8px;">Search a participant number (or name) and change the schedule for <b>that person only</b> — everybody else keeps the common schedule. The list below is the <b>saved</b> schedule, so save any schedule changes first.</div>
+    <div style="display:flex;gap:8px;"><input type="text" placeholder="Participant number, e.g. 42" value="${escHtml(pers.query)}" oninput="pers.query=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();persSearch();}" style="flex:1;min-width:0;"><button type="button" class="reg-btn" onclick="persSearch()">Search</button></div>
+    ${matchList}
+    ${pers.msg ? `<div class="save-status ${pers.err ? 'error' : 'ok'}" style="margin-top:10px;">${escHtml(pers.msg)}</div>` : ''}
+    ${pers.busy && !pers.rows.length ? '<div class="empty-note">Loading…</div>' : ''}
+    ${pers.nr && !(pers.busy && !pers.rows.length) ? `<div class="section-title" style="margin:14px 0 4px;">Schedule for ${label}</div>
+      ${persRole(pers.nr) === 'participant' && hasLevels() ? `<div class="field-hint">Level: <b>${escHtml(levelName((editMeta.levelAssignments || {})[String(pers.nr)] || '') || 'none')}</b> — showing activities for this level and for everyone.</div>` : ''}
+      ${rows || '<div class="empty-note">No activities in the saved schedule.</div>'}${added}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;"><button type="button" class="reg-btn ghost" onclick="persAdd()">+ Add activity only for #${pers.nr}</button><button type="button" class="reg-btn" ${pers.busy ? 'disabled' : ''} onclick="persSave(false)">Save for #${pers.nr}</button><button type="button" class="reg-btn danger" ${pers.busy ? 'disabled' : ''} onclick="persSave(true)">Remove all personal changes</button></div>` : ''}
+  </div></details>`;
+}
 function renderScheduleLevelFilter() {
   if (!hasLevels()) return '';
   const { levels } = levelCtx();
@@ -3310,7 +3446,7 @@ function duplicateEditScheduleItem(di, ii) {
   const items = editScheduleDays[di].items, it = items[ii];
   const others = levelCtx().levels.filter(l => l.id !== it.levelId);
   if (!others.length || !confirm(`Create copies of this activity for: ${others.map(l => l.name).join(', ')}?`)) return;
-  others.forEach((l, k) => items.splice(ii + 1 + k, 0, Object.assign({}, it, { levelId: l.id })));
+  others.forEach((l, k) => items.splice(ii + 1 + k, 0, Object.assign({}, it, { levelId: l.id, id: newSchedId() })));
   rerenderOrganizerScroll();
 }
 function renderSessionLevelSelect(si) {
