@@ -1355,7 +1355,7 @@ let personalSchedule = null;
 function applyPersonalSchedule(list, ov) {
   if (!ov) return list;
   const removed = new Set(ov.removed || []), changed = ov.changed || {};
-  let out = list.filter(s => !removed.has(s.id)).map(s => changed[s.id] ? Object.assign({}, s, changed[s.id], { personal: true }) : s);
+  let out = list.filter(s => !removed.has(s.id)).map(s => changed[s.id] ? Object.assign({}, s, changed[s.id], { personal: true, orig: s }) : s);
   const added = (ov.added || []).map(a => Object.assign({}, a, { personal: true }));
   if (added.length) {
     out = out.concat(added);
@@ -1736,7 +1736,10 @@ function renderScheduleReadOnly(schedule) {
         </div>`;
   const byDay = groupByDate(schedule);
   return Object.keys(byDay).sort().map(date => {
-    const items = byDay[date];
+    const base = byDay[date];
+    // The original (general) version of a changed activity stays visible next to the personal one when they overlap
+    const ghosts = base.filter(x => x.personal && x.orig).map(x => Object.assign({}, x.orig, { ghost: true }));
+    const items = base.concat(ghosts);
     const wins = new Map();
     scheduleWindowsSplit(items).forEach(x => wins.set(x.s, x));
     const parent = items.map((_, i) => i);
@@ -1754,6 +1757,7 @@ function renderScheduleReadOnly(schedule) {
       done.add(root);
       const cluster = items.filter((_, k) => find(k) === root);
       const gen = cluster.filter(x => !x.personal), per = cluster.filter(x => x.personal);
+      if (!per.length && gen.every(x => x.ghost)) return;
       if (gen.length && per.length) {
         html += `<div class="session-pair">
           <div class="session-col"><div class="col-head">General programme</div>${gen.map(card).join("")}</div>
