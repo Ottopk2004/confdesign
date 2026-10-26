@@ -234,7 +234,7 @@ function storeSet(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
 function storeDel(k) { try { localStorage.removeItem(k); } catch (_) {} }
 function baseUrl() { return location.origin + location.pathname.replace(/[^/]*$/, ""); }
 
-let conf = null, signupStatus = null, formError = "", formBusy = false, formDone = false;
+let capacity = {}, conf = null, signupStatus = null, formError = "", formBusy = false, formDone = false;
 const regForm = { name: "", email: "", workplace: "", jobTitle: "", phone: "", notes: "", groupKey: "", privacy: false };
 let loginError = "";
 let attachFile = null, attachNote = "";
@@ -300,8 +300,25 @@ async function load() {
   document.title = conf.meta.name + " — Conf Design";
   const id = storeGet("cd_signup_" + slug);
   if (id && isRegistration()) await refreshStatus(id);
+  if (isRegistration()) await loadCapacity();
   render();
 }
+
+async function loadCapacity() {
+  try {
+    const r = await fetch(PLATFORM_WORKER_URL + "/conf/" + encodeURIComponent(slug) + "/signup/capacity", { cache: "no-store" });
+    if (!r.ok) return;
+    const d = await r.json();
+    capacity = {};
+    (d.groups || []).forEach(g => { capacity[g.key] = !!g.full; });
+  } catch (e) {}
+}
+function selectedGroupKey() {
+  const groups = selectableGroups();
+  if (signupCfg().chooseGroup && groups.length > 1) return regForm.groupKey;
+  return groups.length === 1 ? groups[0].key : "";
+}
+function selectedGroupFull() { const k = selectedGroupKey(); return !!(k && capacity[k]); }
 
 async function refreshStatus(id) {
   try {
@@ -352,6 +369,11 @@ function renderStatusCard() {
       + '<div class="big-number">' + esc(slug.toUpperCase()) + esc(s.nr) + '</div>'
       + '<button class="primary-btn" onclick="loginWithNumber(' + Number(s.nr) + ')">Open the conference</button><div class="field-error privacy-err" id="statusErr"></div></div>';
   }
+  if (s.status === "waitlist") {
+    return '<div class="card"><div class="notice wait"><b>You are on the waiting list.</b> Thanks, ' + esc(s.name) + '! All places' + (s.group ? ' for ' + esc(s.group) : '') + ' are taken at the moment, so your registration is on the waiting list' + (s.position ? ' (position <b>' + Number(s.position) + '</b>)' : '') + '. If a place becomes available, the organizer can add you, and you will then receive your number by e-mail. You can come back to this page to check.</div>'
+      + retryBlock()
+      + '<button class="secondary-btn-wide" style="margin-top:0" onclick="recheck()">Check status</button></div>';
+  }
   if (s.status === "rejected") {
     return '<div class="card"><div class="notice bad">Your registration was not approved. Contact the organizer if you think this is a mistake.</div></div>';
   }
@@ -384,7 +406,7 @@ function renderRegisterCard() {
   let groupHtml = "";
   if (cfg.chooseGroup && groups.length > 1) {
     groupHtml = '<div class="field"><label class="lbl">Your group <span class="req">*</span></label>' + groups.map(g =>
-      '<label class="group-opt ' + (regForm.groupKey === g.key ? "sel" : "") + '"><input type="radio" name="grp" ' + (regForm.groupKey === g.key ? "checked" : "") + ' onchange="regForm.groupKey=\'' + esc(g.key) + '\';render2()"> ' + esc(g.label) + '</label>').join("") + '</div>';
+      '<label class="group-opt ' + (regForm.groupKey === g.key ? "sel" : "") + '"><input type="radio" name="grp" ' + (regForm.groupKey === g.key ? "checked" : "") + ' onchange="regForm.groupKey=\'' + esc(g.key) + '\';render2()"> ' + esc(g.label) + (capacity[g.key] ? ' <span style="color:#8A5A00;font-size:12px;">(full — waiting list)</span>' : '') + '</label>').join("") + '</div>';
   }
   return '<div class="card"><h2>Register</h2>'
     + (cfg.intro ? '<div class="card-sub" style="white-space:pre-wrap">' + esc(cfg.intro) + '</div>' : '<div class="card-sub">Fill in the form. The organizer approves your registration, and then you receive your number by e-mail.</div>')
@@ -393,9 +415,10 @@ function renderRegisterCard() {
     + field("workplace", "Workplace", "text") + field("jobTitle", "Job title", "text") + field("phone", "Phone number", "tel") + field("notes", "About you", "text")
     + attachField()
     + groupHtml
+    + (selectedGroupFull() ? '<div class="notice wait">All places in this group are taken. You can still register — you will be put on the <b>waiting list</b>, and the organizer can add you if a place becomes available.</div>' : '')
     + privacyBoxHtml('regPrivacy')
     + '<div class="field-error privacy-err" id="regErr">' + esc(formError) + '</div>'
-    + '<button class="primary-btn" id="regBtn" onclick="submitRegistration()" ' + (formBusy ? "disabled" : "") + '>' + (formBusy ? "Sending…" : "Register") + '</button></div>';
+    + '<button class="primary-btn" id="regBtn" onclick="submitRegistration()" ' + (formBusy ? "disabled" : "") + '>' + (formBusy ? "Sending…" : (selectedGroupFull() ? "Join the waiting list" : "Register")) + '</button></div>';
 }
 function attachField() {
   const mode = signupCfg().fields.attachment;
@@ -438,7 +461,7 @@ async function submitRegistration() {
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || "Something went wrong.");
     storeSet("cd_signup_" + slug, d.id);
-    signupStatus = { id: d.id, status: "pending", name: regForm.name.trim(), hasAttachment: false };
+    signupStatus = { id: d.id, status: d.status || "pending", position: d.position || null, name: regForm.name.trim(), hasAttachment: false };
     if (attachFile && cfg.fields.attachment !== "off") {
       try { await uploadAttachment(d.id, attachFile); signupStatus.hasAttachment = true; attachNote = ""; }
       catch (e) { attachNote = "Your registration was received, but the PDF could not be uploaded: " + e.message; }

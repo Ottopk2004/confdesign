@@ -1279,7 +1279,7 @@ function getParticipantTabs(meta) {
 
 function renderParticipantModule(tab) {
   if ((mode === "faculty" || mode === "observer") && tab === "evaluations") return renderEvaluationTab();
-  if (tab === "schedule") return renderLevelHeader() + renderScheduleReadOnly(filterScheduleForViewer(confData.schedule));
+  if (tab === "schedule") return renderLevelHeader() + `<div id="scheduleNowBar">${renderScheduleNowBar(filterScheduleForViewer(confData.schedule))}</div>` + renderScheduleReadOnly(filterScheduleForViewer(confData.schedule));
   if (tab === "quiz") return renderQuizTab();
   if (tab === "evaluations") return renderEvaluationTab();
   if (tab === "conferenceFeedback") return renderConferenceFeedbackTab();
@@ -1627,6 +1627,57 @@ function setOrganizerTab(tab) {
   rerenderOrganizerScroll();
 }
 
+// ── "Where do I go now?" bar at the top of the schedule ──────────────
+// Works out which programme items are on right now (or, failing that, what
+// comes next) from each item's date, start and end time. An item without an
+// end time lasts until the next item that day starts (or one hour).
+function scheduleItemWindows(schedule) {
+  const items = (schedule || []).filter(s => s && s.date && (s.startTime || s.time) && /^\d{1,2}:\d{2}$/.test(String(s.startTime || s.time)));
+  const withStart = items.map(s => {
+    const [y, m, d] = String(s.date).split("-").map(Number);
+    const st = minutesOf(s.startTime || s.time);
+    const from = new Date(y, (m || 1) - 1, d || 1, Math.floor(st / 60), st % 60, 0, 0);
+    return { s, from, to: null };
+  }).filter(x => !isNaN(x.from));
+  withStart.sort((a, b) => a.from - b.from);
+  withStart.forEach((x, i) => {
+    if (/^\d{1,2}:\d{2}$/.test(String(x.s.endTime || ""))) {
+      const et = minutesOf(x.s.endTime);
+      x.to = new Date(x.from.getFullYear(), x.from.getMonth(), x.from.getDate(), Math.floor(et / 60), et % 60, 0, 0);
+      if (x.to <= x.from) x.to = new Date(x.from.getTime() + 3600000);
+    } else {
+      const nxt = withStart.slice(i + 1).find(y => y.from > x.from && y.from.toDateString() === x.from.toDateString());
+      x.to = nxt ? nxt.from : new Date(x.from.getTime() + 3600000);
+    }
+  });
+  return withStart;
+}
+function renderScheduleNowBar(schedule, nowOverride) {
+  const win = scheduleItemWindows(schedule);
+  if (!win.length) return "";
+  const now = nowOverride || new Date();
+  const current = win.filter(x => x.from <= now && now < x.to);
+  const upcoming = win.filter(x => x.from > now);
+  const timeRange = x => `${timeOf(x.from.getHours() * 60 + x.from.getMinutes())}–${timeOf(x.to.getHours() * 60 + x.to.getMinutes())}`;
+  const row = x => `<div style="margin-top:12px;"><div class="next-time" style="font-size:var(--fs-h2);">${escHtml(x.s.title)}</div><div class="next-time">${x.s.location ? `📍 ${escHtml(x.s.location)}` : 'Location to be announced'} · ${timeRange(x)}${x.s.speaker ? ` · ${escHtml(x.s.speaker)}` : ''}</div></div>`;
+  if (current.length) {
+    const nxt = upcoming.find(x => !current.includes(x));
+    return `<div class="next-up-card" style="background:var(--pf-theme)"><div class="next-label">HAPPENING NOW — GO TO</div>${current.slice(0, 3).map(row).join('')}${nxt ? `<div class="next-up-meta"><div><span>THEN</span><strong>${escHtml(nxt.s.title)} · ${timeOf(nxt.from.getHours() * 60 + nxt.from.getMinutes())}${nxt.s.location ? ' · ' + escHtml(nxt.s.location) : ''}</strong></div></div>` : ''}</div>`;
+  }
+  if (upcoming.length) {
+    const first = upcoming[0].from.getTime();
+    const group = upcoming.filter(x => x.from.getTime() === first).slice(0, 3);
+    const when = relativeTime(first - now.getTime());
+    return `<div class="next-up-card" style="background:var(--pf-theme)"><div class="next-label">NEXT UP — GO TO</div>${group.map(row).join('')}<div class="next-up-meta"><div><span>STARTS</span><strong>${when} · ${formatHandsOnDate(upcoming[0].from)}</strong></div></div></div>`;
+  }
+  return `<div class="next-up-card" style="background:#41708f"><div class="next-label">PROGRAMME</div><h2>The programme has finished</h2></div>`;
+}
+setInterval(() => {
+  const el = document.getElementById("scheduleNowBar");
+  if (!el || !confData || !(mode === "participant" || mode === "faculty" || mode === "observer" || mode === "guest")) return;
+  el.innerHTML = renderScheduleNowBar(filterScheduleForViewer(confData.schedule));
+}, 30000);
+
 // ── Read-only schedule (participant view) ────────────────────────────
 function renderScheduleReadOnly(schedule) {
   if (!schedule || schedule.length === 0) {
@@ -1641,6 +1692,7 @@ function renderScheduleReadOnly(schedule) {
           <div class="time">${escHtml(formatSessionTimeRange(s))}${s.levelId && hasLevels() && mode !== 'participant' ? `<span class="level-badge">${escHtml(levelName(s.levelId))}</span>` : ''}</div>
           <div class="title">${escHtml(s.title)}</div>
           ${s.speaker ? `<div class="speaker">${escHtml(s.speaker)}</div>` : ""}
+          ${s.location ? `<div class="speaker">📍 ${escHtml(s.location)}</div>` : ""}
         </div>
       `).join("")}
     </div>
@@ -1655,7 +1707,7 @@ function formatSessionTimeRange(s) {
   return s.endTime ? `${start}–${s.endTime}` : start;
 }
 
-function newEditScheduleItem() { return { startTime: "", endTime: "", title: "", speaker: "", levelId: editScheduleLevelFilter || "" }; }
+function newEditScheduleItem() { return { startTime: "", endTime: "", title: "", speaker: "", location: "", levelId: editScheduleLevelFilter || "" }; }
 
 // Turns the day-grouped editor state back into the flat sessions array
 // the backend and participant-facing schedule expect — one entry per
@@ -1671,6 +1723,7 @@ function flattenScheduleDays(days) {
         endTime: item.endTime || "",
         title: item.title.trim(),
         speaker: (item.speaker || "").trim(),
+        location: (item.location || "").trim(),
         levelId: item.levelId || "",
       });
     });
@@ -1693,6 +1746,7 @@ function groupSessionsIntoDays(sessions) {
       endTime: s.endTime || "",
       title: s.title || "",
       speaker: s.speaker || "",
+      location: s.location || "",
       levelId: s.levelId || "",
     });
   });
@@ -2009,12 +2063,13 @@ function decideSignup(id, action) {
     .catch(e => { signupMsg = 'Error: ' + e.message; })
     .finally(() => { signupBusy = ''; loadSignups(); });
 }
-async function exportSignups() {
+async function exportSignups(scope) {
   try {
-    const r = await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/signup/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminPin: pinInput }) });
+    scope = scope === 'approved' ? 'approved' : 'all';
+    const r = await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/signup/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminPin: pinInput, scope }) });
     if (!r.ok) throw new Error('export failed');
     const blob = await r.blob(), a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = `${confSlug}-registrations.xlsx`; a.click();
+    a.href = URL.createObjectURL(blob); a.download = `${confSlug}-${scope === 'approved' ? 'participants' : 'applications'}.xlsx`; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   } catch (e) { alert("Couldn't download the registrations — try again."); }
 }
@@ -2043,25 +2098,28 @@ function renderRegistrationsTab() {
     const busy = signupBusy === r.id;
     const opts = `<option value="">${r.groupKey ? '' : '— choose group —'}</option>` + groups.map(g => `<option value="${escHtml(g.key)}" ${g.key === r.groupKey ? 'selected' : ''}>${escHtml(g.label)}</option>`).join('');
     const details = [r.workplace, r.jobTitle, r.phone].filter(Boolean).map(escHtml).join(' · ');
-    const badge = r.status === 'approved' ? `<span class="reg-nr">#${r.nr}</span>` : '';
+    const statusPill = { pending: 'Pending', approved: 'Approved', waitlist: 'Waiting list', rejected: 'Rejected' }[r.status] || r.status;
+    const badge = r.status === 'approved' ? `<span class="reg-nr">#${r.nr}</span>` : (r.status === 'waitlist' ? `<span class="reg-nr">Waiting list${r.waitlistPosition ? ' #' + r.waitlistPosition : ''}</span>` : '');
     const actions = r.status === 'pending'
-      ? `<select id="regGroup_${r.id}" ${busy ? 'disabled' : ''}>${opts}</select><button class="reg-btn" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','approve')">Approve</button><button class="reg-btn danger" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','reject')">Reject</button>`
+      ? `<select id="regGroup_${r.id}" ${busy ? 'disabled' : ''}>${opts}</select><button class="reg-btn" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','approve')">Approve</button><button class="reg-btn ghost" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','waitlist')">Move to waiting list</button><button class="reg-btn danger" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','reject')">Reject</button>`
+      : r.status === 'waitlist'
+      ? `<select id="regGroup_${r.id}" ${busy ? 'disabled' : ''}>${opts}</select><button class="reg-btn" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','approve')">Add to the conference</button><button class="reg-btn danger" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','reject')">Reject</button>`
       : r.status === 'approved'
         ? `<select id="regGroup_${r.id}" ${busy ? 'disabled' : ''}>${opts}</select><button class="reg-btn ghost" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','regroup')">Change group</button><button class="reg-btn danger" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','revoke')">Withdraw</button>`
         : `<select id="regGroup_${r.id}" ${busy ? 'disabled' : ''}>${opts}</select><button class="reg-btn" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','approve')">Approve anyway</button><button class="reg-btn danger" ${busy ? 'disabled' : ''} onclick="decideSignup('${r.id}','delete')">Delete</button>`;
     const att = r.attachment ? `<br>📎 <a href="#" onclick="downloadSignupAttachment('${r.id}');return false;">${escHtml(r.attachment.name || 'attachment.pdf')}</a> <span>(${Math.max(1, Math.round((r.attachment.size || 0) / 1024))} KB)</span>` : '';
     return `<div class="reg-card"><h3>${badge}${escHtml(r.name)}</h3>
-      <div class="reg-meta">${escHtml(r.email)}${details ? ' · ' + details : ''}<br>Group: <b>${escHtml(r.groupLabel || 'not chosen')}</b> · Registered ${escHtml(String(r.createdAt || '').slice(0, 10))}${r.notes ? `<br><i>${escHtml(r.notes)}</i>` : ''}${att}</div>
+      <div class="reg-meta">${escHtml(r.email)}${details ? ' · ' + details : ''}<br>Group: <b>${escHtml(r.groupLabel || 'not chosen')}</b>${signupFilter === 'all' ? ' · Status: <b>' + statusPill + '</b>' : ''} · Registered ${escHtml(String(r.createdAt || '').slice(0, 10))}${r.notes ? `<br><i>${escHtml(r.notes)}</i>` : ''}${att}</div>
       <div class="reg-actions">${actions}${busy ? '<span class="reg-meta">Working…</span>' : ''}</div></div>`;
   };
   return `
     <div class="section-title" style="margin:0 0 8px;">Registrations</div>
-    <div class="field-hint" style="margin:0 0 10px;">${capLine || 'Set participant numbers under General.'}</div>
-    <div class="level-chips">${chip('pending', 'Pending', sm.pending)}${chip('approved', 'Approved', sm.approved)}${chip('rejected', 'Rejected', sm.rejected)}${chip('all', 'All', sm.pending + sm.approved + sm.rejected)}</div>
-    <div style="display:flex;gap:8px;margin:10px 0;"><button class="reg-btn ghost" onclick="loadSignups()">Refresh</button><button class="reg-btn ghost" onclick="exportSignups()">Download Excel</button></div>
+    <div class="field-hint" style="margin:0 0 10px;">${capLine || 'Set participant numbers under General.'}${sm.waitlist ? ` &nbsp;·&nbsp; On waiting list: <b>${sm.waitlist}</b>` : ''}</div>
+    <div class="level-chips">${chip('pending', 'Pending', sm.pending)}${chip('approved', 'Approved', sm.approved)}${chip('waitlist', 'Waiting list', sm.waitlist || 0)}${chip('rejected', 'Rejected', sm.rejected)}${chip('all', 'All', sm.pending + sm.approved + sm.rejected + (sm.waitlist || 0))}</div>
+    <div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;"><button class="reg-btn ghost" onclick="loadSignups()">Refresh</button><button class="reg-btn" onclick="exportSignups('approved')">⬇ Participant list (Excel)</button><button class="reg-btn ghost" onclick="exportSignups('all')">⬇ All applications incl. waiting list (Excel)</button></div>
     ${signupMsg ? `<div class="save-status ${signupMsg.startsWith('Error') || signupMsg.includes('could not') ? 'error' : 'ok'}" style="margin-bottom:10px;">${escHtml(signupMsg)}</div>` : ''}
-    ${list.length ? list.map(card).join('') : `<div class="empty-note">No ${signupFilter === 'all' ? '' : signupFilter + ' '}registrations.</div>`}
-    <div class="field-hint" style="margin-top:12px;">Approving gives the person the next free number in their group's range, assigns their level, places them in the smallest breakout group of that level and e-mails them the number. Existing breakout groups are kept as they are. Changing a person's group moves them to the smallest group of their new level.</div>`;
+    ${list.length ? list.map(card).join('') : `<div class="empty-note">No ${signupFilter === 'all' ? '' : (signupFilter === 'waitlist' ? 'waiting list ' : signupFilter + ' ')}registrations.</div>`}
+    <div class="field-hint" style="margin-top:12px;">When all places in a group are taken (approved + pending), new applicants are put on the <b>Waiting list</b> and are told so. To add someone from the list, free a place first (withdraw or reject someone, or raise the number under General) and press <b>Add to the conference</b>. Approving gives the person the next free number in their group's range, assigns their level, places them in the smallest breakout group of that level and e-mails them the number. Existing breakout groups are kept as they are. Changing a person's group moves them to the smallest group of their new level.</div>`;
 }
 
 function renderOrganizerEditor() {
@@ -2201,9 +2259,13 @@ function renderOrganizerEditor() {
                   <span class="mini-label">Activity title</span>
                   <input type="text" value="${escHtml(item.title)}" oninput="onEditScheduleItem(${di},${ii},'title',this.value)">
                 </div>
-                <div>
-                  <span class="mini-label">Speaker / location</span>
+                <div style="margin-bottom:8px;">
+                  <span class="mini-label">Speaker</span>
                   <input type="text" value="${escHtml(item.speaker)}" oninput="onEditScheduleItem(${di},${ii},'speaker',this.value)">
+                </div>
+                <div>
+                  <span class="mini-label">Room / where to go</span>
+                  <input type="text" placeholder="e.g. Main Hall, Room 2.14" value="${escHtml(item.location || '')}" oninput="onEditScheduleItem(${di},${ii},'location',this.value)">
                 </div>
                 ${renderScheduleItemLevel(di,ii,item)}
               </div>

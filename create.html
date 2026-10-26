@@ -58,6 +58,8 @@
   .top-brand h1 { font-size:var(--fs-h3); color: var(--pf-ink); }
   .top-brand p { font-size:var(--fs-small); color: var(--pf-muted); }
 
+  .class-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .class-row input { flex:1; min-width:0; }
   .privacy-consent {
     background: var(--pf-white);
     border-radius: 14px;
@@ -196,6 +198,7 @@
     font-size:var(--fs-body);
     font-family: inherit;
   }
+  .session-row select { width:100%; padding:8px 10px; border:2px solid var(--pf-border); border-radius:7px; font-size:var(--fs-body); font-family:inherit; background:#fff; }
   .session-row input:focus { border-color: var(--pf-indigo); outline: none; }
   .session-row .mini-label {
     font-size:var(--fs-small); font-weight: bold; color: var(--pf-muted);
@@ -524,6 +527,7 @@ let form = {
   participantCount: 100,
   facultyCount: 20,
   observerCount: 0,
+  levels: [],
   modules: { registration: false, handsOn: false, map: false, industry: false, quiz: false, evaluations: false, conferenceFeedback: false, contact: false, facultyInfo: false, presentations: false },
   moduleContent: {
     handsOn: { title: "Breakout sessions", intro: "", sessions: [newHandsOnSession()] },
@@ -672,7 +676,7 @@ function render() {
   const datesValid = form.startDate && form.endDate && form.startDate <= form.endDate;
   const sessionsValid = scheduleDays.some(d => d.items.some(it => it.title.trim().length > 0));
   const handsOnValid = !form.modules.handsOn || validateHandsOn(form.moduleContent.handsOn);
-  const ready = slugValid && pinValid && nameValid && datesValid && sessionsValid && handsOnValid && privacyChecked && !creating;
+  const ready = slugValid && pinValid && nameValid && datesValid && sessionsValid && handsOnValid && classesCheck().ok && privacyChecked && !creating;
 
   setHtmlPreservingFocus(el, `
     ${!privacyChecked ? `
@@ -782,6 +786,7 @@ function render() {
         <input type="number" id="fObserverCount" min="0" max="999" value="${form.observerCount}" oninput="onField('observerCount', parseInt(this.value)||0)">
         <div class="field-hint">Log in with 2000–${2000 + (form.observerCount||0) - 1}. Observers get the same add-ons as faculty (including evaluations, if enabled), but never see breakout sessions and are never placed in a breakout group.</div>
       </div>
+      ${renderClassesEditor()}
       ${draftButton()}</div></details>
 
     <details class="card" ${openCreateSection==='modules'?'open':''} ontoggle="trackCreateSection(this,'modules')">
@@ -862,8 +867,16 @@ function render() {
                 <input type="text" placeholder="e.g. Opening keynote" value="${escHtml(item.title)}" oninput="onScheduleItemField(${di},${ii},'title',this.value)">
               </div>
               <div>
-                <span class="mini-label">Speaker / location (optional)</span>
-                <input type="text" placeholder="e.g. Dr. Jane Smith, Main Hall" value="${escHtml(item.speaker)}" oninput="onScheduleItemField(${di},${ii},'speaker',this.value)">
+                <span class="mini-label">Speaker (optional)</span>
+                <input type="text" placeholder="e.g. Dr. Jane Smith" value="${escHtml(item.speaker)}" oninput="onScheduleItemField(${di},${ii},'speaker',this.value)">
+              </div>
+              ${form.levels.length ? `<div>
+                <span class="mini-label">Class</span>
+                <select onfocus="fillClassOptions(this)" onmousedown="fillClassOptions(this)" onchange="onScheduleItemField(${di},${ii},'levelId',this.value)"><option value="">Everyone</option>${namedClasses().map(l => `<option value="${escHtml(l.id)}" ${item.levelId === l.id ? 'selected' : ''}>${escHtml(l.name.trim())}</option>`).join('')}</select>
+              </div>` : ''}
+              <div>
+                <span class="mini-label">Room / where to go (optional)</span>
+                <input type="text" placeholder="e.g. Main Hall, Room 2.14" value="${escHtml(item.location || '')}" oninput="onScheduleItemField(${di},${ii},'location',this.value)">
               </div>
             </div>
           `).join("")}
@@ -907,6 +920,80 @@ function onConferenceLogo(file){
 }
 function removeConferenceLogo(){form.branding.logo="";render();}
 function onBranding(key,val){form.branding[key]=val;render();}
+
+// ── Participant classes (e.g. Advanced / Medium / Basic) ─────────────
+// Saved as the conference's "levels". Each class gets its own schedule items
+// and breakout groups; participants only see their own class. With
+// registration, people choose their class when signing up; without it you
+// can place participant numbers in a class right here (e.g. "1-20, 25").
+function newClassId() { return 'c' + Date.now().toString(36).slice(-5) + Math.floor(Math.random() * 1296).toString(36); }
+function addClass() { form.levels.push({ id: newClassId(), name: "", range: "" }); render(); }
+function removeClass(i) {
+  const [gone] = form.levels.splice(i, 1);
+  if (gone) scheduleDays.forEach(d => d.items.forEach(it => { if (it.levelId === gone.id) it.levelId = ""; }));
+  render();
+}
+function onClassField(i, key, val) { form.levels[i][key] = val; updateCreateReadiness(); }
+function parseClassNumbers(text, total) {
+  const nums = [], bad = [];
+  String(text || "").split(/[\s,;]+/).filter(Boolean).forEach(tok => {
+    const m = tok.match(/^(\d+)(?:-(\d+))?$/);
+    if (!m) { bad.push(tok); return; }
+    let a = parseInt(m[1], 10), b = m[2] ? parseInt(m[2], 10) : a;
+    if (a > b) [a, b] = [b, a];
+    if (a < 1 || b > total) { bad.push(tok); return; }
+    for (let n = a; n <= b; n++) nums.push(n);
+  });
+  return { nums, bad };
+}
+function classesCheck() {
+  const named = form.levels.filter(l => l.name.trim());
+  if (form.levels.length > 8) return { ok: false, msg: "At most 8 classes." };
+  const seen = new Set();
+  for (const l of named) { const k = l.name.trim().toLowerCase(); if (seen.has(k)) return { ok: false, msg: `The class "${l.name.trim()}" appears twice.` }; seen.add(k); }
+  if (!form.modules.registration) {
+    const total = Number(form.participantCount) || 0, used = new Map();
+    for (const l of named) {
+      const { nums, bad } = parseClassNumbers(l.range, total);
+      if (bad.length) return { ok: false, msg: `"${l.name.trim()}": numbers must be between 1 and ${total}, e.g. 1-20, 25 (check: ${bad.join(", ")}).` };
+      for (const n of nums) { if (used.has(n) && used.get(n) !== l.id) return { ok: false, msg: `Participant ${n} is in more than one class.` }; used.set(n, l.id); }
+    }
+  }
+  return { ok: true, msg: "" };
+}
+// Refreshes a schedule item's class dropdown from the current class list
+// (classes may have been renamed since the page was last drawn).
+function fillClassOptions(sel) {
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Everyone</option>' + namedClasses().map(l => `<option value="${escHtml(l.id)}">${escHtml(l.name.trim())}</option>`).join("");
+  sel.value = namedClasses().some(l => l.id === cur) ? cur : "";
+}
+function namedClasses() { return form.levels.filter(l => l.name.trim()); }
+function classesPayload() {
+  const named = namedClasses();
+  const levels = named.map(l => ({ id: l.id, name: l.name.trim() }));
+  const levelAssignments = {};
+  if (!form.modules.registration) {
+    const total = Number(form.participantCount) || 0;
+    named.forEach(l => parseClassNumbers(l.range, total).nums.forEach(n => { levelAssignments[String(n)] = l.id; }));
+  }
+  return { levels, levelAssignments };
+}
+function renderClassesEditor() {
+  const reg = !!form.modules.registration;
+  const rows = form.levels.map((l, i) => `
+    <div class="class-row">
+      <input type="text" maxlength="40" placeholder="e.g. Advanced" value="${escHtml(l.name)}" oninput="onClassField(${i},'name',this.value)">
+      ${reg ? '' : `<input type="text" placeholder="Numbers, e.g. 1-20, 25" value="${escHtml(l.range)}" oninput="onClassField(${i},'range',this.value)">`}
+      <button type="button" class="remove-btn" style="position:static;" title="Remove class" onclick="removeClass(${i})">✕</button>
+    </div>`).join("");
+  return `
+    <div class="section-title" style="margin:22px 0 8px;">Participant classes (optional)</div>
+    <div class="field-hint" style="margin:0 0 10px;">Split the participants into classes, e.g. Advanced / Medium / Basic. Each class can get its own schedule items and breakout groups, and participants only see their own class. Leave empty to run one common programme.${reg ? ' With <b>Registration</b> on, people choose their class when they sign up.' : ' Enter which participant numbers belong to each class.'}</div>
+    ${rows}
+    <button type="button" class="add-session-btn" onclick="addClass()" ${form.levels.length >= 8 ? 'disabled' : ''}>+ Add class</button>
+    <div class="field-hint" id="classValidation" style="margin-top:8px;color:var(--pf-red);">${escHtml(classesCheck().msg)}</div>`;
+}
 
 function onField(key, val) {
   form[key] = val;
@@ -1132,7 +1219,7 @@ function onModuleImage(module, file) {
 }
 function removeModuleImage(module) { form.moduleContent[module].image = ''; render(); }
 
-function newScheduleItem() { return { startTime: "", endTime: "", title: "", speaker: "" }; }
+function newScheduleItem() { return { startTime: "", endTime: "", title: "", speaker: "", location: "" }; }
 
 function addScheduleDay() {
   scheduleDays.push({ date: "", items: [newScheduleItem()] });
@@ -1185,9 +1272,10 @@ function updateCreateReadiness(){
   const datesValid=!!form.startDate&&!!form.endDate&&form.startDate<=form.endDate;
   const sessionsValid=scheduleDays.some(d=>d.items.some(it=>it.title.trim().length>0));
   const handsOnValid=!form.modules.handsOn||validateHandsOn(form.moduleContent.handsOn);
-  const ready=/^[a-z]{2,12}$/.test(form.slug)&&/^\d{4,6}$/.test(form.adminPin)&&form.name.trim().length>=3&&datesValid&&sessionsValid&&handsOnValid&&privacyChecked&&!creating;
+  const ready=/^[a-z]{2,12}$/.test(form.slug)&&/^\d{4,6}$/.test(form.adminPin)&&form.name.trim().length>=3&&datesValid&&sessionsValid&&handsOnValid&&classesCheck().ok&&privacyChecked&&!creating;
   const btn=document.getElementById('createConferenceBtn');if(btn){btn.disabled=!ready;btn.classList.toggle('ready',ready);}
   const dateMsg=document.getElementById('dateValidation');if(dateMsg)dateMsg.textContent=!datesValid&&form.startDate&&form.endDate?'End date must be on or after the start date.':'';
+  const clsMsg=document.getElementById('classValidation');if(clsMsg)clsMsg.textContent=classesCheck().msg;
   const handsMsg=document.getElementById('handsOnValidation');if(handsMsg){handsMsg.classList.toggle('error',!handsOnValid);handsMsg.textContent=handsOnValid?'Each session is long enough for all rotations.':'Each session must fit stations × minutes per rotation.';}
 }
 
@@ -1212,6 +1300,8 @@ function flattenScheduleDays(days) {
         endTime: item.endTime || "",
         title: item.title.trim(),
         speaker: (item.speaker || "").trim(),
+        location: (item.location || "").trim(),
+        levelId: item.levelId || "",
       });
     });
   });
@@ -1239,6 +1329,8 @@ function submitConference() {
     quizConfig: form.modules.quiz ? { passThreshold: 0.8 } : null,
     branding: form.branding,
     sessions: flattenScheduleDays(scheduleDays),
+    levels: classesPayload().levels,
+    levelAssignments: classesPayload().levelAssignments,
   };
 
   if (!PLATFORM_WORKER_URL) {
