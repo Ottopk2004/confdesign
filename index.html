@@ -1672,7 +1672,7 @@ function blankQuizQuestion() {
 }
 function setOrganizerTab(tab) {
   organizerTab = tab;
-  if (tab === 'registrations' && !signupData && !signupLoading) loadSignups();
+  if (tab === 'registrations' && !signupLoading) loadSignups();
   if (tab === 'messages') loadDirectMessages();
   document.querySelectorAll('.tab-btn[data-organizer-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.organizerTab === organizerTab);
@@ -2131,6 +2131,21 @@ function renderRegistrationAddon() {
       <div class="field-hint" style="margin-top:10px;">Faculty and observers get numbers from their own ranges (faculty 1000+, observers 2000+) — set how many under General. Save changes to publish the form.</div>
     </div></details>`;
 }
+// The groups people can be placed in: always built from the saved conference setup,
+// so levels added or renamed in the organizer view show up without reloading.
+function regGroups() {
+  const m = (confData && confData.meta) || {};
+  const out = [];
+  const levels = Array.isArray(m.levels) ? m.levels : [];
+  if (levels.length) levels.forEach(l => out.push({ key: 'level:' + l.id, label: l.name }));
+  else out.push({ key: 'participant', label: 'Participant' });
+  if (Number(m.facultyCount) > 0) out.push({ key: 'faculty', label: 'Faculty' });
+  if (Number(m.observerCount) > 0) out.push({ key: 'observer', label: 'Observer' });
+  return out;
+}
+function levelsUnsaved() {
+  try { return JSON.stringify((editMeta && editMeta.levels) || []) !== JSON.stringify((confData && confData.meta && confData.meta.levels) || []); } catch (_) { return false; }
+}
 function signupBaseUrl() { return location.origin + location.pathname.replace(/[^/]*$/, ''); }
 function loadSignups() {
   signupLoading = true; signupError = '';
@@ -2185,7 +2200,7 @@ let manualSignup = { name: '', email: '', groupKey: '', busy: false };
 function createManualSignup() {
   const m = manualSignup;
   if (m.busy) return;
-  const groups = (signupData && signupData.groups) || [];
+  const groups = regGroups();
   const groupKey = m.groupKey || (groups.length === 1 ? groups[0].key : '');
   if (m.name.trim().length < 2) { signupMsg = 'Error: Enter the person\'s name.'; rerenderOrganizerScroll(); return; }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m.email.trim())) { signupMsg = 'Error: Enter a valid e-mail address.'; rerenderOrganizerScroll(); return; }
@@ -2207,7 +2222,7 @@ function createManualSignup() {
     .finally(() => { loadSignups(); });
 }
 function renderManualSignupForm() {
-  const groups = (signupData && signupData.groups) || [];
+  const groups = regGroups();
   const m = manualSignup;
   const opts = (groups.length === 1 ? '' : `<option value="">— choose level —</option>`) + groups.map(g => `<option value="${escHtml(g.key)}" ${(m.groupKey === g.key || groups.length === 1) ? 'selected' : ''}>${escHtml(g.label)}</option>`).join('');
   return `<details class="organizer-module" style="margin:0 0 12px;" ${manualOpen ? 'open' : ''} ontoggle="manualOpen=this.open"><summary>Add a participant manually</summary><div class="organizer-module-body" style="padding:12px 0 0;">
@@ -2232,7 +2247,7 @@ function loadXlsxLib() {
   });
   return xlsxLibPromise;
 }
-function impGroups() { return (signupData && signupData.groups) || []; }
+function impGroups() { return regGroups(); }
 function impResolveGroup(txt) {
   const t = String(txt || '').trim().toLowerCase();
   if (!t) return '';
@@ -2370,7 +2385,7 @@ function renderRegistrationsTab() {
   const capLine = [['participant', 'Participants'], ['faculty', 'Faculty'], ['observer', 'Observers']].filter(([k]) => cap[k].total > 0).map(([k, t]) => `${t}: <b>${cap[k].used}/${cap[k].total}</b>`).join(' &nbsp;·&nbsp; ');
   const chip = (key, label, n) => `<button class="level-chip ${signupFilter === key ? 'active' : ''}" onclick="setSignupFilter('${key}')">${label} (${n})</button>`;
   const list = signupData.requests.filter(r => signupFilter === 'all' || r.status === signupFilter);
-  const groups = signupData.groups || [];
+  const groups = regGroups();
   const card = r => {
     const busy = signupBusy === r.id;
     const opts = `<option value="">${r.groupKey ? '' : '— choose group —'}</option>` + groups.map(g => `<option value="${escHtml(g.key)}" ${g.key === r.groupKey ? 'selected' : ''}>${escHtml(g.label)}</option>`).join('');
@@ -2391,6 +2406,7 @@ function renderRegistrationsTab() {
   };
   return `
     <div class="section-title" style="margin:0 0 8px;">Registrations</div>
+    ${levelsUnsaved() ? `<div class="save-status error" style="margin-bottom:10px;">You have unsaved changes to the levels. Press <b>Save changes</b> (under General) before they can be used here.</div>` : ''}
     ${renderManualSignupForm()}
     <div class="field-hint" style="margin:0 0 10px;">${capLine || 'Set participant numbers under General.'}${sm.waitlist ? ` &nbsp;·&nbsp; On waiting list: <b>${sm.waitlist}</b>` : ''}</div>
     <div class="level-chips">${chip('pending', 'Pending', sm.pending)}${chip('approved', 'Approved', sm.approved)}${chip('waitlist', 'Waiting list', sm.waitlist || 0)}${chip('rejected', 'Rejected', sm.rejected)}${chip('all', 'All', sm.pending + sm.approved + sm.rejected + (sm.waitlist || 0))}</div>
@@ -3518,6 +3534,20 @@ function applyLevelBulk() {
   levelBulk.text = '';
   rerenderOrganizerScroll();
 }
+// Overview of who is in which level (same idea as the participant list): one
+// collapsible box per level with the numbers and names, plus anyone without a level.
+function renderLevelOverview() {
+  const { levels, assign } = levelCtx();
+  if (!levels.length) return '';
+  const total = Number(editMeta.participantCount) || 0;
+  const names = namesLookup(editModuleContent && editModuleContent.handsOn);
+  const by = {}; levels.forEach(l => by[l.id] = []);
+  const none = [];
+  for (let nr = 1; nr <= total; nr++) { const lv = assign[String(nr)]; if (lv && by[lv]) by[lv].push(nr); else none.push(nr); }
+  const chips = list => list.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 0 4px;">${list.map(nr => `<span class="level-badge" style="background:var(--pf-gray);color:var(--pf-ink);border:1px solid var(--pf-border);">#${nr}${names[String(nr)] ? ' ' + escHtml(names[String(nr)]) : ''}</span>`).join('')}</div>` : '<div class="field-hint" style="padding:6px 0;">Nobody yet.</div>';
+  const box = (title, list, open) => `<details class="names-role-group" ${open ? 'open' : ''}><summary>${escHtml(title)} (${list.length})</summary>${chips(list)}</details>`;
+  return `<div class="section-title" style="margin:16px 0 8px;font-size:var(--fs-body);">Overview of levels</div>${levels.map(l => box(l.name || 'Unnamed level', by[l.id], false)).join('')}${none.length ? box('No level yet', none, false) : ''}${regOn() ? `<div class="field-hint" style="margin-top:6px;">Registered people are placed in their level when approved. Move people between levels in the <b>Registrations</b> tab.</div>` : ''}`;
+}
 function renderLevelsEditor() {
   const { levels, assign } = levelCtx();
   const total = Number(editMeta.participantCount) || 0;
@@ -3551,6 +3581,7 @@ function renderLevelsEditor() {
     ${rows}
     <button class="add-btn" onclick="addEditLevel()">+ Add level</button>
     ${assignTool}
+    ${renderLevelOverview()}
     <div style="height:1px;background:var(--pf-border);margin:18px 0;"></div>`;
 }
 
@@ -3845,6 +3876,7 @@ function saveOrganizerChanges() {
       confData.schedule = payload.sessions;
       confData.moduleContent = payload.moduleContent;
       saveStatus = "Saved — participants will see the update next time they load the page.";
+      if (signupData && regOn()) loadSignups();
       saveStatusIsError = false;
       rerenderOrganizerScroll();
     })
