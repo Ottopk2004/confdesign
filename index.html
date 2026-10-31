@@ -602,7 +602,7 @@ let saveStatus = "";
 let saveStatusIsError = false;
 
 // ── Quiz module state (participant side) ─────────────────────────────
-let participantTab = "schedule"; // "schedule" | "quiz"
+let participantTab = ""; // empty = first tab (Happening now if enabled, otherwise Schedule); // "schedule" | "quiz"
 let signupData = null, signupLoading = false, signupError = '', signupFilter = 'pending', signupBusy = '', signupMsg = '', signupGroupPick = {};
 let organizerTab = "general"; // "general" | "schedule" | "addons" | "administration"
 let quizTextResponses = null;
@@ -778,7 +778,7 @@ async function afterConfLoaded() {
   if (guestParam && !nrParam) {
     if (registrationRequired()) { location.replace(`conference.html?conf=${encodeURIComponent(confSlug)}`); return; }
     mode = "guest";
-    participantTab = "schedule";
+    participantTab = "";
     render();
     return;
   }
@@ -961,7 +961,7 @@ function render() {
   if (mode === "participant") {
     const hasQuiz = meta.modules && meta.modules.quiz;
     const tabs = getParticipantTabs(meta);
-    if (!tabs.some(t => t.key === participantTab)) participantTab = "schedule";
+    if (!tabs.some(t => t.key === participantTab)) participantTab = (tabs[0] || { key: "schedule" }).key;
     setHtmlPreservingFocus(shell, `
       <div class="conf-header">
         ${conferenceLogoHtml(meta)}
@@ -985,7 +985,7 @@ function render() {
 
   if (mode === "faculty") {
     const tabs = getParticipantTabs(meta);
-    if (!tabs.some(t => t.key === participantTab)) participantTab = "schedule";
+    if (!tabs.some(t => t.key === participantTab)) participantTab = (tabs[0] || { key: "schedule" }).key;
     setHtmlPreservingFocus(shell, `
       <div class="conf-header">
         <div class="eyebrow"><span>Programme</span><span class="mode-badge">Faculty</span></div>
@@ -1007,7 +1007,7 @@ function render() {
 
   if (mode === "observer") {
     const tabs = getParticipantTabs(meta);
-    if (!tabs.some(t => t.key === participantTab)) participantTab = "schedule";
+    if (!tabs.some(t => t.key === participantTab)) participantTab = (tabs[0] || { key: "schedule" }).key;
     setHtmlPreservingFocus(shell, `
       <div class="conf-header">
         <div class="eyebrow"><span>Programme</span><span class="mode-badge">Observer</span></div>
@@ -1029,7 +1029,7 @@ function render() {
 
   if (mode === "guest") {
     const tabs = getParticipantTabs(meta);
-    if (!tabs.some(t => t.key === participantTab)) participantTab = "schedule";
+    if (!tabs.some(t => t.key === participantTab)) participantTab = (tabs[0] || { key: "schedule" }).key;
     setHtmlPreservingFocus(shell, `
       <div class="conf-header">
         ${conferenceLogoHtml(meta)}
@@ -1083,7 +1083,7 @@ function render() {
 }
 
 function resetQuizParticipantState() {
-  participantTab = "schedule";
+  participantTab = "";
   quizQuestions = null;
   quizLoading = false;
   quizAnswers = {};
