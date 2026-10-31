@@ -1286,6 +1286,7 @@ function renderPresentationsTab(){
 function getParticipantTabs(meta) {
   const modules = meta.modules || {};
   return [
+    { key: "happeningNow", icon: "●", label: "Happening now", enabled: !!modules.happeningNow },
     { key: "schedule", icon: "◷", label: "Schedule", enabled: true },
     { key: "handsOn", icon: "▣", label: "Breakout sessions", enabled: !!modules.handsOn && mode !== "observer" && mode !== "guest" },
     { key: "map", icon: "◇", label: "Map", enabled: !!modules.map },
@@ -1294,7 +1295,6 @@ function getParticipantTabs(meta) {
     { key: "evaluations", icon: "✓", label: "Evaluate", enabled: (mode === "faculty" || mode === "observer") && !!modules.evaluations },
     { key: "conferenceFeedback", icon: "✎", label: "Feedback", enabled: !!modules.conferenceFeedback && mode !== "guest" },
     { key: "contact", icon: "⌕", label: "Contact", enabled: !!modules.contact },
-    { key: "happeningNow", icon: "●", label: "Happening now", enabled: !!modules.happeningNow },
     { key: "directContact", icon: "✉", label: "Direct contact", enabled: !!modules.directContact && (mode === "participant" || mode === "faculty") },
     { key: "facultyInfo", icon: "☺", label: "Faculty", enabled: !!modules.facultyInfo },
     { key: "presentations", icon: "▤", label: "Presentations", enabled: !!modules.presentations },
@@ -1520,12 +1520,13 @@ function timeOf(m){return `${String(Math.floor(m/60)%24).padStart(2,'0')}:${Stri
 function renderHandsOnAssignment(c){
   const visLevel=visibleLevelFilter();
   const sessions=normalizeDisplayHandsOn(c).filter(hs=>visLevel(hs.levelId));if(!sessions.length)return emptyModule();
+  const live=`<div id="breakoutLiveBox">${liveBreakoutHtml()}</div>`;
   if(c.mode==='breakout'){
-    if(mode==='faculty')return sessions.map((hs,si)=>renderFacultyBreakoutSession(hs,si)).join('');
-    return sessions.map((hs,si)=>renderParticipantBreakoutSession(hs,si)).join('');
+    if(mode==='faculty')return live+sessions.map((hs,si)=>renderFacultyBreakoutSession(hs,si)).join('');
+    return live+sessions.map((hs,si)=>renderParticipantBreakoutSession(hs,si)).join('');
   }
-  if(mode==='faculty')return sessions.map((hs,si)=>renderFacultyHandsOnSession(hs,si)).join('');
-  return `${renderNextUpAcrossSessions(sessions)}${sessions.map((hs,si)=>renderParticipantHandsOnSession(hs,si)).join('')}`;
+  if(mode==='faculty')return live+sessions.map((hs,si)=>renderFacultyHandsOnSession(hs,si)).join('');
+  return `${live}${sessions.map((hs,si)=>renderParticipantHandsOnSession(hs,si)).join('')}`;
 }
 function normalizeDisplayHandsOn(c){const sessions=Array.isArray(c.sessions)?c.sessions:(c.date?[{date:c.date,startTime:c.startTime,endTime:c.endTime,rotationMinutes:c.rotationMinutes,stationCount:c.stationCount,stations:c.stations||[]}]:[]);return sessions.slice().sort((a,b)=>`${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`));}
 function sessionDates(hs){const base=hs.date?new Date(`${hs.date}T00:00:00`):null;if(!base||isNaN(base))return null;const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),from=new Date(base),to=new Date(base);from.setHours(Math.floor(start/60),start%60,0,0);to.setHours(Math.floor(end/60),end%60,0,0);return {base,from,to,start,end};}
@@ -1745,6 +1746,8 @@ setInterval(() => {
   if (!confData || !(mode === "participant" || mode === "faculty" || mode === "observer" || mode === "guest")) return;
   const el = document.getElementById("scheduleNowBar");
   if (el) el.innerHTML = renderScheduleNowBar(filterScheduleForViewer(confData.schedule));
+  const bl = document.getElementById("breakoutLiveBox");
+  if (bl && (mode === "participant" || mode === "faculty")) bl.innerHTML = liveBreakoutHtml();
   const hn = document.getElementById("happeningNowBox");
   if (hn) hn.innerHTML = renderScheduleNowBar(filterScheduleForViewer(confData.schedule), null, true);
 }, 30000);
@@ -3919,8 +3922,8 @@ setInterval(() => {
 }, 30000);
 setTimeout(() => { if (mode === 'organizer' && editMeta && editMeta.modules && editMeta.modules.directContact) loadDirectMessages(true); }, 4000);
 
-// ── Live button: always shows where to go during breakout sessions ──
-const LIVE_DONE = `<div class="next-up-card" style="background:#41708f;margin-bottom:0"><div class="next-label">BREAKOUT SESSIONS</div><h2>All breakout sessions are finished</h2></div>`;
+// ── Live box at the top of the Breakout sessions tab ──
+const LIVE_DONE = `<div class="next-up-card" style="background:#41708f"><div class="next-label">BREAKOUT SESSIONS</div><h2>All breakout sessions are finished</h2></div>`;
 function liveGroupsHtml(sessions, now) {
   for (const hs of sessions) {
     const d = sessionDates(hs); if (!d || now >= d.to) continue;
@@ -3930,7 +3933,7 @@ function liveGroupsHtml(sessions, now) {
     if (gi < 0) continue;
     const room = (hs.groupRooms || [])[gi] || '';
     const running = now >= d.from;
-    return `<div class="next-up-card" style="background:#0b62a4;margin-bottom:0"><div class="next-label">${running ? 'BREAKOUT — HAPPENING NOW' : 'BREAKOUT — NEXT UP'}</div><h2>Group ${gi + 1}${room ? ' · ' + escHtml(room) : ''}</h2><div class="next-time">${formatHandsOnDate(d.base)}, ${escHtml(hs.startTime || '')}–${escHtml(hs.endTime || '')} · ${running ? 'Happening now' : 'Starts ' + relativeTime(d.from - now)}</div>${room ? '' : '<div class="next-time" style="opacity:.85">Room to be announced</div>'}${hs.topic ? `<div class="next-time" style="font-weight:normal;margin-top:10px;white-space:pre-wrap">${escHtml(hs.topic)}</div>` : ''}</div>`;
+    return `<div class="next-up-card" style="background:#0b62a4"><div class="next-label">${running ? 'BREAKOUT — HAPPENING NOW' : 'BREAKOUT — NEXT UP'}</div><h2>Group ${gi + 1}${room ? ' · ' + escHtml(room) : ''}</h2><div class="next-time">${formatHandsOnDate(d.base)}, ${escHtml(hs.startTime || '')}–${escHtml(hs.endTime || '')} · ${running ? 'Happening now' : 'Starts ' + relativeTime(d.from - now)}</div>${room ? '' : '<div class="next-time" style="opacity:.85">Room to be announced</div>'}${hs.topic ? `<div class="next-time" style="font-weight:normal;margin-top:10px;white-space:pre-wrap">${escHtml(hs.topic)}</div>` : ''}</div>`;
   }
   return LIVE_DONE;
 }
@@ -3940,7 +3943,7 @@ function liveFacultyRotationHtml(sessions, now) {
     const stations = (hs.stations || []).slice(0, Number(hs.stationCount) || 0), n = stations.length; if (!n) continue;
     const total = Number(confData.meta.facultyCount) || 0, base = balancedBucket(Number(loginNr) - 999, total, n);
     const idx = (base + si) % n, st = stations[idx] || {}, running = now >= d.from;
-    return `<div class="next-up-card" style="background:#c4145a;margin-bottom:0"><div class="next-label">${running ? 'YOUR STATION — HAPPENING NOW' : 'YOUR STATION — NEXT UP'}</div><h2>${escHtml(st.name || `Station ${idx + 1}`)} · ${escHtml(st.room || 'Room TBA')}</h2><div class="next-time">${formatHandsOnDate(d.base)}, ${escHtml(hs.startTime || '')}–${escHtml(hs.endTime || '')} · ${escHtml(st.stand || `Stand ${idx + 1}`)} · ${running ? 'Happening now' : 'Starts ' + relativeTime(d.from - now)}</div></div>`;
+    return `<div class="next-up-card" style="background:#c4145a"><div class="next-label">${running ? 'YOUR STATION — HAPPENING NOW' : 'YOUR STATION — NEXT UP'}</div><h2>${escHtml(st.name || `Station ${idx + 1}`)} · ${escHtml(st.room || 'Room TBA')}</h2><div class="next-time">${formatHandsOnDate(d.base)}, ${escHtml(hs.startTime || '')}–${escHtml(hs.endTime || '')} · ${escHtml(st.stand || `Stand ${idx + 1}`)} · ${running ? 'Happening now' : 'Starts ' + relativeTime(d.from - now)}</div></div>`;
   }
   return LIVE_DONE;
 }
@@ -3953,54 +3956,8 @@ function liveBreakoutHtml() {
   const now = new Date();
   if (c.mode === 'breakout') return liveGroupsHtml(sessions, now);
   if (mode === 'faculty') return liveFacultyRotationHtml(sessions, now);
-  return renderNextUpAcrossSessions(sessions).replace('class="next-up-card"', 'class="next-up-card" data-live="1"').replace(/margin-bottom:22px;?/, '');
+  return renderNextUpAcrossSessions(sessions);
 }
-function liveAvailable() {
-  if (!confData || !confData.meta || !(mode === 'participant' || mode === 'faculty')) return false;
-  if (!(confData.meta.modules || {}).handsOn) return false;
-  const c = confData.moduleContent && confData.moduleContent.handsOn;
-  return !!(c && Array.isArray(c.sessions) && c.sessions.length);
-}
-function liveOpenPanel() { liveOpen = true; liveRefresh(); }
-function liveClosePanel() { liveOpen = false; liveRefresh(); }
-let liveOpen = false;
-function liveRefresh() {
-  let btn = document.getElementById('liveBtn'), ov = document.getElementById('liveOverlay');
-  if (!liveAvailable()) { if (btn) btn.remove(); if (ov) ov.remove(); return; }
-  if (!btn) {
-    btn = document.createElement('button'); btn.id = 'liveBtn'; btn.type = 'button';
-    btn.setAttribute('aria-label', 'Live: where to go now');
-    btn.innerHTML = '<span class="live-dot"></span>Live';
-    btn.onclick = liveOpenPanel;
-    document.body.appendChild(btn);
-  }
-  if (liveOpen) {
-    if (!ov) {
-      ov = document.createElement('div'); ov.id = 'liveOverlay';
-      ov.onclick = e => { if (e.target === ov) liveClosePanel(); };
-      document.body.appendChild(ov);
-    }
-    ov.innerHTML = `<div class="live-panel" role="dialog" aria-label="Live"><div class="live-head"><span class="live-title"><span class="live-dot"></span>LIVE — where to go now</span><button type="button" class="live-close" onclick="liveClosePanel()" aria-label="Close">✕</button></div>${liveBreakoutHtml()}</div>`;
-  } else if (ov) ov.remove();
-}
-(function () {
-  const css = document.createElement('style');
-  css.textContent = `#liveBtn{position:fixed;right:16px;bottom:16px;z-index:900;display:flex;align-items:center;gap:8px;border:none;border-radius:999px;padding:12px 20px;background:#d11a2a;color:#fff;font:inherit;font-weight:bold;letter-spacing:.06em;box-shadow:0 4px 14px rgba(0,0,0,.28);cursor:pointer;min-height:48px}
-#liveBtn:hover{filter:brightness(1.08)}
-.live-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#fff;animation:livePulse 1.4s infinite}
-@keyframes livePulse{0%,100%{opacity:1}50%{opacity:.3}}
-#liveOverlay{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;padding:16px}
-.live-panel{width:100%;max-width:560px;background:var(--pf-white,#fff);border-radius:18px;padding:16px;max-height:90vh;overflow:auto}
-.live-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.live-title{display:flex;align-items:center;gap:8px;font-weight:bold;letter-spacing:.08em;font-size:var(--fs-small);color:#d11a2a}
-.live-title .live-dot{background:#d11a2a}
-.live-close{border:none;background:transparent;font-size:20px;cursor:pointer;min-width:44px;min-height:44px;color:inherit}
-@media (min-width:700px){#liveOverlay{align-items:center}}`;
-  document.head.appendChild(css);
-  const baseRender = render;
-  render = function () { baseRender.apply(this, arguments); liveRefresh(); };
-  setInterval(() => { if (liveOpen) liveRefresh(); }, 30000);
-})();
 
 loadConference();
 </script>
