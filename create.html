@@ -878,6 +878,10 @@ function render() {
                 <span class="mini-label">Room / where to go (optional)</span>
                 <input type="text" placeholder="e.g. Main Hall, Room 2.14" value="${escHtml(item.location || '')}" oninput="onScheduleItemField(${di},${ii},'location',this.value)">
               </div>
+              <div style="grid-column:1/-1;">
+                <span class="mini-label">More information (shown when people click the activity)</span>
+                <textarea rows="3" maxlength="2000" placeholder="e.g. what the session covers, what to bring, learning goals" oninput="onScheduleItemField(${di},${ii},'description',this.value)" style="width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid var(--pf-border);border-radius:6px;">${escHtml(item.description || '')}</textarea>
+              </div>
             </div>
           `).join("")}
           <button class="add-session-btn" onclick="addScheduleItem(${di})" style="margin-top:10px;">+ Add activity to this day</button>
@@ -1219,7 +1223,7 @@ function onModuleImage(module, file) {
 }
 function removeModuleImage(module) { form.moduleContent[module].image = ''; render(); }
 
-function newScheduleItem() { return { startTime: "", endTime: "", title: "", speaker: "", location: "" }; }
+function newScheduleItem() { return { startTime: "", endTime: "", title: "", speaker: "", location: "", description: "" }; }
 
 function addScheduleDay() {
   scheduleDays.push({ date: "", items: [newScheduleItem()] });
@@ -1301,6 +1305,7 @@ function flattenScheduleDays(days) {
         title: item.title.trim(),
         speaker: (item.speaker || "").trim(),
         location: (item.location || "").trim(),
+        description: (item.description || "").trim(),
         levelId: item.levelId || "",
       });
     });
