@@ -528,7 +528,7 @@ let form = {
   facultyCount: 20,
   observerCount: 0,
   levels: [],
-  modules: { registration: false, handsOn: false, map: false, industry: false, quiz: false, evaluations: false, conferenceFeedback: false, contact: false, facultyInfo: false, presentations: false },
+  modules: { registration: false, handsOn: false, map: false, industry: false, quiz: false, evaluations: false, conferenceFeedback: false, contact: false, happeningNow: false, directContact: false, facultyInfo: false, presentations: false },
   moduleContent: {
     handsOn: { title: "Breakout sessions", intro: "", sessions: [newHandsOnSession()] },
     map: { title: "Venue map", intro: "", address: "", image: "" },
@@ -809,6 +809,8 @@ function render() {
         ['evaluations','✓','Faculty evaluations','Faculty can mark participants pass/fail and add comments.'],
         ['conferenceFeedback','✎','Conference evaluation','Let participants submit a written evaluation of the conference.'],
         ['contact','⌕','Contact','Course coordinator and technical support details.'],
+        ['happeningNow','●','Happening now','A separate box that only shows what is happening right now from the schedule. Clicking an activity shows its details.'],
+        ['directContact','✉','Direct contact','Participants and faculty can send an urgent message to the organizer, who sees it in the organizer view and by e-mail.'],
         ['facultyInfo','☺','Faculty','Introduce faculty members: who they are, their role and where they work.'],
         ['presentations','▤','Presentations','Faculty can upload the slides they presented, for participants to download afterwards. Uploading itself happens after the conference is created.']
       ].map(([key,icon,name,desc]) => `

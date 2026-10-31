@@ -200,6 +200,10 @@
     padding: 14px 18px; font-size:var(--fs-body);
   }
   .day-group .session-card:last-child { border-radius: 0 0 8px 8px; }
+  .now-row .now-details { display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,.35); white-space:pre-wrap; line-height:1.5; font-size:var(--fs-body); }
+  .now-row.open .now-details { display:block; }
+  .now-row .now-chev { font-size:.7em; opacity:.8; display:inline-block; transition:transform .15s; }
+  .now-row.open .now-chev { transform:rotate(180deg); }
   .session-card.clickable { cursor:pointer; }
   .session-card.clickable:hover { background:rgba(0,0,0,.03); }
   .session-card.clickable:focus-visible { outline:2px solid var(--pf-theme); outline-offset:-2px; }
@@ -1066,6 +1070,7 @@ function render() {
           <div class="tab-btn ${organizerTab==='addons'?'active':''}" data-organizer-tab="addons" onclick="setOrganizerTab('addons')">Add-ons</div>
           <div class="tab-btn ${organizerTab==='quizeval'?'active':''}" data-organizer-tab="quizeval" onclick="setOrganizerTab('quizeval')">Quiz and evaluation</div>
           ${regOn() ? `<div class="tab-btn ${organizerTab==='registrations'?'active':''}" data-organizer-tab="registrations" onclick="setOrganizerTab('registrations')">Registrations${signupData && signupData.summary && signupData.summary.pending ? ` <span class="reg-badge">${signupData.summary.pending}</span>` : ''}</div>` : ''}
+          ${(editMeta && editMeta.modules && editMeta.modules.directContact) ? `<div class="tab-btn ${organizerTab==='messages'?'active':''}" data-organizer-tab="messages" onclick="setOrganizerTab('messages')">Messages<span class="tab-badge" id="dmBadge" style="${dm.unhandled ? '' : 'display:none;'}margin-left:6px;background:#d11a2a;color:#fff;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:bold;">${dm.unhandled || ''}</span></div>` : ''}
           <div class="tab-btn ${organizerTab==='administration'?'active':''}" data-organizer-tab="administration" onclick="setOrganizerTab('administration')">Administration</div>
         </div>
         <button type="button" class="tab-bar-arrow next hidden" id="tabBarNext" onclick="scrollTabBar(1)" aria-label="Show more tabs">›</button>
@@ -1289,6 +1294,8 @@ function getParticipantTabs(meta) {
     { key: "evaluations", icon: "✓", label: "Evaluate", enabled: (mode === "faculty" || mode === "observer") && !!modules.evaluations },
     { key: "conferenceFeedback", icon: "✎", label: "Feedback", enabled: !!modules.conferenceFeedback && mode !== "guest" },
     { key: "contact", icon: "⌕", label: "Contact", enabled: !!modules.contact },
+    { key: "happeningNow", icon: "●", label: "Happening now", enabled: !!modules.happeningNow },
+    { key: "directContact", icon: "✉", label: "Direct contact", enabled: !!modules.directContact && (mode === "participant" || mode === "faculty") },
     { key: "facultyInfo", icon: "☺", label: "Faculty", enabled: !!modules.facultyInfo },
     { key: "presentations", icon: "▤", label: "Presentations", enabled: !!modules.presentations },
   ].filter(t => t.enabled);
@@ -1297,6 +1304,8 @@ function getParticipantTabs(meta) {
 function renderParticipantModule(tab) {
   if ((mode === "faculty" || mode === "observer") && tab === "evaluations") return renderEvaluationTab();
   if (tab === "schedule") return renderLevelHeader() + `<div id="scheduleNowBar">${renderScheduleNowBar(filterScheduleForViewer(confData.schedule))}</div>` + renderScheduleReadOnly(filterScheduleForViewer(confData.schedule));
+  if (tab === "happeningNow") return `<h2 style="color:var(--pf-theme)">Happening now</h2><div id="happeningNowBox">${renderScheduleNowBar(filterScheduleForViewer(confData.schedule), null, true)}</div>`;
+  if (tab === "directContact") return renderDirectContactTab();
   if (tab === "quiz") return renderQuizTab();
   if (tab === "evaluations") return renderEvaluationTab();
   if (tab === "conferenceFeedback") return renderConferenceFeedbackTab();
@@ -1536,7 +1545,7 @@ function renderParticipantBreakoutSession(hs,sessionIndex){
   const groupIdx=effectiveGroupIndexInPool(Number(loginNr),pool,n,hs.groupSeed,overrides);
   if(groupIdx<0) return '';
   const members=effectiveGroupMembersInPool(groupIdx,pool,n,hs.groupSeed,overrides).filter(x=>x!==Number(loginNr));
-  return `<details class="breakout-session-card"><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">Your group: Group ${groupIdx+1}</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${members.length?`<p style="margin-top:14px"><strong>With you:</strong> ${members.map(x=>personLabel(x,names)).join(', ')}</p>`:''}</div></div></details>`;
+  return `<details class="breakout-session-card"><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">Your group: Group ${groupIdx+1}</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div>${(hs.groupRooms||[])[groupIdx]?`<div class="info-cell"><span>Room</span><strong>${escHtml(hs.groupRooms[groupIdx])}</strong></div>`:''}</div>${members.length?`<p style="margin-top:14px"><strong>With you:</strong> ${members.map(x=>personLabel(x,names)).join(', ')}</p>`:''}</div></div></details>`;
 }
 function renderFacultyBreakoutSession(hs,sessionIndex){
   const n=Number(hs.groupCount)||0; if(!n||!hs.groupSeed) return '';
@@ -1548,7 +1557,7 @@ function renderFacultyBreakoutSession(hs,sessionIndex){
   if(groupIdx<0) return '';
   const colleagues=effectiveGroupMembersInPool(groupIdx,fPool,n,hs.groupSeed,overrides).filter(x=>x!==facultyPosition);
   const participants=effectiveGroupMembersInPool(groupIdx,pPool,n,hs.groupSeed,overrides);
-  return `<details class="breakout-session-card"><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">${levelTag(hs)}Your group: Group ${groupIdx+1}</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div></div>${colleagues.length?`<p style="margin-top:14px"><strong>Faculty with you:</strong> ${colleagues.map(x=>personLabel(x,names)).join(', ')}</p>`:''}${participants.length?`<p style="margin-top:8px"><strong>Participants in this group:</strong> ${participants.map(x=>personLabel(x,names)).join(', ')}</p>`:''}</div></div></details>`;
+  return `<details class="breakout-session-card"><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">${levelTag(hs)}Your group: Group ${groupIdx+1}</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}<div class="info-card"><h3>Your group: Group ${groupIdx+1}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${escHtml(hs.startTime||'')}–${escHtml(hs.endTime||'')}</strong></div>${(hs.groupRooms||[])[groupIdx]?`<div class="info-cell"><span>Room</span><strong>${escHtml(hs.groupRooms[groupIdx])}</strong></div>`:''}</div>${colleagues.length?`<p style="margin-top:14px"><strong>Faculty with you:</strong> ${colleagues.map(x=>personLabel(x,names)).join(', ')}</p>`:''}${participants.length?`<p style="margin-top:8px"><strong>Participants in this group:</strong> ${participants.map(x=>personLabel(x,names)).join(', ')}</p>`:''}</div></div></details>`;
 }
 function renderParticipantHandsOnSession(hs,sessionIndex){const stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length;if(!n)return '';const start=minutesOf(hs.startTime),end=minutesOf(hs.endTime),step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=rotationBucket(hs,n);let cards='';for(let r=0;r<n;r++){const from=start+r*step,to=Math.min(from+step,end),station=stations[(group+sessionIndex+r)%n]||{};if(from>=end)break;cards+=`<div class="info-card"><h3>${escHtml(station.name||'Station')}</h3><div class="info-grid"><div class="info-cell"><span>Time</span><strong>${timeOf(from)}–${timeOf(to)}</strong></div><div class="info-cell"><span>Room</span><strong>${escHtml(station.room||'TBA')}</strong></div><div class="info-cell"><span>Stand</span><strong>${escHtml(station.stand||'TBA')}</strong></div></div></div>`;}return `<details class="breakout-session-card"><summary><span class="session-summary-date">${escHtml(hs.date||`Session ${sessionIndex+1}`)}</span><span class="session-summary-sub">Rotation schedule</span></summary><div class="breakout-session-card-body">${hs.topic?`<p class="content-intro" style="margin:4px 0 12px;white-space:pre-wrap">${escHtml(hs.topic)}</p>`:''}${cards}</div></details>`;}
 function renderNextUpAcrossSessions(sessions){const now=new Date();let chosen=null;for(let si=0;si<sessions.length;si++){const d=sessionDates(sessions[si]);if(!d)continue;if(now<d.to){chosen={hs:sessions[si],si,d};break;}}if(!chosen)return `<div class="next-up-card" style="background:#41708f"><div class="next-label">BREAKOUT SESSIONS</div><h2>All rotations completed</h2></div>`;const hs=chosen.hs,stations=(hs.stations||[]).slice(0,Number(hs.stationCount)||0),n=stations.length,step=Number(hs.rotationMinutes)||30,total=Number(confData.meta.participantCount)||0,group=rotationBucket(hs,n);return renderNextUpCard(hs,stations,group,n,chosen.d.start,chosen.d.end,step,chosen.si);}
@@ -1663,6 +1672,7 @@ function blankQuizQuestion() {
 function setOrganizerTab(tab) {
   organizerTab = tab;
   if (tab === 'registrations' && !signupData && !signupLoading) loadSignups();
+  if (tab === 'messages') loadDirectMessages();
   document.querySelectorAll('.tab-btn[data-organizer-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.organizerTab === organizerTab);
   });
@@ -1700,7 +1710,9 @@ function scheduleWindowsSplit(schedule) {
     .concat(scheduleItemWindows(list.filter(s => s.personal)))
     .sort((a, b) => a.from - b.from);
 }
-function renderScheduleNowBar(schedule, nowOverride) {
+let nowOpen = new Set();
+function toggleNowRow(el, id) { el.classList.toggle('open'); if (nowOpen.has(id)) nowOpen.delete(id); else nowOpen.add(id); }
+function renderScheduleNowBar(schedule, nowOverride, nowOnly) {
   const win = scheduleWindowsSplit(schedule);
   if (!win.length) return "";
   const now = nowOverride || new Date();
@@ -1709,7 +1721,11 @@ function renderScheduleNowBar(schedule, nowOverride) {
   if (current.some(x => x.s.personal)) current = current.filter(x => x.s.personal);
   const upcoming = win.filter(x => x.from > now);
   const timeRange = x => `${timeOf(x.from.getHours() * 60 + x.from.getMinutes())}–${timeOf(x.to.getHours() * 60 + x.to.getMinutes())}`;
-  const row = x => `<div style="margin-top:12px;"><div class="next-time" style="font-size:var(--fs-h2);">${escHtml(x.s.title)}</div><div class="next-time">${x.s.location ? `📍 ${escHtml(x.s.location)}` : 'Location to be announced'} · ${timeRange(x)}${x.s.speaker ? ` · ${escHtml(x.s.speaker)}` : ''}</div></div>`;
+  const row = x => { const rid = (String(x.s.id || x.s.title) + '@' + x.from.getTime()).replace(/[^\w@-]/g, '_'); return `<div class="now-row${nowOpen.has(rid) ? ' open' : ''}" role="button" tabindex="0" onclick="toggleNowRow(this,'${rid}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleNowRow(this,'${rid}');}" style="margin-top:12px;cursor:pointer;"><div class="next-time" style="font-size:var(--fs-h2);">${escHtml(x.s.title)}<span class="now-chev" aria-hidden="true"> ▾</span></div><div class="next-time">${x.s.location ? `📍 ${escHtml(x.s.location)}` : 'Location to be announced'} · ${timeRange(x)}${x.s.speaker ? ` · ${escHtml(x.s.speaker)}` : ''}</div><div class="now-details">${x.s.description ? escHtml(x.s.description) : '<i style="opacity:.8">No further information has been added for this activity.</i>'}</div></div>`; };
+  if (nowOnly) {
+    if (!current.length) return `<div class="next-up-card" style="background:#41708f"><div class="next-label">HAPPENING NOW</div><h2>Nothing is happening right now</h2></div>`;
+    return `<div class="next-up-card" style="background:var(--pf-theme)"><div class="next-label">HAPPENING NOW</div>${current.map(row).join('')}</div>`;
+  }
   if (current.length) {
     const nxtFirst = upcoming.filter(x => !current.includes(x) && (!upcoming[0] || x.from.getTime() === upcoming[0].from.getTime()));
     const nxt = nxtFirst.find(x => x.s.personal) || nxtFirst[0];
@@ -1726,9 +1742,11 @@ function renderScheduleNowBar(schedule, nowOverride) {
   return `<div class="next-up-card" style="background:#41708f"><div class="next-label">PROGRAMME</div><h2>The programme has finished</h2></div>`;
 }
 setInterval(() => {
+  if (!confData || !(mode === "participant" || mode === "faculty" || mode === "observer" || mode === "guest")) return;
   const el = document.getElementById("scheduleNowBar");
-  if (!el || !confData || !(mode === "participant" || mode === "faculty" || mode === "observer" || mode === "guest")) return;
-  el.innerHTML = renderScheduleNowBar(filterScheduleForViewer(confData.schedule));
+  if (el) el.innerHTML = renderScheduleNowBar(filterScheduleForViewer(confData.schedule));
+  const hn = document.getElementById("happeningNowBox");
+  if (hn) hn.innerHTML = renderScheduleNowBar(filterScheduleForViewer(confData.schedule), null, true);
 }, 30000);
 
 // ── Read-only schedule (participant view) ────────────────────────────
@@ -2195,6 +2213,128 @@ function renderManualSignupForm() {
     <div class="field-group"><label>E-mail</label><input type="email" autocomplete="off" inputmode="email" value="${escHtml(m.email)}" oninput="manualSignup.email=this.value"></div>
     <div class="field-group"><label>${groups.length <= 1 ? 'Group' : 'Level'}</label><select onchange="manualSignup.groupKey=this.value">${opts}</select></div>
     <button class="reg-btn" ${m.busy ? 'disabled' : ''} onclick="createManualSignup()">${m.busy ? 'Creating…' : 'Create and e-mail number'}</button>
+  </div></details>` + renderImportSignupForm();
+}
+
+// ── Import participants from an Excel file ───────────────────────────
+let imp = { open: false, total: 0, rows: [], defaultGroup: '', busy: false, done: 0, fileName: '', err: '', summary: '' };
+let xlsxLibPromise = null;
+function loadXlsxLib() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (!xlsxLibPromise) xlsxLibPromise = new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    sc.onload = () => res(window.XLSX); sc.onerror = () => { xlsxLibPromise = null; rej(new Error('Could not load the Excel reader. Check your connection and try again.')); };
+    document.head.appendChild(sc);
+  });
+  return xlsxLibPromise;
+}
+function impGroups() { return (signupData && signupData.groups) || []; }
+function impResolveGroup(txt) {
+  const t = String(txt || '').trim().toLowerCase();
+  if (!t) return '';
+  const g = impGroups().find(g => String(g.key).toLowerCase() === t || String(g.label).toLowerCase() === t);
+  return g ? g.key : null;
+}
+async function impTemplate() {
+  try {
+    const X = await loadXlsxLib();
+    const groups = impGroups();
+    const head = ['Name', 'Email'].concat(groups.length > 1 ? ['Group'] : []);
+    const ex = [['Jane Doe', 'jane@example.com'], ['John Smith', 'john@example.com']].map(r => groups.length > 1 ? r.concat([groups[0].label]) : r);
+    const ws = X.utils.aoa_to_sheet([head].concat(ex));
+    ws['!cols'] = [{ wch: 28 }, { wch: 34 }, { wch: 24 }];
+    const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, 'Participants');
+    if (groups.length > 1) { const w2 = X.utils.aoa_to_sheet([['Valid values for the Group column']].concat(groups.map(g => [g.label]))); X.utils.book_append_sheet(wb, w2, 'Groups'); }
+    X.writeFile(wb, `${confSlug}-participant-import-template.xlsx`);
+  } catch (e) { imp.err = e.message; rerenderOrganizerScroll(); }
+}
+async function impPick(input) {
+  const f = input.files && input.files[0]; if (!f) return;
+  imp.err = ''; imp.summary = ''; imp.done = 0;
+  try {
+    const X = await loadXlsxLib();
+    const wb = X.read(await f.arrayBuffer(), { type: 'array' });
+    const data = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: false });
+    if (!data.length) throw new Error('The file is empty.');
+    let ci = { name: 0, email: 1, group: 2 }, start = 0;
+    const h = data[0].map(x => String(x).trim().toLowerCase());
+    if (h.some(x => /^(name|navn|e-?mail|mail)/.test(x))) {
+      start = 1;
+      const find = re => h.findIndex(x => re.test(x));
+      ci = { name: find(/^(name|navn)/), email: find(/^(e-?mail|mail)/), group: find(/^(group|level|gruppe|niveau|class|klasse)/) };
+      if (ci.name < 0 || ci.email < 0) throw new Error('Could not find the columns "Name" and "Email" in the first row.');
+    }
+    const seen = new Set(), rows = [];
+    data.slice(start).forEach((r, i) => {
+      const name = String(r[ci.name] || '').trim(), email = String(r[ci.email] || '').trim().toLowerCase();
+      if (!name && !email) return;
+      const gTxt = ci.group >= 0 ? String(r[ci.group] || '').trim() : '';
+      const row = { line: start + i + 1, name, email, groupText: gTxt, groupKey: '', status: 'ready', msg: '' };
+      if (name.length < 2) { row.status = 'error'; row.msg = 'Missing name'; }
+      else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { row.status = 'error'; row.msg = 'Invalid e-mail'; }
+      else if (seen.has(email)) { row.status = 'error'; row.msg = 'Duplicate e-mail in file'; }
+      else {
+        const g = impResolveGroup(gTxt);
+        if (g === null) { row.status = 'error'; row.msg = `Unknown group "${gTxt}"`; }
+        else row.groupKey = g;
+      }
+      if (email) seen.add(email);
+      rows.push(row);
+    });
+    if (!rows.length) throw new Error('No rows with a name and e-mail were found.');
+    imp.rows = rows; imp.fileName = f.name;
+  } catch (e) { imp.rows = []; imp.err = e.message || 'Could not read the file.'; }
+  rerenderOrganizerScroll();
+}
+function impEffectiveGroup(r) {
+  const gs = impGroups();
+  return r.groupKey || imp.defaultGroup || (gs[0] ? gs[0].key : '');
+}
+async function impRun() {
+  if (imp.busy) return;
+  const todo = imp.rows.filter(r => r.status === 'ready');
+  if (!todo.length) return;
+  if (todo.some(r => !impEffectiveGroup(r))) { imp.err = 'Choose a default group (or fill in the Group column) so everyone can be placed.'; rerenderOrganizerScroll(); return; }
+  if (!confirm(`Create ${todo.length} participant(s) and e-mail each their number?`)) return;
+  imp.busy = true; imp.err = ""; imp.done = 0; imp.total = todo.length; rerenderOrganizerScroll();
+  let ok = 0, mailFail = 0;
+  for (const r of todo) {
+    try {
+      const resp = await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/signup/create`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminPin: pinInput, name: r.name, email: r.email, groupKey: impEffectiveGroup(r), baseUrl: signupBaseUrl() }) });
+      const d = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(d.error || 'Server error');
+      r.status = 'created'; r.nr = d.nr; ok++;
+      if (d.email && d.email.sent === false) { r.status = 'created-nomail'; r.msg = 'Created, but the e-mail failed: ' + (d.email.error || ''); mailFail++; }
+    } catch (e) {
+      r.status = 'error'; r.msg = e.message;
+      if (/No free numbers|seats are taken|Too many/i.test(e.message)) { /* keep going: other groups may still have room */ }
+    }
+    imp.done++;
+    rerenderOrganizerScroll();
+    await new Promise(res => setTimeout(res, 650)); // stay under the e-mail provider's rate limit
+  }
+  imp.busy = false;
+  imp.summary = `${ok} of ${todo.length} created${mailFail ? `, ${mailFail} without a delivered e-mail (tell them their number)` : ''}${ok < todo.length ? `, ${todo.length - ok} failed (see the list)` : ''}.`;
+  rerenderOrganizerScroll();
+  loadSignups();
+}
+function impReset() { imp = { open: true, rows: [], defaultGroup: imp.defaultGroup, busy: false, done: 0, fileName: '', err: '', summary: '' }; rerenderOrganizerScroll(); }
+function renderImportSignupForm() {
+  const groups = impGroups();
+  const ready = imp.rows.filter(r => r.status === 'ready').length;
+  const badge = r => r.status === 'created' ? `<span style="color:#16805b;font-weight:bold">✔ #${r.nr}</span>` : r.status === 'created-nomail' ? `<span style="color:#b36b00;font-weight:bold">#${r.nr} ⚠ ${escHtml(r.msg)}</span>` : r.status === 'error' ? `<span style="color:#b3261e">${escHtml(r.msg)}</span>` : '<span style="opacity:.6">ready</span>';
+  const table = imp.rows.length ? `<div style="overflow:auto;max-height:340px;border:1px solid var(--pf-border);border-radius:8px;margin:10px 0;"><table style="border-collapse:collapse;width:100%;font-size:var(--fs-small);"><thead><tr>${['#', 'Name', 'E-mail', 'Group', 'Status'].map(h => `<th style="position:sticky;top:0;background:var(--pf-gray);text-align:left;padding:6px 8px;border-bottom:2px solid var(--pf-border);">${h}</th>`).join('')}</tr></thead><tbody>${imp.rows.map(r => `<tr><td style="padding:6px 8px;border-bottom:1px solid var(--pf-border);">${r.line}</td><td style="padding:6px 8px;border-bottom:1px solid var(--pf-border);">${escHtml(r.name)}</td><td style="padding:6px 8px;border-bottom:1px solid var(--pf-border);">${escHtml(r.email)}</td><td style="padding:6px 8px;border-bottom:1px solid var(--pf-border);">${escHtml(r.groupText || '')}</td><td style="padding:6px 8px;border-bottom:1px solid var(--pf-border);">${badge(r)}</td></tr>`).join('')}</tbody></table></div>` : '';
+  const defaultSel = groups.length > 1 ? `<div class="field-group"><label>Group for rows without a Group value</label><select onchange="imp.defaultGroup=this.value">${groups.map(g => `<option value="${escHtml(g.key)}" ${(imp.defaultGroup || groups[0].key) === g.key ? 'selected' : ''}>${escHtml(g.label)}</option>`).join('')}</select></div>` : '';
+  return `<details class="organizer-module" style="margin:0 0 12px;" ${imp.open ? 'open' : ''} ontoggle="imp.open=this.open"><summary>Import participants from Excel</summary><div class="organizer-module-body" style="padding:12px 0 0;">
+    <div class="field-hint" style="margin:0 0 8px;">Upload an .xlsx file with a <b>Name</b> column and an <b>Email</b> column in the first row${groups.length > 1 ? ' (and optionally a <b>Group</b> column)' : ''}. Each person gets the next free number and an e-mail with it. Download the template to get the right format.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"><button type="button" class="reg-btn ghost" onclick="impTemplate()">⬇ Download template</button></div>
+    <div class="field-group"><label>Excel file (.xlsx)</label><input type="file" id="impFile" accept=".xlsx,.xls,.csv" onchange="impPick(this)" ${imp.busy ? 'disabled' : ''}></div>
+    ${imp.err ? `<div class="save-status error">${escHtml(imp.err)}</div>` : ''}
+    ${imp.rows.length ? `<div class="field-hint">${escHtml(imp.fileName)}: ${imp.rows.length} row(s), ${ready} ready${imp.rows.length - ready ? `, ${imp.rows.filter(r => r.status === 'error').length} with problems` : ''}.</div>${defaultSel}${table}` : ''}
+    ${imp.busy ? `<div class="field-hint">Creating… ${imp.done} / ${imp.total}</div>` : ''}
+    ${imp.summary ? `<div class="save-status">${escHtml(imp.summary)}</div>` : ''}
+    ${imp.rows.length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="reg-btn" ${imp.busy || !ready ? 'disabled' : ''} onclick="impRun()">${imp.busy ? 'Working…' : `Create ${ready} and e-mail numbers`}</button><button type="button" class="reg-btn ghost" ${imp.busy ? 'disabled' : ''} onclick="impReset()">Clear</button></div>` : ''}
   </div></details>`;
 }
 async function exportSignups(scope) {
@@ -2426,10 +2566,10 @@ function renderOrganizerEditor() {
 
         ${renderRegistrationAddon()}
 
-        ${[['handsOn','Breakout sessions'],['map','Map'],['industry','Industry'],['quiz','Quiz'],['evaluations','Faculty evaluation'],['conferenceFeedback','Conference evaluation'],['contact','Contact'],['facultyInfo','Faculty'],['presentations','Presentations']].map(([key,label]) => `
+        ${[['handsOn','Breakout sessions'],['map','Map'],['industry','Industry'],['quiz','Quiz'],['evaluations','Faculty evaluation'],['conferenceFeedback','Conference evaluation'],['contact','Contact'],['happeningNow','Happening now'],['directContact','Direct contact'],['facultyInfo','Faculty'],['presentations','Presentations']].map(([key,label]) => `
           <label class="module-toggle" style="border:2px solid var(--pf-border);border-radius:10px;padding:12px;display:flex;margin-bottom:8px;">
             <input type="checkbox" ${editMeta.modules && editMeta.modules[key] ? "checked" : ""} onchange="onToggleModule('${key}',this.checked)" style="width:18px;height:18px;margin-top:2px;accent-color:var(--pf-theme);flex-shrink:0;">
-            <div><div style="font-size:var(--fs-body);font-weight:bold;">${label}</div><div style="font-size:var(--fs-body);color:var(--pf-muted);">${key==='evaluations'?'Enable faculty evaluation for this conference.':'Show this module to participants.'}</div></div>
+            <div><div style="font-size:var(--fs-body);font-weight:bold;">${label}</div><div style="font-size:var(--fs-body);color:var(--pf-muted);">${key==='evaluations'?'Enable faculty evaluation for this conference.':key==='happeningNow'?'A separate box that only shows what is happening right now from the schedule. Clicking an activity shows its details.':key==='directContact'?'Participants and faculty can send an urgent message to you. You see it in the Messages tab and by e-mail to the organizer address.':'Show this module to participants.'}</div></div>
           </label>`).join('')}
 
         ${['map','industry'].filter(key => editMeta.modules && editMeta.modules[key]).map(renderOrganizerModuleContent).join('')}
@@ -2462,6 +2602,10 @@ function renderOrganizerEditor() {
     return `<div class="editor-tab-content">${renderRegistrationsTab()}</div>`;
   }
 
+  if (organizerTab === 'messages') {
+    return `<div class="editor-tab-content">${renderMessagesTab()}</div>`;
+  }
+
   if (organizerTab === 'breakout') {
     return `
       <div class="editor-tab-content">
@@ -2492,7 +2636,14 @@ function renderOrganizerEditor() {
 }
 
 function renderOrganizerTextResponsesTab(hasQuiz,hasFeedback){return `${hasFeedback?renderConferenceFeedbackResponses():''}${hasQuiz?renderQuizTextResponsesTab():''}`;}
-function renderConferenceFeedbackResponses(){if(!conferenceFeedbackResults)return `<div class="section-title" style="margin:8px 0;">Conference evaluation responses</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">See a summary of the comments, scores and multiple-choice answers submitted by participants and faculty. Download the .xlsx file to see what each individual person answered.</p><button class="save-btn" onclick="loadConferenceFeedbackResults()">Load conference feedback</button>${conferenceFeedbackResultsError?`<div class="save-status error">${escHtml(conferenceFeedbackResultsError)}</div>`:''}`;const rows=conferenceFeedbackResults.records||[];return `<div class="section-title" style="margin:8px 0;">Conference evaluation responses (${rows.length})</div>${renderItemStatsSummary(conferenceFeedbackResults.itemStats)||'<div class="empty-note">No conference feedback yet.</div>'}<button class="save-btn" onclick="downloadConferenceFeedback()">Download conference feedback (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="conferenceFeedbackResults=null;conferenceFeedbackResultsError='';rerenderOrganizerScroll()">Refresh</button>`;}
+function renderFeedbackAnswersTable(t){
+  if(!t||!t.rows||!t.rows.length)return '';
+  const cell=v=>escHtml(Array.isArray(v)?v.join(', '):String(v==null?'':v)).replace(/\n/g,'<br>');
+  const fmt=(h,v)=>h==='Submitted at'&&v?escHtml(String(v).replace('T',' ').slice(0,16)):cell(v);
+  return `<div class="section-title" style="margin:14px 0 6px;">Individual answers</div><div style="overflow:auto;max-height:520px;border:1px solid var(--pf-border);border-radius:8px;margin-bottom:12px;"><table style="border-collapse:collapse;width:100%;font-size:var(--fs-small);"><thead><tr>${t.header.map(h=>`<th style="position:sticky;top:0;background:var(--pf-gray);text-align:left;padding:8px 10px;border-bottom:2px solid var(--pf-border);white-space:nowrap;max-width:260px;">${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${t.rows.map(r=>`<tr>${r.map((v,i)=>`<td style="padding:8px 10px;border-bottom:1px solid var(--pf-border);vertical-align:top;min-width:${i<2?'60':'180'}px;">${fmt(t.header[i],v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+let conferenceFeedbackAutoTried=false;
+function renderConferenceFeedbackResponses(){if(!conferenceFeedbackResults&&!conferenceFeedbackAutoTried){conferenceFeedbackAutoTried=true;setTimeout(loadConferenceFeedbackResults,0);}if(!conferenceFeedbackResults)return `<div class="section-title" style="margin:8px 0;">Conference evaluation responses</div><p style="font-size:var(--fs-small);color:var(--pf-muted);margin-bottom:10px;">See a summary of the comments, scores and multiple-choice answers submitted by participants and faculty. Individual answers are shown below once loaded, and you can also download them as an .xlsx file.</p><button class="save-btn" onclick="loadConferenceFeedbackResults()">Load conference feedback</button>${conferenceFeedbackResultsError?`<div class="save-status error">${escHtml(conferenceFeedbackResultsError)}</div>`:''}`;const rows=conferenceFeedbackResults.records||[];return `<div class="section-title" style="margin:8px 0;">Conference evaluation responses (${rows.length})</div>${renderItemStatsSummary(conferenceFeedbackResults.itemStats)||'<div class="empty-note">No conference feedback yet.</div>'}${renderFeedbackAnswersTable(conferenceFeedbackResults.table)}<button class="save-btn" onclick="downloadConferenceFeedback()">Download conference feedback (.xlsx)</button><button class="pin-btn" style="width:100%;margin-top:8px;" onclick="loadConferenceFeedbackResults()">Refresh</button>`;}
 function loadConferenceFeedbackResults(){fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/results`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Could not load conference feedback.');conferenceFeedbackResults=d;conferenceFeedbackResultsError='';rerenderOrganizerScroll();}).catch(e=>{conferenceFeedbackResultsError=e.message;rerenderOrganizerScroll();});}
 async function downloadConferenceFeedback(){try{const r=await fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/feedback/export`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPin:pinInput})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'Could not create export.');}const blob=await r.blob();const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${confSlug}-conference-feedback.xlsx`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);}catch(e){alert(e.message);}}
 
@@ -2916,6 +3067,14 @@ function renderHandsOnGroupOverview(stationCount, stations) {
 // station rotation), so members are listed individually. Each member has
 // a "move to group" select so the organizer can manually rebalance after
 // the random split — an explicit override always wins over the seed.
+function onEditBreakoutGroupRoom(si,gi,val){const hs=editModuleContent.handsOn.sessions[si];if(!Array.isArray(hs.groupRooms))hs.groupRooms=[];hs.groupRooms[gi]=val;}
+function renderBreakoutGroupRooms(si){
+  const hs=editModuleContent.handsOn.sessions[si],n=Math.max(0,Math.min(50,Number(hs.groupCount)||0));
+  if(!n)return '';
+  const rooms=Array.isArray(hs.groupRooms)?hs.groupRooms:[];
+  let inputs='';for(let g=0;g<n;g++)inputs+=`<div class="field-group" style="margin:0;"><label>Group ${g+1}</label><input type="text" maxlength="120" placeholder="e.g. Room 2.14" value="${escHtml(rooms[g]||'')}" oninput="onEditBreakoutGroupRoom(${si},${g},this.value)"></div>`;
+  return `<details class="topic-toggle"><summary>Where each group meets (optional — shown in the Live view)</summary><div class="topic-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">${inputs}</div></details>`;
+}
 function renderBreakoutGroupManager(si) {
   const hs = editModuleContent.handsOn.sessions[si];
   const n = Number(hs.groupCount) || 0;
@@ -2957,7 +3116,7 @@ function renderOrganizerModuleContent(module) {
         const key=`handsOn-breakout-${si}`;
         const label=`Session ${si+1}${hs.levelId&&hasLevels()?' · '+escHtml(levelName(hs.levelId)):''}${hs.date?' · '+escHtml(hs.date):''}${hs.startTime?' · '+escHtml(hs.startTime)+(hs.endTime?'–'+escHtml(hs.endTime):''):''}${hs.groupCount?' · '+hs.groupCount+' groups':''}`;
         const removeBtn=c.sessions.length>1?`<button class="remove-btn" onclick="event.stopPropagation();event.preventDefault();removeEditBreakoutSession(${si})">✕</button>`:'';
-        const body=`${renderSessionLevelSelect(si)}<div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditBreakoutSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of groups</label><input type="number" min="1" max="50" value="${hs.groupCount}" onchange="onEditBreakoutGroupCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditBreakoutSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditBreakoutSession(${si},'endTime',this.value)"></div></div>${si>0?`<div class="field-group"><label>Group assignment</label><div class="segmented"><div class="segmented-btn ${hs.groupAssignment==='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'keep')">Keep same groups</div><div class="segmented-btn ${hs.groupAssignment!=='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'randomize')">New random groups</div></div><div class="field-hint">"Keep same groups" reuses the grouping from Session ${si}.</div></div>`:''}${renderBreakoutGroupManager(si)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditBreakoutSession(${si},'topic',this.value);this.parentElement.querySelector('.topic-preview-text').textContent=this.value;">${escHtml(hs.topic||'')}</textarea><div class="topic-preview"><div class="topic-preview-label">Preview — shown under the session date</div><p class="topic-preview-text">${escHtml(hs.topic||'')}</p></div></div></details>`;
+        const body=`${renderSessionLevelSelect(si)}<div class="field-row"><div class="field-group"><label>Date</label><input type="date" value="${escHtml(hs.date)}" oninput="onEditBreakoutSession(${si},'date',this.value)"></div><div class="field-group"><label>Number of groups</label><input type="number" min="1" max="50" value="${hs.groupCount}" onchange="onEditBreakoutGroupCount(${si},this.value)"></div></div><div class="field-row"><div class="field-group"><label>Start</label><input type="time" value="${escHtml(hs.startTime)}" oninput="onEditBreakoutSession(${si},'startTime',this.value)"></div><div class="field-group"><label>End</label><input type="time" value="${escHtml(hs.endTime)}" oninput="onEditBreakoutSession(${si},'endTime',this.value)"></div></div>${si>0?`<div class="field-group"><label>Group assignment</label><div class="segmented"><div class="segmented-btn ${hs.groupAssignment==='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'keep')">Keep same groups</div><div class="segmented-btn ${hs.groupAssignment!=='keep'?'selected':''}" onclick="onEditBreakoutAssignment(${si},'randomize')">New random groups</div></div><div class="field-hint">"Keep same groups" reuses the grouping from Session ${si}.</div></div>`:''}${renderBreakoutGroupRooms(si)}${renderBreakoutGroupManager(si)}<details class="topic-toggle"><summary>Session topic (shown to participants)</summary><div class="topic-body"><textarea placeholder="What is this session about?" oninput="onEditBreakoutSession(${si},'topic',this.value);this.parentElement.querySelector('.topic-preview-text').textContent=this.value;">${escHtml(hs.topic||'')}</textarea><div class="topic-preview"><div class="topic-preview-label">Preview — shown under the session date</div><p class="topic-preview-text">${escHtml(hs.topic||'')}</p></div></div></details>`;
         return `<details class="session-collapsible" ${editOpenSessions[key]?'open':''} ontoggle="if(this.open){editOpenSessions['${key}']=true}else{delete editOpenSessions['${key}']}"><summary>${label}${removeBtn}</summary><div class="session-collapsible-body">${body}</div></details>`;
       }).join('')}<button class="add-btn" onclick="addEditBreakoutSession()">+ Add another session</button>`;
     } else {
@@ -3706,6 +3865,142 @@ function validHandsOnConfig(c){
 function escHtml(str) {
   return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
+
+// ── Direct contact (participant → organizer) ─────────────────────────
+let dc = { text: '', busy: false, msg: '', err: false };
+function renderDirectContactTab() {
+  return `<h2 style="color:var(--pf-theme)">Direct contact</h2>
+    <p class="content-intro">Have an urgent problem? Send a message straight to the organizer. Please keep it short and say where you are, so help can find you.</p>
+    <div class="info-card"><div class="field-group"><label>Your message</label><textarea id="dcText" rows="5" maxlength="1500" placeholder="e.g. Group 3 cannot get into Room 2.14 — the door is locked." oninput="dc.text=this.value" style="width:100%;box-sizing:border-box;font:inherit;padding:10px;border:1px solid var(--pf-border);border-radius:8px;">${escHtml(dc.text)}</textarea></div>
+    <div class="field-hint" style="margin-bottom:10px;">Sent as ${mode === 'faculty' ? 'faculty' : 'participant'} #${escHtml(String(loginNr))}.</div>
+    <button class="save-btn" ${dc.busy ? 'disabled' : ''} onclick="sendDirectContact()">${dc.busy ? 'Sending…' : 'Send to organizer'}</button>
+    ${dc.msg ? `<div class="save-status ${dc.err ? 'error' : ''}" style="margin-top:10px;">${escHtml(dc.msg)}</div>` : ''}</div>`;
+}
+function sendDirectContact() {
+  if (dc.busy) return;
+  const text = (dc.text || '').trim();
+  if (text.length < 3) { dc.msg = 'Please write a short message first.'; dc.err = true; rerenderParticipantScroll(); return; }
+  dc.busy = true; dc.msg = ''; rerenderParticipantScroll();
+  fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/direct-contact`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nr: String(loginNr), message: text }) })
+    .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Could not send the message.'); dc.text = ''; dc.msg = 'Your message has been sent to the organizer.'; dc.err = false; })
+    .catch(e => { dc.msg = e.message; dc.err = true; })
+    .finally(() => { dc.busy = false; rerenderParticipantScroll(); });
+}
+// Organizer side
+let dm = { list: null, loading: false, err: '', unhandled: 0 };
+function loadDirectMessages(silent) {
+  if (dm.loading) return;
+  if (!silent) { dm.loading = true; dm.err = ''; if (organizerTab === 'messages') rerenderOrganizerScroll(); }
+  return fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/direct-contact/list`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminPin: pinInput }) })
+    .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.error || 'Could not load messages.'); dm.list = d.messages || []; dm.unhandled = dm.list.filter(m => !m.handled).length; })
+    .catch(e => { if (!silent) dm.err = e.message; })
+    .finally(() => {
+      dm.loading = false;
+      const b = document.getElementById('dmBadge'); if (b) { b.textContent = dm.unhandled || ''; b.style.display = dm.unhandled ? '' : 'none'; }
+      if (organizerTab === 'messages' && mode === 'organizer' && !(silent && document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))) rerenderOrganizerScroll();
+    });
+}
+function updateDirectMessage(id, payload) {
+  return fetch(`${PLATFORM_WORKER_URL}/conf/${encodeURIComponent(confSlug)}/direct-contact/update`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ adminPin: pinInput, id }, payload)) })
+    .then(async r => { if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Server error'); } })
+    .then(() => loadDirectMessages(true)).catch(e => alert(e.message));
+}
+function renderMessagesTab() {
+  if (!dm.list) return dm.err ? `<div class="save-status error">${escHtml(dm.err)}</div><button class="reg-btn" onclick="loadDirectMessages()">Try again</button>` : `<div class="empty-note">Loading messages…</div>`;
+  const when = iso => { try { return new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (_) { return iso; } };
+  const cards = dm.list.map(m => `<div class="info-card" style="margin-bottom:10px;${m.handled ? 'opacity:.65;' : 'border-left:5px solid #d11a2a;'}">
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><strong>${escHtml(m.role)} ${escHtml(confSlug.toUpperCase())}${escHtml(m.nr)}${m.name ? ' — ' + escHtml(m.name) : ''}</strong><span class="field-hint" style="margin:0">${escHtml(when(m.createdAt))}</span></div>
+    <p style="white-space:pre-wrap;margin:8px 0 10px;">${escHtml(m.message)}</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="reg-btn ${m.handled ? 'ghost' : ''}" onclick="updateDirectMessage('${m.id}',{handled:${!m.handled}})">${m.handled ? 'Mark as not handled' : '✔ Mark as handled'}</button><button class="reg-btn danger" onclick="if(confirm('Delete this message?'))updateDirectMessage('${m.id}',{action:'delete'})">Delete</button></div></div>`).join('');
+  return `<div class="section-title" style="margin:0 0 8px;">Messages (Direct contact)</div><div class="field-hint" style="margin:0 0 10px;">Urgent messages from participants and faculty. You also get each one by e-mail at the organizer address. This list refreshes automatically.</div><button class="reg-btn ghost" style="margin-bottom:10px;" onclick="loadDirectMessages()">Refresh</button>${cards || '<div class="empty-note">No messages yet.</div>'}`;
+}
+setInterval(() => {
+  if (mode === 'organizer' && editMeta && editMeta.modules && editMeta.modules.directContact && document.visibilityState === 'visible') loadDirectMessages(true);
+}, 30000);
+setTimeout(() => { if (mode === 'organizer' && editMeta && editMeta.modules && editMeta.modules.directContact) loadDirectMessages(true); }, 4000);
+
+// ── Live button: always shows where to go during breakout sessions ──
+const LIVE_DONE = `<div class="next-up-card" style="background:#41708f;margin-bottom:0"><div class="next-label">BREAKOUT SESSIONS</div><h2>All breakout sessions are finished</h2></div>`;
+function liveGroupsHtml(sessions, now) {
+  for (const hs of sessions) {
+    const d = sessionDates(hs); if (!d || now >= d.to) continue;
+    const n = Number(hs.groupCount) || 0; if (!n || !hs.groupSeed) continue;
+    const pool = breakoutPool(hs, mode === 'faculty' ? 'faculty' : 'participant');
+    const gi = effectiveGroupIndexInPool(Number(loginNr), pool, n, hs.groupSeed, hs.overrides || {});
+    if (gi < 0) continue;
+    const room = (hs.groupRooms || [])[gi] || '';
+    const running = now >= d.from;
+    return `<div class="next-up-card" style="background:#0b62a4;margin-bottom:0"><div class="next-label">${running ? 'BREAKOUT — HAPPENING NOW' : 'BREAKOUT — NEXT UP'}</div><h2>Group ${gi + 1}${room ? ' · ' + escHtml(room) : ''}</h2><div class="next-time">${formatHandsOnDate(d.base)}, ${escHtml(hs.startTime || '')}–${escHtml(hs.endTime || '')} · ${running ? 'Happening now' : 'Starts ' + relativeTime(d.from - now)}</div>${room ? '' : '<div class="next-time" style="opacity:.85">Room to be announced</div>'}${hs.topic ? `<div class="next-time" style="font-weight:normal;margin-top:10px;white-space:pre-wrap">${escHtml(hs.topic)}</div>` : ''}</div>`;
+  }
+  return LIVE_DONE;
+}
+function liveFacultyRotationHtml(sessions, now) {
+  for (let si = 0; si < sessions.length; si++) {
+    const hs = sessions[si], d = sessionDates(hs); if (!d || now >= d.to) continue;
+    const stations = (hs.stations || []).slice(0, Number(hs.stationCount) || 0), n = stations.length; if (!n) continue;
+    const total = Number(confData.meta.facultyCount) || 0, base = balancedBucket(Number(loginNr) - 999, total, n);
+    const idx = (base + si) % n, st = stations[idx] || {}, running = now >= d.from;
+    return `<div class="next-up-card" style="background:#c4145a;margin-bottom:0"><div class="next-label">${running ? 'YOUR STATION — HAPPENING NOW' : 'YOUR STATION — NEXT UP'}</div><h2>${escHtml(st.name || `Station ${idx + 1}`)} · ${escHtml(st.room || 'Room TBA')}</h2><div class="next-time">${formatHandsOnDate(d.base)}, ${escHtml(hs.startTime || '')}–${escHtml(hs.endTime || '')} · ${escHtml(st.stand || `Stand ${idx + 1}`)} · ${running ? 'Happening now' : 'Starts ' + relativeTime(d.from - now)}</div></div>`;
+  }
+  return LIVE_DONE;
+}
+function liveBreakoutHtml() {
+  const c = confData && confData.moduleContent && confData.moduleContent.handsOn;
+  if (!c) return '';
+  const vis = visibleLevelFilter();
+  const sessions = normalizeDisplayHandsOn(c).filter(hs => vis(hs.levelId));
+  if (!sessions.length) return `<div class="empty-note" style="margin:0">No breakout sessions have been set up yet.</div>`;
+  const now = new Date();
+  if (c.mode === 'breakout') return liveGroupsHtml(sessions, now);
+  if (mode === 'faculty') return liveFacultyRotationHtml(sessions, now);
+  return renderNextUpAcrossSessions(sessions).replace('class="next-up-card"', 'class="next-up-card" data-live="1"').replace(/margin-bottom:22px;?/, '');
+}
+function liveAvailable() {
+  if (!confData || !confData.meta || !(mode === 'participant' || mode === 'faculty')) return false;
+  if (!(confData.meta.modules || {}).handsOn) return false;
+  const c = confData.moduleContent && confData.moduleContent.handsOn;
+  return !!(c && Array.isArray(c.sessions) && c.sessions.length);
+}
+function liveOpenPanel() { liveOpen = true; liveRefresh(); }
+function liveClosePanel() { liveOpen = false; liveRefresh(); }
+let liveOpen = false;
+function liveRefresh() {
+  let btn = document.getElementById('liveBtn'), ov = document.getElementById('liveOverlay');
+  if (!liveAvailable()) { if (btn) btn.remove(); if (ov) ov.remove(); return; }
+  if (!btn) {
+    btn = document.createElement('button'); btn.id = 'liveBtn'; btn.type = 'button';
+    btn.setAttribute('aria-label', 'Live: where to go now');
+    btn.innerHTML = '<span class="live-dot"></span>Live';
+    btn.onclick = liveOpenPanel;
+    document.body.appendChild(btn);
+  }
+  if (liveOpen) {
+    if (!ov) {
+      ov = document.createElement('div'); ov.id = 'liveOverlay';
+      ov.onclick = e => { if (e.target === ov) liveClosePanel(); };
+      document.body.appendChild(ov);
+    }
+    ov.innerHTML = `<div class="live-panel" role="dialog" aria-label="Live"><div class="live-head"><span class="live-title"><span class="live-dot"></span>LIVE — where to go now</span><button type="button" class="live-close" onclick="liveClosePanel()" aria-label="Close">✕</button></div>${liveBreakoutHtml()}</div>`;
+  } else if (ov) ov.remove();
+}
+(function () {
+  const css = document.createElement('style');
+  css.textContent = `#liveBtn{position:fixed;right:16px;bottom:16px;z-index:900;display:flex;align-items:center;gap:8px;border:none;border-radius:999px;padding:12px 20px;background:#d11a2a;color:#fff;font:inherit;font-weight:bold;letter-spacing:.06em;box-shadow:0 4px 14px rgba(0,0,0,.28);cursor:pointer;min-height:48px}
+#liveBtn:hover{filter:brightness(1.08)}
+.live-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#fff;animation:livePulse 1.4s infinite}
+@keyframes livePulse{0%,100%{opacity:1}50%{opacity:.3}}
+#liveOverlay{position:fixed;inset:0;z-index:950;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;padding:16px}
+.live-panel{width:100%;max-width:560px;background:var(--pf-white,#fff);border-radius:18px;padding:16px;max-height:90vh;overflow:auto}
+.live-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.live-title{display:flex;align-items:center;gap:8px;font-weight:bold;letter-spacing:.08em;font-size:var(--fs-small);color:#d11a2a}
+.live-title .live-dot{background:#d11a2a}
+.live-close{border:none;background:transparent;font-size:20px;cursor:pointer;min-width:44px;min-height:44px;color:inherit}
+@media (min-width:700px){#liveOverlay{align-items:center}}`;
+  document.head.appendChild(css);
+  const baseRender = render;
+  render = function () { baseRender.apply(this, arguments); liveRefresh(); };
+  setInterval(() => { if (liveOpen) liveRefresh(); }, 30000);
+})();
 
 loadConference();
 </script>

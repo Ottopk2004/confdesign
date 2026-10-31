@@ -434,7 +434,7 @@ function render2() { // re-render keeping the typed values (they live in `form`)
 
 function renderLoginCard() {
   return '<div class="card"><h2>Already have a number?</h2><div class="card-sub">Enter the number you received by e-mail — participants, faculty and observers.</div>'
-    + '<input type="text" class="num-input" id="nrInput" inputmode="numeric" pattern="[0-9]*" placeholder="e.g. 42" autocomplete="off" onkeydown="if(event.key===\'Enter\')loginFromInput()">'
+    + '<input type="text" class="num-input" id="nrInput" inputmode="text" autocapitalize="characters" style="text-transform:uppercase" placeholder="e.g. 42" autocomplete="off" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key===\'Enter\')loginFromInput()">'
     + privacyBoxHtml('loginPrivacy')
     + '<div class="field-error privacy-err" id="loginErr">' + esc(loginError) + '</div>'
     + '<button class="primary-btn" onclick="loginFromInput()">Log in</button>'
