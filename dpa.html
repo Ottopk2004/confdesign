@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Data Processing Agreement — Conf Design</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+  --fs-title: 22px;  /* page / conference title */
+  --fs-h2: 17px;     /* section & card headings */
+  --fs-h3: 15px;     /* sub-headings, list titles */
+  --fs-body: 14px;   /* normal text, inputs, buttons */
+  --fs-small: 12px;  /* hints, captions, badges */
+
+    --pf-ink:        #1E2233;
+    --pf-indigo:      #3E4C9C;
+    --pf-indigo-light:#EEF0FA;
+    --pf-white:       #FFFFFF;
+    --pf-gray:        #F5F6FA;
+    --pf-border:      #DADFF0;
+    --pf-muted:       #656B85;
+    --pf-red:         #B3261E;
+    --pf-red-light:   #FBECEA;
+    --pf-amber:       #8A5A00;
+    --pf-amber-light: #FFF6E5;
+    --pf-amber-border:#F0D08A;
+  }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #eef0f6;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 24px 12px 60px;
+    color: var(--pf-ink);
+    line-height: 1.55;
+  }
+
+  .shell { width: 100%; max-width: 700px; }
+
+  .top-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .top-brand .mark {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: var(--pf-indigo); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size:var(--fs-h3); flex-shrink: 0;
+  }
+  .top-brand h1 { font-size:var(--fs-h3); color: var(--pf-ink); }
+  .top-brand p { font-size:var(--fs-small); color: var(--pf-muted); }
+
+  .card {
+    background: var(--pf-white);
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(30,34,51,0.08);
+    padding: 26px 24px;
+    margin-bottom: 16px;
+  }
+
+  .draft-notice {
+    background: var(--pf-amber-light);
+    border: 1px solid var(--pf-amber-border);
+    color: var(--pf-amber);
+    border-radius: 12px;
+    padding: 16px 18px;
+    font-size:var(--fs-body);
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+  .draft-notice b { display: block; margin-bottom: 4px; font-size:var(--fs-body); }
+
+  h2.page-title { font-size:var(--fs-h2); color: var(--pf-ink); margin-bottom: 4px; }
+  .updated { font-size:var(--fs-small); color: var(--pf-muted); margin-bottom: 20px; }
+
+  h3 {
+    font-size:var(--fs-h3);
+    color: var(--pf-indigo);
+    margin: 26px 0 8px;
+    padding-top: 16px;
+    border-top: 1px solid var(--pf-border);
+  }
+  h3:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+
+  p { font-size:var(--fs-body); margin-bottom: 10px; color: var(--pf-ink); }
+  ul { font-size:var(--fs-body); margin: 8px 0 12px 20px; }
+  li { margin-bottom: 6px; }
+
+  a { color: var(--pf-indigo); }
+
+  .fill {
+    background: var(--pf-red-light);
+    color: var(--pf-red);
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size:var(--fs-small);
+    white-space: nowrap;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size:var(--fs-body);
+    margin: 10px 0 16px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--pf-border);
+    vertical-align: top;
+  }
+  th { color: var(--pf-muted); font-size:var(--fs-small); text-transform: uppercase; letter-spacing: .03em; }
+
+  .back-link { display: inline-block; font-size:var(--fs-small); color: var(--pf-muted); text-decoration: none; margin-bottom: 16px; }
+  .back-link:hover { color: var(--pf-indigo); }
+  body { font-size: var(--fs-body); }
+  input, select, textarea, button { font-size: inherit; font-family: inherit; }
+  h1 { font-size: var(--fs-title); }
+  h2 { font-size: var(--fs-h2); }
+  h3 { font-size: var(--fs-h3); }
+  h1, h2, h3 { font-weight:800; }
+  .organizer-box { background: var(--pf-indigo-light); border-radius: 10px; padding: 12px 14px; margin: 6px 0 12px; font-size: var(--fs-body); }
+  .organizer-box:empty { display: none; }
+  .doc-links { font-size: var(--fs-small); color: var(--pf-muted); margin-top: 6px; }
+</style>
+<style>
+@media (max-width: 600px) {
+  body { padding:0 12px 40px; background:#fff; }
+  .shell { max-width:none; }
+  .top-brand { padding:16px 4px; margin-bottom:8px; }
+  .card { padding:20px 16px; border-radius:12px; box-shadow:none; border:1px solid var(--pf-border); }
+  table { font-size:var(--fs-small); }
+  th, td { padding: 6px 6px; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="top-brand">
+    <a href="login.html" style="text-decoration:none;"><div class="mark">CD</div></a>
+    <div>
+      <h1>Conf Design</h1>
+      <p>Data processing agreement</p>
+    </div>
+  </div>
+
+  <a class="back-link" href="javascript:history.length>1?history.back():location.href='login.html'">← Back</a>
+
+  <div class="card">
+
+    <h2 class="page-title">Data Processing Agreement for Conf Design</h2>
+    <div class="updated">Last updated: 12 November 2026 · Version 1.0</div>
+
+    <p>This data processing agreement (the "Agreement") governs how the operators of the Conf Design platform process personal data
+      on behalf of the organisers who use the platform to run conferences, events and meetings. It meets the requirements of
+      Article 28(3) of the General Data Protection Regulation (GDPR) and is accepted electronically when an organiser creates a
+      conference on confdesign.com.</p>
+
+    <h3>1. Parties</h3>
+    <p><b>Data controller</b> (the "Controller"): the organiser who creates and administers a conference on the Conf Design platform,
+      as identified by the name, organisation and email address registered when the conference is created.</p>
+    <p><b>Data processor</b> (the "Processor"): Otto Poulsen Kragh and Lukas Kvisgaard Andersen, who operate the Conf Design platform (confdesign.com).</p>
+    <p>Processor contact: lukaskvisgaard@gmail.com, ottokraghcph@gmail.com</p>
+
+    <h3>2. Background and scope</h3>
+    <p>The Processor provides a platform on which the Controller can set up and run a conference website. In doing so, the Processor
+      processes personal data on behalf of the Controller. This Agreement sets out the rights and obligations of both parties for that processing.</p>
+    <p>The Agreement applies to every conference the Controller creates on the platform. If this Agreement conflicts with any other terms
+      between the parties regarding the processing of personal data, this Agreement takes precedence.</p>
+
+    <h3>3. Details of the processing</h3>
+    <table>
+      <tr><th>Item</th><th>Description</th></tr>
+      <tr><td><b>Purpose</b></td><td>Providing the conference website: registration, approval and participant numbers, placement in levels and breakout groups, programme and materials, quizzes, evaluations, certificates and emails to participants</td></tr>
+      <tr><td><b>Nature of the processing</b></td><td>Collection, storage, organisation, display, export, sending by email and deletion</td></tr>
+      <tr><td><b>Data subjects</b></td><td>Participants, faculty (speakers), observers, guests and the Controller's own staff</td></tr>
+      <tr><td><b>Personal data</b></td><td>Name, email address, phone number, workplace, job title, self-description, attached PDF (e.g. CV or application), participant group and status, participant number, group placement, quiz answers and results, evaluations, certificate data, faculty profiles (incl. photo), uploaded materials, and technical data (IP address, browser type, timestamps)</td></tr>
+      <tr><td><b>Sensitive data</b></td><td>Not intended. The platform does not ask for special categories of data (GDPR Article 9) or national ID numbers (CPR)</td></tr>
+      <tr><td><b>Duration</b></td><td>As long as the conference exists on the platform. A conference is deactivated 3 months after it ends and deleted with all personal data 1 year after it ends</td></tr>
+    </table>
+
+    <h3>4. The Processor's obligations</h3>
+    <p><b>Instructions.</b> The Processor processes personal data only on documented instructions from the Controller. This Agreement and
+      the settings the Controller chooses on the platform make up the Controller's instructions. The Processor will inform the Controller
+      immediately if, in its opinion, an instruction infringes the GDPR or other data protection law.</p>
+    <p><b>No processing for own purposes.</b> The Processor does not use the personal data for its own purposes, including marketing,
+      and does not sell or share it with others except as described in this Agreement.</p>
+    <p><b>Confidentiality.</b> The Processor ensures that only persons who need access to the personal data have it, and that they are bound by confidentiality.</p>
+    <p><b>Security.</b> The Processor implements appropriate technical and organisational measures under GDPR Article 32, including:</p>
+    <ul>
+      <li>encrypted connections (HTTPS)</li>
+      <li>storage with a recognised hosting provider (Cloudflare)</li>
+      <li>access to registrant data limited to the Controller, who logs in with a PIN code</li>
+      <li>attached PDFs that can only be downloaded by the Controller</li>
+      <li>personal participant numbers for participant access</li>
+    </ul>
+    <p><b>Data subjects' rights.</b> Taking into account the nature of the processing, the Processor assists the Controller in responding to
+      requests from data subjects exercising their rights under GDPR Chapter III, e.g. access, rectification and erasure. If the Processor
+      receives such a request directly, it forwards it to the Controller without undue delay.</p>
+    <p><b>Assistance.</b> The Processor assists the Controller in complying with its obligations under GDPR Articles 32 to 36, taking into
+      account the nature of the processing and the information available to the Processor.</p>
+    <p><b>Personal data breaches.</b> The Processor notifies the Controller without undue delay, and no later than 48 hours, after becoming
+      aware of a personal data breach. The notification describes, as far as possible, what happened, which data and data subjects are
+      affected, the likely consequences and the measures taken. The Controller is responsible for notifying the supervisory authority and
+      data subjects where required.</p>
+    <p><b>Deletion and return.</b> A conference is deactivated 3 months after it ends and permanently deleted with all associated personal
+      data and files 1 year after it ends. Before deletion, the Controller can export registrant data as a spreadsheet. The Controller can
+      also delete individual registrations, attached PDFs or the entire conference earlier at any time. Personal data is not kept beyond
+      these periods unless EU or Danish law requires it.</p>
+    <p><b>Records.</b> The Processor keeps a record of the processing activities it carries out on behalf of controllers, as required by GDPR Article 30(2).</p>
+    <p><b>Audits.</b> The Processor makes available to the Controller the information necessary to demonstrate compliance with this Agreement.
+      The Controller may request written documentation once a year, or more often if there is a specific reason. Inspections beyond this
+      require reasonable notice and are at the Controller's expense.</p>
+
+    <h3>5. Sub-processors</h3>
+    <p>The Controller gives the Processor general authorisation to use sub-processors. The Processor currently uses:</p>
+    <table>
+      <tr><th>Sub-processor</th><th>Service</th><th>Data processed</th><th>Location / transfer basis</th></tr>
+      <tr><td><b>Cloudflare, Inc.</b></td><td>Hosting of the website and storage of data and files, incl. attached PDFs and presentations</td><td>All personal data on the platform</td><td>May be processed outside the EU/EEA. EU Standard Contractual Clauses or another valid transfer mechanism</td></tr>
+      <tr><td><b>Resend</b></td><td>Sending of emails (approvals with participant number, certificates, quiz results)</td><td>Name and email address</td><td>May be processed outside the EU/EEA. EU Standard Contractual Clauses or another valid transfer mechanism</td></tr>
+    </table>
+    <p>The Processor will notify the Controller by email at least 30 days before adding or replacing a sub-processor. The Controller may
+      object within that period. If the parties cannot agree, the Controller may stop using the platform and have its data deleted.</p>
+    <p>The Processor imposes the same data protection obligations on each sub-processor as set out in this Agreement and remains responsible
+      to the Controller for the sub-processor's performance.</p>
+
+    <h3>6. Transfers to third countries</h3>
+    <p>Personal data is only transferred outside the EU/EEA through the sub-processors listed above, and only on a valid basis under GDPR
+      Chapter V, such as an adequacy decision (e.g. the EU-US Data Privacy Framework) or the EU Standard Contractual Clauses.</p>
+
+    <h3>7. The Controller's obligations</h3>
+    <p>The Controller is responsible for:</p>
+    <ul>
+      <li>having a lawful basis for the processing and only collecting the personal data necessary for the conference</li>
+      <li>informing data subjects about the processing, including by making sure its name and contact details are shown under "Contact" on the conference website</li>
+      <li>giving lawful instructions and choosing the platform settings (e.g. required fields and whether a PDF is requested)</li>
+      <li>not using the platform for special categories of personal data or national ID numbers (CPR)</li>
+      <li>all content the Controller or its faculty upload to the conference website, including making sure presentations, photos and other files may lawfully be shared, e.g. images of people or material protected by copyright</li>
+      <li>keeping its PIN code secret and managing who is given faculty access</li>
+      <li>handling requests from data subjects, with the Processor's assistance under section 4</li>
+    </ul>
+
+    <h3>8. Liability</h3>
+    <p>Each party is liable under GDPR Article 82 for damage caused by its own breach of the GDPR or this Agreement. The Processor is not
+      liable for damage resulting from the Controller's instructions, settings or uploaded content. To the extent permitted by law, the
+      Processor's total liability under this Agreement is limited to <span class="fill">[amount / the fees paid by the Controller in the 12 months before the claim]</span>.</p>
+
+    <h3>9. Term and termination</h3>
+    <p>This Agreement takes effect when the Controller accepts it and applies for as long as the Processor processes personal data on the
+      Controller's behalf. When the Agreement ends, the personal data is deleted as described in section 4, unless EU or Danish law requires it to be kept.</p>
+    <p>The Processor may update this Agreement, e.g. if the platform gets new features or sub-processors change. Material changes are
+      notified to the Controller by email at least 30 days in advance.</p>
+
+    <h3>10. Governing law and disputes</h3>
+    <p>This Agreement is governed by Danish law. Any dispute is settled by the Danish courts.</p>
+
+    <h3>11. Acceptance</h3>
+    <p>The Controller accepts this Agreement electronically by ticking the acceptance box when creating a conference on confdesign.com.
+      The Processor records the date and time of acceptance, the version accepted and the conference it applies to.</p>
+
+    <p class="doc-links">See also: <a href="privacy.html">Privacy policy</a> (for participants)</p>
+  </div>
+  <footer style="text-align:center;padding:18px 12px 28px;font-size:12px;color:#656B85;"><a href="privacy.html" style="color:inherit;text-decoration:underline;">Privacy policy</a> · <a href="dpa.html" style="color:inherit;text-decoration:underline;">Data Processing Agreement</a></footer>
+</div>
+
+</body>
+</html>

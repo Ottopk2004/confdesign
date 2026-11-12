@@ -610,6 +610,14 @@ function onPrivacyToggle(checked) {
   updateCreateReadiness();
 }
 
+// Data processing agreement — accepted per conference (not remembered on the
+// device), and sent with the create request so the backend can store who
+// accepted which version, and when.
+const DPA_VERSION = "1.0";
+let dpaChecked = false;
+function onDpaToggle(checked) { dpaChecked = checked; updateCreateReadiness(); }
+function contactEmailValid() { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((form.contactEmail || "").trim()); }
+
 function cleanCode(str) {
   return str.toLowerCase().replace(/[^a-z]/g, "").slice(0, 12);
 }
@@ -676,14 +684,14 @@ function render() {
   const datesValid = form.startDate && form.endDate && form.startDate <= form.endDate;
   const sessionsValid = scheduleDays.some(d => d.items.some(it => it.title.trim().length > 0));
   const handsOnValid = !form.modules.handsOn || validateHandsOn(form.moduleContent.handsOn);
-  const ready = slugValid && pinValid && nameValid && datesValid && sessionsValid && handsOnValid && classesCheck().ok && privacyChecked && !creating;
+  const ready = slugValid && pinValid && nameValid && datesValid && sessionsValid && handsOnValid && classesCheck().ok && privacyChecked && dpaChecked && contactEmailValid() && !creating;
 
   setHtmlPreservingFocus(el, `
     ${!privacyChecked ? `
     <div class="privacy-consent" id="privacyConsent">
       <label class="privacy-check">
         <input type="checkbox" onchange="onPrivacyToggle(this.checked)">
-        <span>Jeg har læst og forstået <a href="privacy.html" target="_blank" rel="noopener">privatlivspolitikken</a>, og opretter denne konference i overensstemmelse med den.</span>
+        <span>I have read and understood the <a href="privacy.html" target="_blank" rel="noopener">privacy policy</a>, which will be shown to everyone who uses this conference.</span>
       </label>
     </div>
     ` : ""}
@@ -727,8 +735,9 @@ function render() {
       <div class="field-hint error" id="dateValidation" style="margin-top:-8px;margin-bottom:12px;">${!datesValid && form.startDate && form.endDate ? "End date must be on or after the start date." : ""}</div>
 
       <div class="field-group">
-        <label for="fEmail">Contact email (shown to participants, optional)</label>
+        <label for="fEmail">Organizer email (data controller)</label>
         <input type="email" id="fEmail" placeholder="organizer@hospital.dk" value="${escHtml(form.contactEmail)}" oninput="onField('contactEmail', this.value)">
+        <div class="field-hint" id="emailValidation">Required. Shown to participants as the contact for questions about the conference and their personal data.</div>
       </div>
 
       <div class="field-group">
@@ -892,6 +901,13 @@ function render() {
 
       <button class="add-session-btn" onclick="addScheduleDay()">+ Add day</button>
       ${draftButton()}</div></details>
+
+    <div class="privacy-consent" style="border:2px solid var(--pf-indigo);">
+      <label class="privacy-check">
+        <input type="checkbox" ${dpaChecked ? "checked" : ""} onchange="onDpaToggle(this.checked)">
+        <span>I accept the <a href="dpa.html" target="_blank" rel="noopener">Data Processing Agreement</a>. As organizer, I am the data controller for the personal data collected through this conference, and I am responsible for all content uploaded to it — including that I have the right to share presentations, photos and other material. Conf Design only provides and runs the website.</span>
+      </label>
+    </div>
 
     <button id="createConferenceBtn" class="submit-btn ${ready ? "ready" : ""}" ${ready ? "" : "disabled"} onclick="submitConference()">
       ${creating ? "Creating..." : "Create conference"}
@@ -1278,7 +1294,7 @@ function updateCreateReadiness(){
   const datesValid=!!form.startDate&&!!form.endDate&&form.startDate<=form.endDate;
   const sessionsValid=scheduleDays.some(d=>d.items.some(it=>it.title.trim().length>0));
   const handsOnValid=!form.modules.handsOn||validateHandsOn(form.moduleContent.handsOn);
-  const ready=/^[a-z]{2,12}$/.test(form.slug)&&/^\d{4,6}$/.test(form.adminPin)&&form.name.trim().length>=3&&datesValid&&sessionsValid&&handsOnValid&&classesCheck().ok&&privacyChecked&&!creating;
+  const ready=/^[a-z]{2,12}$/.test(form.slug)&&/^\d{4,6}$/.test(form.adminPin)&&form.name.trim().length>=3&&datesValid&&sessionsValid&&handsOnValid&&classesCheck().ok&&privacyChecked&&dpaChecked&&contactEmailValid()&&!creating;
   const btn=document.getElementById('createConferenceBtn');if(btn){btn.disabled=!ready;btn.classList.toggle('ready',ready);}
   const dateMsg=document.getElementById('dateValidation');if(dateMsg)dateMsg.textContent=!datesValid&&form.startDate&&form.endDate?'End date must be on or after the start date.':'';
   const clsMsg=document.getElementById('classValidation');if(clsMsg)clsMsg.textContent=classesCheck().msg;
@@ -1338,6 +1354,7 @@ function submitConference() {
     sessions: flattenScheduleDays(scheduleDays),
     levels: classesPayload().levels,
     levelAssignments: classesPayload().levelAssignments,
+    dpa: { accepted: true, version: DPA_VERSION, acceptedAt: new Date().toISOString() },
   };
 
   if (!PLATFORM_WORKER_URL) {
@@ -1390,7 +1407,7 @@ function escHtml(str) {
 render();
 </script>
 
-<footer style="flex:0 0 100%;text-align:center;padding:18px 12px 28px;font-size:12px;color:#656B85;"><a id="siteFooterPrivacy" href="privacy.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">Privatlivspolitik</a></footer>
+<footer style="flex:0 0 100%;text-align:center;padding:18px 12px 28px;font-size:12px;color:#656B85;"><a id="siteFooterPrivacy" href="privacy.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">Privacy policy</a> · <a href="dpa.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;">Data Processing Agreement</a></footer>
 <script>(function(){try{var c=new URLSearchParams(location.search).get("conf");if(c)document.getElementById("siteFooterPrivacy").href="privacy.html?conf="+encodeURIComponent(c);}catch(e){}})();</script>
 </body>
 </html>

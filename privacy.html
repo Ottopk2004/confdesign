@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="da">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Privatlivspolitik — Conf Design</title>
+<title>Privacy Policy — Conf Design</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -126,6 +126,9 @@
   h2 { font-size: var(--fs-h2); }
   h3 { font-size: var(--fs-h3); }
   h1, h2, h3 { font-weight:800; }
+  .organizer-box { background: var(--pf-indigo-light); border-radius: 10px; padding: 12px 14px; margin: 6px 0 12px; font-size: var(--fs-body); }
+  .organizer-box:empty { display: none; }
+  .doc-links { font-size: var(--fs-small); color: var(--pf-muted); margin-top: 6px; }
 </style>
 <style>
 @media (max-width: 600px) {
@@ -145,146 +148,191 @@
     <a href="login.html" style="text-decoration:none;"><div class="mark">CD</div></a>
     <div>
       <h1>Conf Design</h1>
-      <p>Privatlivspolitik</p>
+      <p>Privacy policy</p>
     </div>
   </div>
 
-  <a class="back-link" href="login.html">← Tilbage til login</a>
+  <a class="back-link" id="backLink" href="login.html">← Back to login</a>
 
   <div class="card">
 
-    <h2 class="page-title">Privatlivspolitik for Conf Design</h2>
-    <div class="updated">Senest opdateret: 06/10/2026</div>
+    <h2 class="page-title">Privacy Policy for Conf Design</h2>
+    <div class="updated">Last updated: 12 November 2026</div>
 
     <p>
-      Denne privatlivspolitik forklarer, hvordan personoplysninger om dig behandles, når du tilmelder dig eller bruger
-      en konferences hjemmeside på Conf Design-platformen — som deltager, faculty (foredragsholder), observer, gæst eller arrangør.
+      This privacy policy applies to you if you register for, log in to or otherwise use a conference website on the
+      Conf Design platform (confdesign.com), whether as a participant, faculty member (speaker), observer, guest or organiser.
+      It describes how your personal data is processed, for which purposes, and which rights you have.
     </p>
 
-    <h3>1. Hvem er ansvarlig for dine oplysninger?</h3>
-    <p><b>Dataansvarlig</b> er arrangøren af den konference, du tilmelder dig eller er logget ind på. Det er arrangøren, der bestemmer, hvilke oplysninger der indsamles, og hvad de bruges til.</p>
-    <p>Navn og e-mail kan findes under ”Contact”.</p>
-    <p>
-      <b>Databehandler:</b> Selve platformen (hjemmesiden og dens lagring) drives af
-      Otto Poulsen Kragh og Lukas Kvisgaard Andersen, som behandler oplysningerne på arrangørens vegne og efter arrangørens instrukser.
-    </p>
+    <h3>1. Data controller, data processor and contact details</h3>
+    <p><b>Data controller.</b> The data controller is the organiser of the conference you register for or are logged in to.
+      The organiser decides which information is collected and what it is used for. The organiser's name and email address
+      can be found under "Contact" on the conference website.</p>
+    <div class="organizer-box" id="organizerBox"></div>
+    <p><b>Data processor.</b> The Conf Design platform (the website and its data storage) is operated by
+      Otto Poulsen Kragh and Lukas Kvisgaard Andersen, who process personal data on behalf of the organiser and in accordance
+      with the organiser's instructions. This is set out in a <a href="dpa.html">data processing agreement</a> that every organiser accepts when creating a conference.</p>
+    <p><b>The organiser's responsibility.</b> As data controller, the organiser is responsible for having a lawful basis for the
+      processing, for the information it asks participants to provide, and for all content that the organiser or its faculty
+      upload to the conference website. This includes ensuring that presentations, photos and other files may lawfully be shared,
+      e.g. images of people or material protected by copyright. The platform operators only provide and run the website and do
+      not review uploaded content.</p>
+    <p>Platform contact: lukaskvisgaard@gmail.com, ottokraghcph@gmail.com</p>
 
-    <h3>2. Hvilke oplysninger behandles?</h3>
-    <p>Hvilke oplysninger der indsamles, afhænger af konferencen og af, hvad du selv vælger at udfylde.</p>
-    <table>
-      <tr><th>Oplysning</th><th>Eksempler</th><th>Hvorfra</th></tr>
-      <tr><td><b>Obligatoriske ved tilmelding</b></td><td>Navn og e-mailadresse</td><td>Indtastet af dig i tilmeldingsformularen</td></tr>
-      <tr><td><b>Valgfrie eller obligatoriske, afhængigt af arrangørens valg</b></td><td>Telefonnummer, arbejdsplads, jobtitel, en kort beskrivelse af dig selv</td><td>Indtastet af dig. Formularen viser tydeligt, hvad der er påkrævet</td></tr>
-      <tr><td>Vedhæftet PDF</td><td>Fx CV eller ansøgning</td><td>Uploadet af dig, hvis arrangøren beder om det</td></tr>
-      <tr><td>Tilmelding og gruppe</td><td>Valgt deltagergruppe (fx niveau, faculty, observer), status på tilmeldingen (afventer / godkendt / afvist), tildelt deltagernummer, tidspunkt for tilmelding</td><td>Dit valg og arrangørens behandling af din tilmelding</td></tr>
-      <tr><td>Placering i grupper</td><td>Niveau og breakout-gruppe</td><td>Fastsat af platformen og arrangøren</td></tr>
-      <tr><td>Quizzer og tests</td><td>Dine svar, point og resultat (bestået/ikke bestået)</td><td>Dine besvarelser under konferencen</td></tr>
-      <tr><td>Evalueringer</td><td>Faculty kan evaluere deltagere (vurdering og kommentar). Deltagere kan evaluere konferencen med svar og fritekst</td><td>Faculty og deltagere</td></tr>
-      <tr><td>Certifikat</td><td>Dit navn, dato og konferencens navn på et deltagerbevis, sendt til din e-mail</td><td>Oplysningerne fra din tilmelding</td></tr>
-      <tr><td>Faculty-profil</td><td>Navn, rolle, arbejdsplads, biografi, billede</td><td>Arrangøren eller dig, hvis du er faculty</td></tr>
-      <tr><td>Materialer</td><td>Præsentationer og filer, som faculty uploader</td><td>Faculty og arrangøren</td></tr>
-      <tr><td>Tekniske data</td><td>IP-adresse, browsertype, tidspunkter for anmodninger</td><td>Automatisk via hosting-leverandøren</td></tr>
-    </table>
-    <p>
-      Vi beder dig <b>ikke</b> om følsomme oplysninger (fx helbred, religion, fagforeningsforhold) eller cpr-nummer.
-      Undlad at skrive sådanne oplysninger i fritekstfelter eller i den PDF, du vedhæfter — er de i en vedhæftet fil, bør du fjerne dem først.
-    </p>
+    <h3>2. Description of the processing</h3>
+    <p>To give you a clear and transparent overview, this section is divided into purposes, categories of personal data,
+      sources, legal basis, recipients and retention.</p>
 
-    <h3>3. Hvorfor behandles dine oplysninger, og på hvilket grundlag?</h3>
-    <table>
-      <tr><th>Formål</th><th>Retsgrundlag (GDPR art. 6)</th></tr>
-      <tr><td>Behandle og godkende din tilmelding, tildele deltagernummer og sende det til dig på e-mail</td><td>Stk. 1, litra b (nødvendigt for at opfylde din tilmelding/aftale)</td></tr>
-      <tr><td>Give adgang til program, materialer, quiz og evaluering og placere dig i niveau og breakout-grupper</td><td>Stk. 1, litra b</td></tr>
-      <tr><td>Udstede certifikater og dokumentere deltagelse</td><td>Stk. 1, litra b og f (legitim interesse i at dokumentere deltagelse)</td></tr>
-      <tr><td>Opgøre quizresultater og evalueringer samt forbedre konferencen</td><td>Stk. 1, litra f (legitim interesse i at kvalitetssikre og udvikle konferencen)</td></tr>
-      <tr><td>Kontakte dig om praktiske forhold omkring konferencen</td><td>Stk. 1, litra b og f</td></tr>
-      <tr><td>Valgfrie oplysninger (fx telefon, beskrivelse af dig selv, vedhæftet PDF), når de ikke er nødvendige for tilmeldingen</td><td>Stk. 1, litra a (dit samtykke) — du kan til enhver tid trække det tilbage</td></tr>
-    </table>
-    <p>Dine oplysninger bruges ikke til markedsføring og sælges eller udlejes ikke.</p>
-
-    <h3>4. Hvem kan se dine oplysninger?</h3>
+    <p><b>Purposes</b></p>
     <ul>
-      <li><b>Arrangøren</b> kan se alle oplysninger om tilmeldte, inklusive en vedhæftet PDF, og kan hente dem som regneark.</li>
-      <li><b>Faculty</b> kan se nummer og navn på deltagere i de breakout-grupper, de er tilknyttet.</li>
-      <li><b>Andre deltagere</b> kan se nummer og navn på personer i deres egen breakout-gruppe. Dit navn vises i gruppelister, når det er registreret på dit nummer.</li>
-      <li><b>Alle, der har adgang til konferencesiden</b> (også gæster ved åbne konferencer), kan se de oplysninger, arrangøren har gjort offentlige, fx faculty-profiler og uploadede præsentationer.</li>
-      <li>Din e-mail, dit telefonnummer og din vedhæftede PDF vises <b>ikke</b> for andre deltagere eller faculty.</li>
+      <li><b>Registration:</b> handling and approving your registration, assigning you a participant number and sending it to you by email.</li>
+      <li><b>Participation in the conference:</b> giving you access to the programme, materials, quizzes and evaluations, and placing you in levels and breakout groups.</li>
+      <li><b>Certificates:</b> issuing certificates of attendance and documenting participation.</li>
+      <li><b>Quality assurance:</b> calculating quiz results, collecting evaluations and improving the conference.</li>
+      <li><b>Practical communication:</b> contacting you about practical matters relating to the conference.</li>
+      <li><b>Operation and security:</b> running the website securely and troubleshooting errors.</li>
+    </ul>
+    <p>Your personal data is not used for marketing purposes, and it is never sold or rented out.</p>
+
+    <p><b>Categories of personal data</b></p>
+    <p>The personal data processed depends on the conference and on what you choose to fill in.</p>
+    <table>
+      <tr><th>Category</th><th>Examples</th></tr>
+      <tr><td><b>Required at registration</b></td><td>Name and email address</td></tr>
+      <tr><td><b>Optional or required, depending on the organiser</b></td><td>Phone number, workplace, job title, a short description of yourself. The form clearly shows which fields are required</td></tr>
+      <tr><td>Attached PDF</td><td>E.g. a CV or application, if the organiser asks for one</td></tr>
+      <tr><td>Registration and group</td><td>Chosen participant group (e.g. level, faculty, observer), registration status (pending / approved / rejected / waiting list), assigned participant number, time of registration</td></tr>
+      <tr><td>Group placement</td><td>Level and breakout group</td></tr>
+      <tr><td>Quizzes and tests</td><td>Your answers, score and result (pass / fail)</td></tr>
+      <tr><td>Evaluations</td><td>Faculty may evaluate participants (rating and comment). Participants may evaluate the conference (answers and free text)</td></tr>
+      <tr><td>Certificates</td><td>Your name, the date and the name of the conference on a certificate of attendance sent to your email</td></tr>
+      <tr><td>Faculty profiles</td><td>Name, role, workplace, biography, photo</td></tr>
+      <tr><td>Materials</td><td>Presentations and files uploaded by faculty</td></tr>
+      <tr><td>Technical data</td><td>IP address, browser type, timestamps of requests</td></tr>
+    </table>
+    <p>We do <b>not</b> ask for sensitive personal data (e.g. health, religion or trade union membership) or national identification
+      numbers (CPR numbers). Please do not include such information in free-text fields or in an attached PDF. If an attachment
+      contains such information, remove it before uploading.</p>
+
+    <p><b>Sources</b></p>
+    <ul>
+      <li>Directly from you (the registration form, quiz answers, evaluations and uploads)</li>
+      <li>The organiser (processing of your registration, group placement, faculty profiles and materials)</li>
+      <li>Faculty (evaluations of participants and uploaded materials)</li>
+      <li>The platform itself (participant numbers and group placement)</li>
+      <li>Automatically via our hosting provider (technical data)</li>
     </ul>
 
-    <h3>5. Modtagere og databehandlere</h3>
-    <p>Platformen bruger følgende leverandører, som behandler data på arrangørens vegne:</p>
-    <ul>
-      <li><b>Cloudflare, Inc.</b> — drift af hjemmesiden samt lagring af data og filer (inkl. vedhæftede PDF-filer og præsentationer). Data kan behandles uden for EU/EØS; overførsel sker på grundlag af EU's standardkontraktbestemmelser (SCC) eller en anden gyldig overførselsmekanisme.</li>
-      <li><b>Resend</b> — afsendelse af e-mails (godkendelse med deltagernummer, certifikater, quizresultater). Din e-mailadresse og navn behandles i den forbindelse. Overførsel til tredjeland sker på samme grundlag som ovenfor.</li>
-    </ul>
-    <p>Oplysninger videregives ellers kun, hvis vi er retligt forpligtede til det.</p>
-
-    <h3>6. Hvor længe opbevares dine oplysninger?</h3>
-    <p>Oplysningerne opbevares ikke længere end nødvendigt. Arrangøren har fastsat følgende perioder:</p>
+    <p><b>Legal basis</b></p>
+    <p>Personal data is processed on the following legal bases under Article 6 of the General Data Protection Regulation (GDPR):</p>
     <table>
-      <tr><th>Oplysning</th><th>Opbevares</th></tr>
-      <tr><td>Afviste tilmeldinger</td><td>30 dage</td></tr>
-      <tr><td>Godkendte tilmeldinger (navn, e-mail, evt. telefon og arbejdsplads)</td><td>30 dage efter endt konference</td></tr>
-      <tr><td>Vedhæftet PDF (CV/ansøgning)</td><td>Senest 30 dage efter konferencen</td></tr>
-      <tr><td>Quiz- og evalueringsresultater</td><td>Senest 30 dage efter konferencen</td></tr>
-      <tr><td>Oplysninger til dokumentation af udstedte certifikater</td><td>Senest 30 dage efter konferencen</td></tr>
+      <tr><th>Legal basis</th><th>Used for</th></tr>
+      <tr><td><b>Art. 6(1)(b)</b> – performance of the agreement you enter into by registering</td><td>Handling your registration, assigning and sending your participant number, giving you access to the programme, materials, quizzes and evaluations, placing you in groups, issuing certificates and contacting you about practical matters</td></tr>
+      <tr><td><b>Art. 6(1)(f)</b> – the organiser's legitimate interests</td><td>Documenting participation, calculating quiz results and collecting evaluations in order to assure and develop the quality of the conference, and contacting you about practical matters</td></tr>
+      <tr><td><b>Art. 6(1)(a)</b> – your consent</td><td>Optional information such as a phone number, a description of yourself or an attached PDF that is not necessary for your registration. You can withdraw your consent at any time</td></tr>
     </table>
-    <p>
-      Efter udløb slettes konferencen og de tilknyttede data. Sletning sker efter anmodning til arrangøren eller platformens administrator —
-      platformen sletter ikke automatisk. Arrangøren kan også slette enkelte tilmeldinger og tilhørende PDF-filer.
-    </p>
 
-    <h3>7. Frivillighed og automatiske afgørelser</h3>
-    <p>
-      Navn og e-mailadresse er nødvendige for at kunne tilmelde dig og sende dit deltagernummer til dig; uden dem kan du ikke tilmelde dig.
-      Øvrige felter fremgår som valgfrie eller påkrævede i formularen. Er et felt valgfrit, har det ingen betydning for din tilmelding, om du udfylder det.
-    </p>
-    <p>
-      Quizzer rettes automatisk, og resultatet (bestået/ikke bestået) beregnes ud fra arrangørens grænse. Resultatet bruges til at udstede kursusbevis og evaluere undervisningens effektivitet.
-      Har resultatet betydning for dig, kan du bede arrangøren om at få det vurderet af et menneske. Godkendelse af tilmeldinger sker af arrangøren, ikke automatisk.
-    </p>
-
-    <h3>8. Lagring i din browser</h3>
-    <p>
-      Siden bruger ikke marketing- eller sporingscookies. For at fungere gemmer din browser nogle få oplysninger lokalt (localStorage) på din enhed:
-      at du har accepteret denne privatlivspolitik, et tilfældigt tilmeldings-id, så du kan se status på din tilmelding,
-      og — hvis du vælger "husk mig" — dit login til konferencen. Arrangører kan desuden have en kladde af en konference liggende lokalt.
-      Disse oplysninger sendes ikke til tredjepart og kan slettes, hvis du logger ud eller rydder din browserdata.
-    </p>
-
-    <h3>9. Dine rettigheder</h3>
-    <p>Efter databeskyttelsesforordningen har du ret til at:</p>
+    <p><b>Recipients</b></p>
+    <p>Within the platform, your personal data is visible to the following:</p>
     <ul>
-      <li>få <b>indsigt</b> i, hvilke oplysninger der behandles om dig, og få en kopi</li>
-      <li>få urigtige oplysninger <b>rettet</b></li>
-      <li>få dine oplysninger <b>slettet</b>, når der ikke længere er grundlag for at opbevare dem</li>
-      <li>få behandlingen <b>begrænset</b> i visse tilfælde</li>
-      <li>få udleveret de oplysninger, du selv har givet, i et almindeligt format (<b>dataportabilitet</b>)</li>
-      <li>gøre <b>indsigelse</b> mod behandling, der bygger på legitim interesse</li>
-      <li><b>trække et samtykke tilbage</b> når som helst — det påvirker ikke lovligheden af den behandling, der er sket før tilbagetrækningen</li>
-      <li><b>klage</b> til Datatilsynet, se <a href="https://www.datatilsynet.dk" target="_blank" rel="noopener">datatilsynet.dk</a></li>
+      <li><b>The organiser</b> can see all information about registrants, including any attached PDF, and can export it as a spreadsheet.</li>
+      <li><b>Faculty</b> can see the participant number and name of participants in the breakout groups they are assigned to.</li>
+      <li><b>Other participants</b> can see the participant number and name of the people in their own breakout group. Your name appears in group lists once it is registered to your participant number.</li>
+      <li><b>Anyone with access to the conference website</b> (including guests at open conferences) can see information the organiser has made public, e.g. faculty profiles and uploaded presentations.</li>
+      <li>Your email address, phone number and attached PDF are <b>never</b> shown to other participants or to faculty.</li>
     </ul>
-    <p>Skriv til arrangøren (se afsnit 1). Du får normalt svar senest inden for en måned.</p>
+    <p>The platform uses the following suppliers, which process data on behalf of the organiser:</p>
+    <ul>
+      <li><b>Cloudflare, Inc.</b> – hosting of the website and storage of data and files (including attached PDFs and presentations). Data may be processed outside the EU/EEA. Any such transfer is based on the EU Standard Contractual Clauses (SCCs) or another valid transfer mechanism.</li>
+      <li><b>Resend</b> – sending of emails (approvals with participant number, certificates and quiz results). Your name and email address are processed for this purpose. Transfers to third countries are based on the same mechanisms as above.</li>
+    </ul>
+    <p>Apart from this, personal data is only disclosed to others, such as public authorities, where we are legally required to do so.</p>
 
-    <h3>10. Sikkerhed</h3>
+    <p><b>Retention</b></p>
+    <p>Personal data is not kept longer than necessary. The following retention periods apply to all data on a conference website,
+      including registrations, attached PDFs, quiz and evaluation results, certificate documentation, faculty profiles and uploaded materials:</p>
+    <table>
+      <tr><th>When</th><th>What happens</th></tr>
+      <tr><td>3 months after the conference ends</td><td>The conference website is deactivated. Participants, faculty and guests can no longer log in or access its content.</td></tr>
+      <tr><td>1 year after the conference ends</td><td>The conference and all associated personal data and files are permanently deleted.</td></tr>
+    </table>
+    <p>The organiser can delete individual registrations, attached PDFs or the entire conference earlier at any time.</p>
+
+    <h3>3. Mandatory information and automated decisions</h3>
+    <p>Your name and email address are necessary for you to register and to receive your participant number. If you do not provide
+      them, you cannot register. All other fields are marked as optional or required in the form. Whether or not you fill in an optional
+      field has no effect on your registration.</p>
+    <p>Quizzes are graded automatically, and the result (pass / fail) is calculated against a threshold set by the organiser. The result
+      is used to issue certificates and to evaluate the effectiveness of the teaching. If the result matters to you, you can ask the
+      organiser to have it reviewed by a person. Registrations are approved by the organiser, not automatically.</p>
+
+    <h3>4. Cookies and browser storage</h3>
+    <p>The website does not use marketing or tracking cookies. To function, the website stores a small amount of information locally
+      in your browser (localStorage): that you have accepted this privacy policy, a random registration ID so you can check the status
+      of your registration, and, if you choose "Remember me", your login to the conference. Organisers may also have a draft of a
+      conference stored locally. This information is not sent to third parties and is deleted when you log out or clear your browser data.</p>
+
+    <h3>5. Security</h3>
+    <p>The connection to the website is encrypted (HTTPS). Data is stored with Cloudflare, and access to information about registrants
+      is limited to the organiser, who logs in with a PIN code. Attached PDFs can only be downloaded by the organiser.</p>
+    <p>Participants log in with their personal participant number. Do not share your number with others, and log out if you use a shared
+      computer or tablet. If you suspect that someone has used your number, contact the organiser.</p>
+
+    <h3>6. Your rights</h3>
+    <p>Under the GDPR, you have the right to:</p>
+    <ul>
+      <li>request <b>access</b> to the personal data processed about you and receive a copy</li>
+      <li>have inaccurate personal data <b>rectified</b></li>
+      <li>have your personal data <b>erased</b> when there is no longer a basis for keeping it</li>
+      <li>have the processing of your personal data <b>restricted</b> in certain cases</li>
+      <li>receive the personal data you have provided yourself in a structured, commonly used and machine-readable format (<b>data portability</b>)</li>
+      <li><b>object</b> to processing based on legitimate interest</li>
+      <li><b>withdraw your consent</b> at any time, where processing is based on consent. Withdrawal does not affect the lawfulness of processing carried out before the withdrawal</li>
+      <li>lodge a <b>complaint</b> with a data protection supervisory authority, e.g. the Danish Data Protection Agency (Datatilsynet), <a href="https://www.datatilsynet.dk" target="_blank" rel="noopener">datatilsynet.dk</a></li>
+    </ul>
+    <p>To exercise your rights, contact the organiser (see section 1). You will normally receive a reply within one month.</p>
+    <p>These rights may be subject to conditions or limitations. Whether, for example, you have a right to data portability depends on
+      the specific circumstances of the processing.</p>
+
+    <h3>7. Changes to this privacy policy</h3>
+    <p>We may update this privacy policy, e.g. if the platform gets new features. The date at the top shows when it was last changed.</p>
+
+    <h3>8. Contact</h3>
     <p>
-      Forbindelsen til siden er krypteret (HTTPS). Data opbevares hos Cloudflare, og adgangen til oplysninger om tilmeldte er begrænset til arrangøren,
-      som logger ind med en PIN-kode. Vedhæftede PDF-filer kan kun hentes af arrangøren. Adgang som deltager sker med dit personlige deltagernummer —
-      del det derfor ikke med andre, og log ud, hvis du bruger en delt computer eller tablet. Hvis du får mistanke om, at nogen har brugt dit nummer, skal du kontakte arrangøren.
-    </p>
-
-    <h3>11. Ændringer</h3>
-    <p>Vi kan opdatere denne privatlivspolitik, fx hvis platformen får nye funktioner. Datoen øverst viser, hvornår den sidst er ændret.</p>
-
-    <h3>12. Kontakt</h3>
-    <p>
-      Har du spørgsmål til denne privatlivspolitik eller behandlingen af dine oplysninger, kan du kontakte:<br>
+      If you have questions about this privacy policy or the processing of your personal data, you can contact:<br>
       lukaskvisgaard@gmail.com<br>
       ottokraghcph@gmail.com
     </p>
+    <p class="doc-links">See also: <a href="dpa.html">Data Processing Agreement</a> (between organisers and Conf Design)</p>
 
   </div>
+  <footer style="text-align:center;padding:18px 12px 28px;font-size:12px;color:#656B85;"><a href="privacy.html" style="color:inherit;text-decoration:underline;">Privacy policy</a> · <a href="dpa.html" style="color:inherit;text-decoration:underline;">Data Processing Agreement</a></footer>
 </div>
+
+<script>
+// When opened from a specific conference (privacy.html?conf=xxxx), show that
+// conference's organiser as the data controller in section 1.
+(function () {
+  const WORKER = "https://cm-worker.conferenceplanner.workers.dev";
+  const slug = (new URLSearchParams(location.search).get("conf") || "").trim().toLowerCase();
+  if (!/^[a-z]{2,12}$/.test(slug)) return;
+  document.getElementById("backLink").href = "conference.html?conf=" + encodeURIComponent(slug);
+  document.getElementById("backLink").textContent = "← Back to the conference";
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+  fetch(WORKER + "/conf/" + encodeURIComponent(slug)).then(r => r.ok ? r.json() : null).then(conf => {
+    if (!conf || !conf.meta) return;
+    const m = conf.meta;
+    const contact = ((conf.moduleContent || m.moduleContent || {}).contact) || {};
+    const name = contact.coordinatorName || "";
+    const email = contact.coordinatorEmail || m.contactEmail || "";
+    let html = "<b>Data controller for " + esc(m.name || slug.toUpperCase()) + ":</b><br>";
+    if (name) html += esc(name) + "<br>";
+    html += email ? '<a href="mailto:' + esc(email) + '">' + esc(email) + "</a>" : "See \"Contact\" on the conference website.";
+    document.getElementById("organizerBox").innerHTML = html;
+  }).catch(() => {});
+})();
+</script>
 
 </body>
 </html>
